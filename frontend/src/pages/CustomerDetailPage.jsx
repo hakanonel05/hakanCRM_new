@@ -642,7 +642,10 @@ const CustomerDetailPage = ({ customerId: propCustomerId, isModal = false, onClo
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
             {!isModal && (
-              <Button variant="ghost" size="icon" onClick={() => navigate("/customers")}>
+              <Button variant="ghost" size="icon" onClick={() => {
+                if (window.history.length > 1) navigate(-1);
+                else navigate("/customers");
+              }} data-testid="customer-detail-back-btn">
                 <ArrowLeft className="w-5 h-5" />
               </Button>
             )}

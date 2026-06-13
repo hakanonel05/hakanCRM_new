@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import axios from "axios";
 import {
   Users,
@@ -10,7 +10,14 @@ import {
   Calendar,
   Activity,
   ArrowRight,
+  Building2,
 } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "../components/ui/dialog";
 
 const API = process.env.REACT_APP_BACKEND_URL || "";
 
@@ -51,7 +58,41 @@ export default function TeamPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [sortBy, setSortBy] = useState("customers"); // customers | activity | name
+  const [modalMember, setModalMember] = useState(null); // { name } when open
+  const [modalCustomers, setModalCustomers] = useState([]);
+  const [modalLoading, setModalLoading] = useState(false);
+  const [modalSearch, setModalSearch] = useState("");
   const navigate = useNavigate();
+
+  const openCustomersModal = async (memberName) => {
+    setModalMember({ name: memberName });
+    setModalCustomers([]);
+    setModalSearch("");
+    setModalLoading(true);
+    try {
+      const res = await axios.get(
+        `${API}/api/team-members/${encodeURIComponent(memberName)}/profile?days=30&activity_limit=1`
+      );
+      setModalCustomers(res.data?.customers || []);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setModalLoading(false);
+    }
+  };
+
+  const closeModal = () => setModalMember(null);
+
+  const filteredModalCustomers = useMemo(() => {
+    const q = modalSearch.trim().toLowerCase();
+    if (!q) return modalCustomers;
+    return modalCustomers.filter(
+      (c) =>
+        c.company_name?.toLowerCase().includes(q) ||
+        c.city?.toLowerCase().includes(q) ||
+        c.market?.toLowerCase().includes(q)
+    );
+  }, [modalCustomers, modalSearch]);
 
   useEffect(() => {
     let cancelled = false;
@@ -181,10 +222,19 @@ export default function TeamPage() {
                 ? Math.round((m.won_count / m.customers_count) * 100)
                 : 0;
             return (
-              <button
+              <div
                 key={m.name}
                 onClick={() => navigate(`/team/${encodeURIComponent(m.name)}`)}
-                className="text-left rounded-xl border border-border bg-card p-4 hover:shadow-md hover:border-primary/40 transition-all group"
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    navigate(`/team/${encodeURIComponent(m.name)}`);
+                  }
+                }}
+                data-testid={`team-card-${m.name}`}
+                className="text-left rounded-xl border border-border bg-card p-4 hover:shadow-md hover:border-primary/40 transition-all group cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/40"
               >
                 <div className="flex items-start gap-3">
                   <div
@@ -205,12 +255,21 @@ export default function TeamPage() {
                 </div>
 
                 <div className="grid grid-cols-3 gap-2 mt-4 text-center">
-                  <div className="rounded-lg bg-muted/50 py-2">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      openCustomersModal(m.name);
+                    }}
+                    data-testid={`team-customers-btn-${m.name}`}
+                    className="rounded-lg bg-muted/50 hover:bg-primary/10 hover:ring-1 hover:ring-primary/30 transition-all py-2 cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/40"
+                    title="Müşteri listesini gör"
+                  >
                     <div className="text-base font-bold">{m.customers_count}</div>
                     <div className="text-[10px] text-muted-foreground uppercase">
                       Müşteri
                     </div>
-                  </div>
+                  </button>
                   <div className="rounded-lg bg-muted/50 py-2">
                     <div className="text-base font-bold text-amber-600">
                       {m.followup_count}
@@ -248,11 +307,100 @@ export default function TeamPage() {
                     %{winRate} kazanma
                   </div>
                 </div>
-              </button>
+              </div>
             );
           })}
         </div>
       )}
+
+      {/* Customers Modal */}
+      <Dialog open={!!modalMember} onOpenChange={(o) => !o && closeModal()}>
+        <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col" data-testid="team-customers-modal">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Users className="w-4 h-4 text-primary" />
+              {modalMember?.name} · Müşterileri
+              {!modalLoading && (
+                <span className="ml-1 text-xs font-normal text-muted-foreground">
+                  ({modalCustomers.length})
+                </span>
+              )}
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="relative">
+            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <input
+              value={modalSearch}
+              onChange={(e) => setModalSearch(e.target.value)}
+              placeholder="Şirket, şehir veya market ara..."
+              className="w-full pl-9 pr-3 py-2 text-sm border rounded-lg bg-card border-border focus:outline-none focus:ring-2 focus:ring-primary/30"
+              data-testid="team-modal-search"
+            />
+          </div>
+
+          <div className="flex-1 overflow-y-auto -mx-2 px-2">
+            {modalLoading ? (
+              <div className="space-y-2 py-2">
+                {[...Array(5)].map((_, i) => (
+                  <div key={i} className="h-12 rounded-lg bg-muted animate-pulse" />
+                ))}
+              </div>
+            ) : filteredModalCustomers.length === 0 ? (
+              <div className="text-center py-10 text-sm text-muted-foreground">
+                {modalCustomers.length === 0
+                  ? "Atanmış müşteri yok"
+                  : "Eşleşen müşteri bulunamadı"}
+              </div>
+            ) : (
+              <div className="space-y-1.5 py-1">
+                {filteredModalCustomers.map((c) => (
+                  <Link
+                    key={c.id}
+                    to={`/customers/${c.id}`}
+                    onClick={closeModal}
+                    data-testid={`modal-customer-${c.id}`}
+                    className="flex items-start gap-3 p-2.5 rounded-lg hover:bg-primary/5 hover:ring-1 hover:ring-primary/20 transition-all group"
+                  >
+                    <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                      <Building2 className="w-4 h-4" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="font-semibold text-sm truncate group-hover:text-primary">
+                        {c.company_name}
+                      </div>
+                      <div className="text-xs text-muted-foreground mt-0.5 flex items-center gap-2 flex-wrap">
+                        {c.market && <span>{c.market}</span>}
+                        {c.city && (
+                          <>
+                            <span>·</span>
+                            <span>{c.city}</span>
+                          </>
+                        )}
+                        {c.is_followup && (
+                          <>
+                            <span>·</span>
+                            <span className="inline-flex items-center gap-1 text-amber-600">
+                              <Bell className="w-3 h-3" />
+                              Takipte
+                            </span>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                    {c.status && (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded shrink-0 bg-muted text-muted-foreground">
+                        {c.status}
+                      </span>
+                    )}
+                    <ArrowRight className="w-4 h-4 text-muted-foreground/30 group-hover:text-primary group-hover:translate-x-0.5 transition-all shrink-0 mt-1" />
+                  </Link>
+                ))}
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

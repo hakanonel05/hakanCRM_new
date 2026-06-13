@@ -130,10 +130,14 @@ export default function TeamMemberDetailPage() {
       {/* Breadcrumb / back */}
       <div className="flex items-center gap-2 text-sm text-muted-foreground">
         <button
-          onClick={() => navigate("/team")}
+          onClick={() => {
+            if (window.history.length > 1) navigate(-1);
+            else navigate("/team");
+          }}
           className="inline-flex items-center gap-1 hover:text-primary transition-colors"
+          data-testid="team-detail-back-btn"
         >
-          <ArrowLeft className="w-4 h-4" /> Ekip
+          <ArrowLeft className="w-4 h-4" /> Geri
         </button>
         <ChevronRight className="w-3.5 h-3.5" />
         <span className="text-foreground font-medium">{decodedName}</span>
