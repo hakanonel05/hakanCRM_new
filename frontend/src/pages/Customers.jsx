@@ -72,7 +72,6 @@ import Breadcrumb from "../components/Breadcrumb";
 import { normalize, computeMatchInfo, highlightMatch, FIELD_LABELS } from "../utils/searchHelpers";
 import { swrCache } from "../utils/swrCache";
 import InlineTextEdit from "../components/InlineTextEdit";
-import AICustomerPopup from "../components/AICustomerPopup";
 import MobileCustomerList from "../components/MobileCustomerList";
 import { toast } from "sonner";
 import { useAuth } from "../App";
@@ -383,12 +382,6 @@ const Customers = () => {
   const [itemsPerPage] = useState(15);
   const [totalItems, setTotalItems] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
-  
-  // Preview panel
-  const [previewCustomer, setPreviewCustomer] = useState(null);
-  
-  // AI Popup
-  const [aiPopupCustomer, setAiPopupCustomer] = useState(null);
   
   // Inline editing
   const [editingCell, setEditingCell] = useState(null); // {rowId, field}
@@ -1264,7 +1257,7 @@ const Customers = () => {
       )}
 
       {/* Main Content */}
-      <div className={`flex-1 flex flex-col overflow-hidden transition-all duration-300 ${previewCustomer ? "mr-[40%]" : ""}`}>
+      <div className="flex-1 flex flex-col overflow-hidden transition-all duration-300">
         {/* Header - modern minimalist */}
         <div className="flex items-center justify-between gap-3 px-4 sm:px-8 py-3 sm:py-4 bg-card border-b border-border">
           <div className="min-w-0">
@@ -1888,22 +1881,6 @@ const Customers = () => {
                           )}
                         </div>
                         <div className="flex items-center gap-1 flex-shrink-0">
-                          <Sparkles 
-                            className="w-3.5 h-3.5 text-purple-400 hover:text-purple-600 cursor-pointer transition-colors" 
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setAiPopupCustomer(customer);
-                            }}
-                            title="AI Özet"
-                          />
-                          <Eye 
-                            className="w-3.5 h-3.5 text-muted-foreground/60 hover:text-primary cursor-pointer transition-colors"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setPreviewCustomer(customer);
-                            }}
-                            title="Önizleme"
-                          />
                           {customer.is_followup && <Bell className="w-3.5 h-3.5 text-amber-500" title="Takipte" />}
                         </div>
                       </div>
@@ -1973,143 +1950,6 @@ const Customers = () => {
         </div>
       </div>
 
-      {/* Preview Panel - Right Side */}
-      {previewCustomer && (
-        <div className="fixed right-0 top-0 h-full w-[40%] bg-card border-l border-slate-200 shadow-xl z-40 overflow-hidden">
-          <ScrollArea className="h-full">
-            {/* Preview Header */}
-            <div className="sticky top-0 bg-card border-b border-slate-200 p-4 flex items-center justify-between z-10">
-              <h3 className="font-semibold text-lg text-foreground">Firma Önizleme</h3>
-              <div className="flex items-center gap-2">
-                <Button size="sm" onClick={() => navigate(`/customers/${previewCustomer.id}`)}>
-                  Detaya Git
-                </Button>
-                <Button variant="ghost" size="icon" onClick={() => setPreviewCustomer(null)}>
-                  <X className="w-4 h-4" />
-                </Button>
-              </div>
-            </div>
-
-            {/* Preview Content */}
-            <div className="p-6">
-              {/* Company Header */}
-              <div className="flex items-center gap-4 mb-6">
-                <div className="w-16 h-16 bg-blue-500 rounded-xl flex items-center justify-center text-white font-bold text-2xl">
-                  {previewCustomer.company_name?.charAt(0) || "?"}
-                </div>
-                <div>
-                  <h2 className="text-xl font-bold text-foreground">{previewCustomer.company_name || "İsimsiz Firma"}</h2>
-                  <p className="text-slate-500">{previewCustomer.market || "Market belirtilmemiş"}</p>
-                  {previewCustomer.status && (
-                    <Badge className="mt-1">{previewCustomer.status}</Badge>
-                  )}
-                </div>
-              </div>
-
-              {/* Quick Info */}
-              <div className="grid grid-cols-2 gap-4 mb-6">
-                <div className="p-3 bg-muted/30 rounded-lg">
-                  <p className="text-xs text-slate-500 mb-1">Potansiyel</p>
-                  <p className="font-medium">{previewCustomer.potential_level || "Düşük"}</p>
-                </div>
-                <div className="p-3 bg-muted/30 rounded-lg">
-                  <p className="text-xs text-slate-500 mb-1">Uygulama</p>
-                  <p className="font-medium">{previewCustomer.application || "-"}</p>
-                </div>
-              </div>
-
-              {/* Contact Info */}
-              <div className="mb-6">
-                <h4 className="text-sm font-semibold text-foreground mb-3">İletişim Bilgileri</h4>
-                <div className="space-y-2">
-                  {previewCustomer.contact_info?.contact_person && (
-                    <div className="flex items-center gap-2 text-sm">
-                      <User className="w-4 h-4 text-muted-foreground/70" />
-                      <span>{previewCustomer.contact_info.contact_person}</span>
-                    </div>
-                  )}
-                  {previewCustomer.contact_info?.phone && (
-                    <div className="flex items-center gap-2 text-sm">
-                      <Phone className="w-4 h-4 text-muted-foreground/70" />
-                      <a href={`tel:${previewCustomer.contact_info.phone}`} className="text-primary hover:underline">
-                        {previewCustomer.contact_info.phone}
-                      </a>
-                    </div>
-                  )}
-                  {previewCustomer.contact_info?.email && (
-                    <div className="flex items-center gap-2 text-sm">
-                      <Mail className="w-4 h-4 text-muted-foreground/70" />
-                      <a href={`mailto:${previewCustomer.contact_info.email}`} className="text-primary hover:underline">
-                        {previewCustomer.contact_info.email}
-                      </a>
-                    </div>
-                  )}
-                  {previewCustomer.website && (
-                    <div className="flex items-center gap-2 text-sm">
-                      <Globe className="w-4 h-4 text-muted-foreground/70" />
-                      <a href={previewCustomer.website.startsWith("http") ? previewCustomer.website : `https://${previewCustomer.website}`} 
-                         target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
-                        {previewCustomer.website}
-                      </a>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Location */}
-              <div className="mb-6">
-                <h4 className="text-sm font-semibold text-foreground mb-3">Konum</h4>
-                <div className="flex items-center gap-2 text-sm">
-                  <MapPin className="w-4 h-4 text-muted-foreground/70" />
-                  <span>{previewCustomer.city || "-"}{previewCustomer.district ? `, ${previewCustomer.district}` : ""}</span>
-                </div>
-              </div>
-
-              {/* Additional Contacts */}
-              {previewCustomer.contacts && previewCustomer.contacts.length > 0 && (
-                <div className="mb-6">
-                  <h4 className="text-sm font-semibold text-foreground mb-3">Kişiler ({previewCustomer.contacts.length})</h4>
-                  <div className="space-y-2">
-                    {previewCustomer.contacts.slice(0, 3).map((contact, idx) => (
-                      <div key={idx} className="p-3 bg-muted/30 rounded-lg">
-                        <p className="font-medium text-sm">{contact.name}</p>
-                        {contact.title && <p className="text-xs text-slate-500">{contact.title}</p>}
-                        {contact.phone && <p className="text-xs text-primary">{contact.phone}</p>}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Notes Preview */}
-              {previewCustomer.notes && (
-                <div className="mb-6">
-                  <h4 className="text-sm font-semibold text-foreground mb-3">Notlar</h4>
-                  <p className="text-sm text-muted-foreground bg-muted/30 p-3 rounded-lg">{previewCustomer.notes}</p>
-                </div>
-              )}
-
-              {/* Timeline */}
-              <div>
-                <h4 className="text-sm font-semibold text-foreground mb-3">Zaman</h4>
-                <div className="space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-slate-500">Oluşturulma</span>
-                    <span>{previewCustomer.created_at ? new Date(previewCustomer.created_at).toLocaleDateString("tr-TR") : "-"}</span>
-                  </div>
-                  {previewCustomer.updated_at && (
-                    <div className="flex justify-between">
-                      <span className="text-slate-500">Güncelleme</span>
-                      <span>{new Date(previewCustomer.updated_at).toLocaleDateString("tr-TR")}</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          </ScrollArea>
-        </div>
-      )}
-
       {/* Modals */}
       <CustomerEditModal
         open={addModalOpen}
@@ -2131,13 +1971,6 @@ const Customers = () => {
       <CloudBackupModal
         open={cloudBackupOpen}
         onClose={() => setCloudBackupOpen(false)}
-      />
-
-      {/* AI Customer Popup */}
-      <AICustomerPopup
-        customer={aiPopupCustomer}
-        isOpen={!!aiPopupCustomer}
-        onClose={() => setAiPopupCustomer(null)}
       />
 
       {/* Save Filter Modal */}
