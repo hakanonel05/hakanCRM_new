@@ -18,6 +18,7 @@ import {
   Copy,
   Search,
   Plus,
+  UsersRound,
 } from "lucide-react";
 import { useAuth } from "../App";
 import {
@@ -57,6 +58,7 @@ const PUBLIC_NAV = [
   { to: "/calendar", icon: CalendarDays, label: "Takvim" },
   { to: "/visits", icon: Calendar, label: "Ziyaretler" },
   { to: "/followups", icon: Bell, label: "Follow-up" },
+  { to: "/team", icon: UsersRound, label: "Ekip" },
 ];
 
 const ADMIN_NAV = [
@@ -74,6 +76,7 @@ const PREFETCH = {
   "/calendar": () => import("../pages/CalendarPage"),
   "/visits": () => import("../pages/Visits"),
   "/followups": () => import("../pages/Followups"),
+  "/team": () => import("../pages/TeamPage"),
   "/reports": () => import("../pages/ReportsPage"),
   "/duplicates": () => import("../pages/DuplicatesPage"),
   "/users": () => import("../pages/UsersPage"),
