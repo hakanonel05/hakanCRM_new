@@ -1,4 +1,4 @@
-from fastapi import FastAPI, APIRouter, HTTPException, Query, Request, Response, Cookie, UploadFile, File
+from fastapi import FastAPI, APIRouter, HTTPException, Query, Request, Response, Cookie, UploadFile, File, Body
 from fastapi.responses import StreamingResponse, FileResponse
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
@@ -797,7 +797,11 @@ async def update_customer(customer_id: str, customer: CustomerUpdate):
     return new_customer
 
 @api_router.delete("/customers/{customer_id}")
-async def delete_customer(customer_id: str):
+async def delete_customer(customer_id: str, request: Request, session_token: Optional[str] = Cookie(None)):
+    user = await get_current_user_from_request(request, session_token)
+    if not check_permission(user, "can_delete"):
+        raise HTTPException(status_code=403, detail="Bu işlem için silme yetkisi gerekli")
+
     # Get customer name before delete
     customer = supabase.table("customers").select("company_name").eq("id", customer_id).execute()
     if not customer.data:
@@ -852,7 +856,10 @@ async def add_contact_person(customer_id: str, contact: ContactPerson):
     return updated.data[0]
 
 @api_router.delete("/customers/{customer_id}/contacts/{contact_id}")
-async def delete_contact_person(customer_id: str, contact_id: str):
+async def delete_contact_person(customer_id: str, contact_id: str, request: Request, session_token: Optional[str] = Cookie(None)):
+    user = await get_current_user_from_request(request, session_token)
+    if not check_permission(user, "can_delete"):
+        raise HTTPException(status_code=403, detail="Bu işlem için silme yetkisi gerekli")
     response = supabase.table("customers").select("*").eq("id", customer_id).execute()
     if not response.data:
         raise HTTPException(status_code=404, detail="Müşteri bulunamadı")
@@ -1966,8 +1973,8 @@ async def update_visit(visit_id: str, visit: VisitCreate):
 @api_router.delete("/visits/{visit_id}")
 async def delete_visit(visit_id: str, request: Request, session_token: Optional[str] = Cookie(None)):
     user = await get_current_user_from_request(request, session_token)
-    if not check_admin_permission(user):
-        raise HTTPException(status_code=403, detail="Silme yetkisi sadece admin kullanıcılara aittir")
+    if not check_permission(user, "can_delete"):
+        raise HTTPException(status_code=403, detail="Bu işlem için silme yetkisi gerekli")
     
     supabase.table("visits").delete().eq("id", visit_id).execute()
     return {"message": "Ziyaret silindi"}
@@ -2032,8 +2039,8 @@ async def update_call(call_id: str, call: CallCreate):
 @api_router.delete("/calls/{call_id}")
 async def delete_call(call_id: str, request: Request, session_token: Optional[str] = Cookie(None)):
     user = await get_current_user_from_request(request, session_token)
-    if not check_admin_permission(user):
-        raise HTTPException(status_code=403, detail="Silme yetkisi sadece admin kullanıcılara aittir")
+    if not check_permission(user, "can_delete"):
+        raise HTTPException(status_code=403, detail="Bu işlem için silme yetkisi gerekli")
     
     supabase.table("calls").delete().eq("id", call_id).execute()
     _latest_calls_cache["data"] = None
@@ -2221,6 +2228,16 @@ async def apply_saved_filter(filter_id: str):
             return str(value).lower() in str(customer_value).lower()
         elif operator == "not_equals":
             return str(customer_value).lower() != str(value).lower()
+        elif operator == "greater_than":
+            try:
+                return float(customer_value or 0) > float(value)
+            except (TypeError, ValueError):
+                return False
+        elif operator == "less_than":
+            try:
+                return float(customer_value or 0) < float(value)
+            except (TypeError, ValueError):
+                return False
         elif operator == "is_empty":
             return not customer_value
         elif operator == "is_not_empty":
@@ -2947,6 +2964,64 @@ def check_admin_permission(user: Optional[dict]) -> bool:
     admin_email = ADMIN_EMAIL.lower()
     return user.get("role") == "admin" or user_email == admin_email
 
+
+# ============ USER PERMISSIONS ============
+# Stored on disk because we cannot run DDL against the managed Supabase DB.
+# Structure: { user_id: {"can_delete": bool, "can_edit_dashboard": bool} }
+PERMISSIONS_FILE = Path(
+    os.environ.get("PERMISSIONS_FILE") or (Path(__file__).parent / "user_permissions.json")
+)
+ALL_PERMISSION_KEYS = ("can_delete", "can_edit_dashboard")
+
+
+def _load_permissions() -> dict:
+    try:
+        if PERMISSIONS_FILE.exists():
+            with open(PERMISSIONS_FILE, "r") as f:
+                return json.load(f) or {}
+    except Exception as e:
+        logging.warning(f"Could not load user permissions file: {e}")
+    return {}
+
+
+def _save_permissions(perms: dict) -> None:
+    try:
+        with open(PERMISSIONS_FILE, "w") as f:
+            json.dump(perms, f)
+    except Exception as e:
+        logging.warning(f"Could not save user permissions file: {e}")
+
+
+_user_permissions_cache: dict = _load_permissions()
+
+
+def get_user_permissions(user_id: str) -> dict:
+    p = _user_permissions_cache.get(user_id, {}) or {}
+    return {k: bool(p.get(k, False)) for k in ALL_PERMISSION_KEYS}
+
+
+def set_user_permission(user_id: str, key: str, value: bool) -> dict:
+    if key not in ALL_PERMISSION_KEYS:
+        raise ValueError(f"Unknown permission key: {key}")
+    current = _user_permissions_cache.get(user_id, {}) or {}
+    current[key] = bool(value)
+    _user_permissions_cache[user_id] = current
+    _save_permissions(_user_permissions_cache)
+    return get_user_permissions(user_id)
+
+
+def check_permission(user: Optional[dict], permission_key: str) -> bool:
+    """Returns True if user is admin OR has the given permission flag set."""
+    if not user:
+        return False
+    if check_admin_permission(user):
+        return True
+    uid = user.get("user_id") or user.get("id")
+    if not uid:
+        return False
+    return bool(_user_permissions_cache.get(uid, {}).get(permission_key, False))
+
+
 async def get_current_user_from_request(request: Request, session_token: Optional[str] = None) -> Optional[dict]:
     # Priority: explicit param > X-Session-Token header > cookie
     token = session_token or request.headers.get("x-session-token") or request.cookies.get("session_token")
@@ -2987,6 +3062,13 @@ async def get_current_user(request: Request, session_token: Optional[str] = Cook
     user = await get_current_user_from_request(request, session_token)
     if not user:
         raise HTTPException(status_code=401, detail="Oturum açılmamış")
+    # Attach effective permissions (admin → all true)
+    if check_admin_permission(user):
+        user["permissions"] = {k: True for k in ALL_PERMISSION_KEYS}
+        user["is_admin"] = True
+    else:
+        user["permissions"] = get_user_permissions(user.get("user_id") or user.get("id"))
+        user["is_admin"] = False
     return user
 
 @api_router.post("/auth/callback")
@@ -3372,20 +3454,70 @@ async def get_users(request: Request, session_token: Optional[str] = Cookie(None
         raise HTTPException(status_code=403, detail="Bu işlem için admin yetkisi gerekli")
     
     response = supabase.table("users").select("user_id, email, name, picture, role, auth_type, notification_days, created_at").execute()
-    return response.data
+    data = response.data or []
+    # Attach effective permissions for each user (admin → all true)
+    for u in data:
+        if (u.get("email") or "").lower() == ADMIN_EMAIL.lower() or u.get("role") == "admin":
+            u["permissions"] = {k: True for k in ALL_PERMISSION_KEYS}
+            u["is_admin"] = True
+        else:
+            u["permissions"] = get_user_permissions(u.get("user_id"))
+            u["is_admin"] = False
+    return data
 
 @api_router.put("/users/{user_id}/role")
-async def update_user_role(user_id: str, role_data: dict, request: Request, session_token: Optional[str] = Cookie(None)):
+@api_router.patch("/users/{user_id}/role")
+async def update_user_role(
+    user_id: str,
+    request: Request,
+    role: Optional[str] = None,
+    role_data: Optional[dict] = Body(default=None),
+    session_token: Optional[str] = Cookie(None),
+):
     user = await get_current_user_from_request(request, session_token)
     if not check_admin_permission(user):
         raise HTTPException(status_code=403, detail="Bu işlem için admin yetkisi gerekli")
     
-    new_role = role_data.get("role", "user")
+    # Accept both query param `?role=...` and body `{"role": "..."}`
+    new_role = role or (role_data or {}).get("role") or "user"
     if new_role not in ["admin", "user"]:
         raise HTTPException(status_code=400, detail="Geçersiz rol")
     
     supabase.table("users").update({"role": new_role}).eq("user_id", user_id).execute()
-    return {"message": "Rol güncellendi"}
+    return {"message": "Rol güncellendi", "role": new_role}
+
+
+@api_router.get("/users/{user_id}/permissions")
+async def get_user_permissions_endpoint(
+    user_id: str,
+    request: Request,
+    session_token: Optional[str] = Cookie(None),
+):
+    user = await get_current_user_from_request(request, session_token)
+    if not check_admin_permission(user):
+        raise HTTPException(status_code=403, detail="Bu işlem için admin yetkisi gerekli")
+    return {"user_id": user_id, "permissions": get_user_permissions(user_id)}
+
+
+@api_router.patch("/users/{user_id}/permissions")
+async def update_user_permissions(
+    user_id: str,
+    request: Request,
+    payload: dict = Body(...),
+    session_token: Optional[str] = Cookie(None),
+):
+    """
+    Body: { "can_delete": true, "can_edit_dashboard": false }
+    Only the included keys are updated. Unknown keys are ignored.
+    """
+    user = await get_current_user_from_request(request, session_token)
+    if not check_admin_permission(user):
+        raise HTTPException(status_code=403, detail="Bu işlem için admin yetkisi gerekli")
+    for key, value in (payload or {}).items():
+        if key in ALL_PERMISSION_KEYS:
+            set_user_permission(user_id, key, value)
+    return {"user_id": user_id, "permissions": get_user_permissions(user_id)}
+
 
 @api_router.delete("/users/{user_id}")
 async def delete_user(user_id: str, request: Request, session_token: Optional[str] = Cookie(None)):

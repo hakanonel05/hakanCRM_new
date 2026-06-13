@@ -159,10 +159,14 @@ function App() {
   };
 
   // Helper to check if user is admin (role=admin OR hakanonel05@gmail.com)
-  const isAdmin = user?.role === "admin" || user?.email?.toLowerCase() === "hakanonel05@gmail.com";
+  const isAdmin = user?.role === "admin" || user?.email?.toLowerCase() === "hakanonel05@gmail.com" || user?.is_admin === true;
+  // Permission flags (admin always true). Falls back to per-user permissions from /auth/me
+  const perms = user?.permissions || {};
+  const canDelete = isAdmin || !!perms.can_delete;
+  const canEditDashboard = isAdmin || !!perms.can_edit_dashboard;
 
   return (
-    <AuthContext.Provider value={{ user, setUser, loading, logout, isAdmin }}>
+    <AuthContext.Provider value={{ user, setUser, loading, logout, isAdmin, canDelete, canEditDashboard }}>
       <ThemeProvider>
       <div className="App">
         <BrowserRouter>

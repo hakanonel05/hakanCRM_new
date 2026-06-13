@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, useCallback, memo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCustomerModal } from "../contexts/CustomerModalContext";
+import { useAuth } from "../App";
 import axios from "axios";
 import { swrCache } from "../utils/swrCache";
 import Breadcrumb from "../components/Breadcrumb";
@@ -588,6 +589,7 @@ const saveState = (visible, layouts, chartConfigs) => {
 const Dashboard = () => {
   const navigate = useNavigate();
   const { openCustomerModal } = useCustomerModal();
+  const { canEditDashboard } = useAuth();
   const [stats, setStats] = useState(null);
   const [activities, setActivities] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -1167,7 +1169,7 @@ const Dashboard = () => {
             variant={editing ? "default" : "outline"}
             onClick={() => setEditing((e) => !e)}
             data-testid="dashboard-edit-toggle"
-            className="h-8 px-2 sm:px-3"
+            className={`h-8 px-2 sm:px-3 ${canEditDashboard ? "" : "hidden"}`}
             title={editing ? "Düzenlemeyi Bitir" : "Düzenle"}
           >
             {editing ? (

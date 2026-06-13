@@ -302,7 +302,8 @@ const FILTER_FIELDS = [
   { value: "city", label: "Şehir", type: "select" },
   { value: "district", label: "İlçe", type: "text" },
   { value: "status", label: "Durum", type: "select" },
-  { value: "potential_level", label: "Potansiyel", type: "select" },
+  { value: "potential_level", label: "Potansiyel Seviye", type: "select" },
+  { value: "potential_value", label: "Potansiyel (k€)", type: "number" },
   { value: "competitor", label: "Rakip", type: "select" },
   { value: "partner", label: "Partner", type: "select" },
   { value: "assigned_to", label: "Takip Eden", type: "text" },
@@ -314,6 +315,8 @@ const OPERATORS = [
   { value: "equals", label: "Eşittir" },
   { value: "contains", label: "İçerir" },
   { value: "not_equals", label: "Eşit Değil" },
+  { value: "greater_than", label: "Büyüktür" },
+  { value: "less_than", label: "Küçüktür" },
   { value: "is_empty", label: "Boş" },
   { value: "is_not_empty", label: "Boş Değil" }
 ];
@@ -357,7 +360,7 @@ const setOptionsToCache = (data) => {
 const Customers = () => {
   const navigate = useNavigate();
   const { openCustomerModal } = useCustomerModal();
-  const { isAdmin } = useAuth();
+  const { isAdmin, canDelete } = useAuth();
   // Mobile detection: <768px renders card list instead of table
   const [isMobile, setIsMobile] = useState(
     typeof window !== "undefined" ? window.innerWidth < 768 : false
@@ -402,6 +405,7 @@ const Customers = () => {
     partner: 105,
     products: 100,
     potential: 85,
+    potential_value: 110,
     status: 130,
     call: 115,
     assigned: 120,
@@ -1425,7 +1429,8 @@ const Customers = () => {
                             <Input
                               value={condition.value}
                               onChange={(e) => updateFilterCondition(index, "value", e.target.value)}
-                              placeholder="Değer..."
+                              placeholder={fieldConfig?.type === "number" ? "Örn: 100" : "Değer..."}
+                              type={fieldConfig?.type === "number" ? "number" : "text"}
                               className="flex-1 h-8 text-sm"
                             />
                           )
@@ -1661,7 +1666,7 @@ const Customers = () => {
               variant="destructive"
               size="sm"
               onClick={handleBulkDelete}
-              className="h-7 text-xs"
+              className={`h-7 text-xs ${canDelete ? "" : "hidden"}`}
               data-testid="bulk-delete-btn"
             >
               <Trash2 className="w-3.5 h-3.5 mr-1" />
@@ -1783,11 +1788,19 @@ const Customers = () => {
                     />
                   </th>
                   <th style={{ width: columnWidths.potential }} className="px-2 py-3 text-left text-[10px] font-bold uppercase tracking-[0.08em] text-muted-foreground/80 relative group">
-                    Potansiyel
+                    Potansiyel Seviye
                     <div 
                       className="absolute right-0 top-0 h-full w-1 cursor-col-resize opacity-0 group-hover:opacity-100 hover:bg-primary/40 active:bg-primary z-10 transition-opacity" 
                       style={{ transform: 'translateX(50%)' }}
                       onMouseDown={(e) => handleResizeStart(e, 'potential')} 
+                    />
+                  </th>
+                  <th style={{ width: columnWidths.potential_value }} className="px-2 py-3 text-left text-[10px] font-bold uppercase tracking-[0.08em] text-muted-foreground/80 relative group">
+                    Potansiyel (k€)
+                    <div 
+                      className="absolute right-0 top-0 h-full w-1 cursor-col-resize opacity-0 group-hover:opacity-100 hover:bg-primary/40 active:bg-primary z-10 transition-opacity" 
+                      style={{ transform: 'translateX(50%)' }}
+                      onMouseDown={(e) => handleResizeStart(e, 'potential_value')} 
                     />
                   </th>
                   <th style={{ width: columnWidths.status }} className="px-2 py-3 text-left text-[10px] font-bold uppercase tracking-[0.08em] text-muted-foreground/80 relative group">
@@ -1916,6 +1929,15 @@ const Customers = () => {
                     </td>
                     <td style={{ width: columnWidths.potential }} className="px-2 py-2.5 overflow-hidden">
                       {renderSelectCell(customer, "potential_level", customer.potential_level)}
+                    </td>
+                    <td
+                      style={{ width: columnWidths.potential_value }}
+                      className="px-2 py-2.5 overflow-hidden text-sm tabular-nums"
+                      data-testid={`potential-value-cell-${customer.id}`}
+                    >
+                      {customer.potential_value
+                        ? `${Number(customer.potential_value).toLocaleString("tr-TR")} k€`
+                        : <span className="text-muted-foreground/40">—</span>}
                     </td>
                     <td style={{ width: columnWidths.status }} className="px-2 py-2.5 overflow-hidden">
                       {renderStatusCell(customer)}

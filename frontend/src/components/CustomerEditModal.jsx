@@ -437,15 +437,21 @@ const CustomerEditModal = ({ open, onClose, customer }) => {
                 </div>
 
                 <div>
-                  <Label htmlFor="potential_value">Potansiyel (Rakam)</Label>
-                  <Input
-                    id="potential_value"
-                    type="number"
-                    value={formData.potential_value}
-                    onChange={(e) => handleInputChange("potential_value", parseFloat(e.target.value) || 0)}
-                    placeholder="0"
-                    className="mt-1"
-                  />
+                  <Label htmlFor="potential_value">Potansiyel (k€)</Label>
+                  <div className="relative mt-1">
+                    <Input
+                      id="potential_value"
+                      type="number"
+                      value={formData.potential_value || ""}
+                      onChange={(e) => handleInputChange("potential_value", parseFloat(e.target.value) || 0)}
+                      placeholder="0"
+                      className="pr-12"
+                      data-testid="potential-value-input"
+                    />
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground pointer-events-none">
+                      k€
+                    </span>
+                  </div>
                 </div>
 
                 <div>

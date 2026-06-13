@@ -78,7 +78,7 @@ const CustomerDetailPage = ({ customerId: propCustomerId, isModal = false, onClo
   const params = useParams();
   const id = propCustomerId || params.id;
   const navigate = useNavigate();
-  const { isAdmin } = useAuth();
+  const { isAdmin, canDelete } = useAuth();
   
   const [customer, setCustomer] = useState(null);
   const [visits, setVisits] = useState([]);
@@ -218,8 +218,8 @@ const CustomerDetailPage = ({ customerId: propCustomerId, isModal = false, onClo
   }, [id, navigate]);
 
   const handleDelete = async () => {
-    if (!isAdmin) {
-      toast.error("Silme yetkisi sadece admin kullanıcılara aittir");
+    if (!canDelete) {
+      toast.error("Bu işlem için silme yetkisi gerekli");
       return;
     }
     if (!window.confirm("Bu müşteriyi silmek istediğinizden emin misiniz?")) return;
@@ -484,8 +484,8 @@ const CustomerDetailPage = ({ customerId: propCustomerId, isModal = false, onClo
 
   // Delete call
   const handleDeleteCall = async (callId) => {
-    if (!isAdmin) {
-      toast.error("Silme yetkisi sadece admin kullanıcılara aittir");
+    if (!canDelete) {
+      toast.error("Bu işlem için silme yetkisi gerekli");
       return;
     }
     
@@ -691,8 +691,8 @@ const CustomerDetailPage = ({ customerId: propCustomerId, isModal = false, onClo
               <Pencil className="w-4 h-4 mr-1" />
               Düzenle
             </Button>
-            {isAdmin && (
-              <Button variant="destructive" size="sm" onClick={handleDelete}>
+            {canDelete && (
+              <Button variant="destructive" size="sm" onClick={handleDelete} data-testid="customer-delete-btn">
                 <Trash2 className="w-4 h-4 mr-1" />
                 Sil
               </Button>
@@ -808,10 +808,12 @@ const CustomerDetailPage = ({ customerId: propCustomerId, isModal = false, onClo
               <div className="bg-card rounded-xl border border-border p-4">
                 <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
                   <Target className="w-4 h-4 text-muted-foreground/70" />
-                  Potansiyel Değer
+                  Potansiyel (k€)
                 </h3>
                 <p className="text-lg font-bold text-emerald-600">
-                  {customer.potential_value ? `₺${customer.potential_value.toLocaleString("tr-TR")}` : "-"}
+                  {customer.potential_value
+                    ? `${customer.potential_value.toLocaleString("tr-TR")} k€`
+                    : "-"}
                 </p>
               </div>
 
