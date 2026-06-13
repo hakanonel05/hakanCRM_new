@@ -1,0 +1,235 @@
+{
+  "project_info": {
+    "name": "CRMaster",
+    "type": "saas_app",
+    "theme": "light_and_dark_toggle",
+    "archetype_light": "4 (Swiss & High-Contrast with Glassmorphism)",
+    "archetype_dark": "5 (Luxury with Neon Glow)"
+  },
+  "mood_board_direction": "CRMaster blends the clinical precision of a Swiss-style layout with the premium, tactile feel of glassmorphism in Light Mode, and transitions into a moody, cinematic Luxury archetype with subtle neon highlights in Dark Mode. The design is data-dense yet breathable, using 'Electric Indigo' as the primary accent to drive focus. The goal is to make a standard B2B tool feel like an elite, high-performance financial terminal. Glass effects create depth without sacrificing legibility, while the neon glow in dark mode acts as a functional affordance rather than pure decoration.",
+  "color_tokens": {
+    "light": {
+      "background": {
+        "base": "#F8F9FA",
+        "surface": "#FFFFFF",
+        "elevated": "rgba(255, 255, 255, 0.7)"
+      },
+      "border": {
+        "default": "#E5E7EB",
+        "subtle": "rgba(229, 231, 235, 0.5)",
+        "glass": "rgba(255, 255, 255, 0.4)"
+      },
+      "text": {
+        "primary": "#0F172A",
+        "secondary": "#475569",
+        "tertiary": "#94A3B8"
+      },
+      "accent": {
+        "default": "#4F46E5",
+        "hover": "#4338CA",
+        "foreground": "#FFFFFF",
+        "glow": "rgba(79, 70, 229, 0.15)"
+      },
+      "status": {
+        "success_bg": "#D1FAE5",
+        "success_text": "#065F46",
+        "info_bg": "#DBEAFE",
+        "info_text": "#1E40AF",
+        "warning_bg": "#FEF3C7",
+        "warning_text": "#92400E",
+        "neutral_bg": "#F3E8FF",
+        "neutral_text": "#6B21A8",
+        "danger_bg": "#FEE2E2",
+        "danger_text": "#991B1B"
+      }
+    },
+    "dark": {
+      "background": {
+        "base": "#0B0C10",
+        "surface": "#12141A",
+        "elevated": "rgba(18, 20, 26, 0.6)"
+      },
+      "border": {
+        "default": "#27272A",
+        "subtle": "#1F1F22",
+        "glass": "rgba(255, 255, 255, 0.08)"
+      },
+      "text": {
+        "primary": "#F8FAFC",
+        "secondary": "#94A3B8",
+        "tertiary": "#475569"
+      },
+      "accent": {
+        "default": "#6366F1",
+        "hover": "#818CF8",
+        "foreground": "#FFFFFF",
+        "glow": "rgba(99, 102, 241, 0.4)"
+      },
+      "status": {
+        "success_border": "#10B981",
+        "success_text": "#34D399",
+        "success_glow": "rgba(16, 185, 129, 0.2)",
+        "info_border": "#3B82F6",
+        "info_text": "#60A5FA",
+        "info_glow": "rgba(59, 130, 246, 0.2)",
+        "warning_border": "#F59E0B",
+        "warning_text": "#FBBF24",
+        "warning_glow": "rgba(245, 158, 11, 0.2)",
+        "neutral_border": "#8B5CF6",
+        "neutral_text": "#A78BFA",
+        "neutral_glow": "rgba(139, 92, 246, 0.2)",
+        "danger_border": "#EF4444",
+        "danger_text": "#F87171",
+        "danger_glow": "rgba(239, 68, 68, 0.2)"
+      }
+    }
+  },
+  "typography_stack": {
+    "font_family": {
+      "heading": "'Plus Jakarta Sans', sans-serif",
+      "body": "'Inter', sans-serif"
+    },
+    "scale": {
+      "h1": "text-4xl font-bold tracking-tight",
+      "h2": "text-2xl font-bold tracking-tight",
+      "h3": "text-xl font-semibold tracking-tight",
+      "body": "text-sm leading-relaxed",
+      "label": "text-xs font-semibold uppercase tracking-[0.1em]",
+      "caption": "text-xs text-muted-foreground"
+    }
+  },
+  "component_specs": {
+    "sidebar": {
+      "layout": "w-64 fixed h-screen border-r",
+      "collapsed_state": "w-20",
+      "nav_item": "flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all duration-200",
+      "nav_item_active_light": "bg-accent/10 text-accent font-medium",
+      "nav_item_active_dark": "bg-accent/10 text-accent font-medium border border-accent/20 shadow-[0_0_15px_rgba(99,102,241,0.2)]",
+      "user_profile_card": "mt-auto p-4 border-t border-border bg-surface/50 backdrop-blur-md"
+    },
+    "topbar": {
+      "layout": "h-16 flex items-center justify-between px-6 border-b z-50 sticky top-0",
+      "glass_effect": "backdrop-blur-xl bg-surface/70 (light) | bg-surface/60 (dark)",
+      "theme_toggle": "p-2 rounded-full hover:bg-accent/10 transition-colors"
+    },
+    "cards_and_widgets": {
+      "base": "rounded-2xl border bg-surface overflow-hidden",
+      "hero_stat_card": "relative overflow-hidden text-white bg-accent",
+      "hero_stat_bg_image": "absolute inset-0 opacity-20 mix-blend-overlay object-cover",
+      "hover_state": "hover:-translate-y-1 hover:shadow-lg transition-all duration-300",
+      "edit_mode_affordance": "border-2 border-dashed border-accent/50 cursor-grab"
+    },
+    "table_rows": {
+      "layout": "flex items-center justify-between p-4 border-b border-border hover:bg-surface/50 transition-colors group",
+      "inline_edit": "cursor-pointer hover:ring-1 hover:ring-accent/50 rounded px-1 -mx-1",
+      "selected_state": "bg-accent/5"
+    },
+    "pills_and_badges": {
+      "base": "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium",
+      "status_light": "soft pastel background with matching darker text",
+      "status_dark": "transparent background, 1px solid border matching status color, text matching status color, subtle glowing box-shadow",
+      "market_app_pills": "rounded-md px-2 py-1 bg-surface border border-border text-xs"
+    },
+    "buttons": {
+      "primary": "rounded-full bg-accent text-white hover:bg-accent-hover hover:shadow-[0_4px_14px_0_rgba(79,70,229,0.39)] transition-all",
+      "secondary": "rounded-full bg-surface border border-border hover:bg-accent/5 transition-all"
+    },
+    "search_bar": {
+      "layout": "relative w-full max-w-md",
+      "input": "w-full pl-10 pr-4 py-2 rounded-full border border-border bg-surface/50 backdrop-blur-sm focus:ring-2 focus:ring-accent",
+      "icon": "absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground w-4 h-4"
+    },
+    "potansiyel_indicator": {
+      "layout": "flex items-center gap-2",
+      "ring_gauge": "w-6 h-6 rounded-full border-2 border-border relative",
+      "arc_fill": "absolute inset-0 rounded-full border-2 border-transparent border-t-accent border-r-accent transform rotate-45"
+    }
+  },
+  "effects_spec": {
+    "glass_light": "backdrop-blur-xl bg-white/70 border border-white/40 shadow-sm",
+    "glass_dark": "backdrop-blur-xl bg-black/60 border border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.4)]",
+    "neon_glow_light": "shadow-[0_0_15px_rgba(79,70,229,0.15)]",
+    "neon_glow_dark": "shadow-[0_0_20px_rgba(99,102,241,0.3),_inset_0_0_10px_rgba(99,102,241,0.1)]"
+  },
+  "motion_spec": {
+    "page_transition": "opacity 0.3s ease-in-out, transform 0.3s cubic-bezier(0.16, 1, 0.3, 1)",
+    "hover_lift": "transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1)",
+    "theme_toggle": "transform 0.5s spring, background-color 0.3s ease",
+    "list_stagger": "animate-in slide-in-from-bottom-4 fade-in duration-500 fill-mode-both"
+  },
+  "layout_specs": {
+    "desktop": {
+      "sidebar": "256px fixed",
+      "main_content": "ml-64 p-8",
+      "dashboard_grid": "grid-cols-4 gap-6",
+      "table": "min-w-full"
+    },
+    "mobile": {
+      "sidebar": "hidden (drawer/hamburger)",
+      "main_content": "ml-0 p-4 pt-20",
+      "dashboard_grid": "grid-cols-1 gap-4",
+      "table": "hidden, show responsive card view instead"
+    }
+  },
+  "tailwind_config_additions": {
+    "theme": {
+      "extend": {
+        "colors": {
+          "border": "var(--border)",
+          "input": "var(--input)",
+          "ring": "var(--ring)",
+          "background": "var(--background)",
+          "foreground": "var(--foreground)",
+          "surface": "var(--surface)",
+          "accent": {
+            "DEFAULT": "var(--accent)",
+            "hover": "var(--accent-hover)",
+            "foreground": "var(--accent-foreground)"
+          }
+        },
+        "animation": {
+          "staggered-fade-in": "fadeIn 0.5s ease-out forwards"
+        },
+        "boxShadow": {
+          "neon-glow": "0 0 15px var(--accent-glow)",
+          "glass": "0 8px 32px 0 rgba(31, 38, 135, 0.07)"
+        }
+      }
+    }
+  },
+  "implementation_roadmap": {
+    "step_1": "Update /app/frontend/src/index.css with the new CSS variables for light and dark modes.",
+    "step_2": "Update tailwind.config.js to map custom colors to the CSS variables and add custom shadows.",
+    "step_3": "Implement ThemeProvider context to handle light/dark mode toggling globally.",
+    "step_4": "Build Layout wrapper (Sidebar + Topbar with Theme Toggle) utilizing glassmorphism classes.",
+    "step_5": "Refactor Dashboard page: style react-grid-layout items with neon borders in dark mode and glass in light mode. Integrate Recharts with CSS variable colors.",
+    "step_6": "Refactor Customers page: create the new table row layout, implement Potansiyel ring gauges, and build status pills (pastel for light, glowing outline for dark)."
+  },
+  "media_assets": {
+    "images": [
+      {
+        "url": "https://images.unsplash.com/photo-1560250097-0b93528c311a?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NTYxODh8MHwxfHNlYXJjaHwxfHxwcm9mZXNzaW9uYWwlMjBidXNpbmVzcyUyMHBvcnRyYWl0JTIwaGVhZHNob3R8ZW58MHx8fHwxNzgwMzM4MzAwfDA&ixlib=rb-4.1.0&q=85",
+        "description": "Professional male avatar for customer row",
+        "category": "avatar"
+      },
+      {
+        "url": "https://images.unsplash.com/photo-1685760259914-ee8d2c92d2e0?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NTYxODh8MHwxfHNlYXJjaHw0fHxwcm9mZXNzaW9uYWwlMjBidXNpbmVzcyUyMHBvcnRyYWl0JTIwaGVhZHNob3R8ZW58MHx8fHwxNzgwMzM4MzAwfDA&ixlib=rb-4.1.0&q=85",
+        "description": "Professional female avatar for customer row",
+        "category": "avatar"
+      },
+      {
+        "url": "https://static.prod-images.emergentagent.com/jobs/2dd186d6-b277-465b-8f49-e2b489bebdb7/images/c7b5f5d7a43fea98f0f1706436390cdfddfb4267e4334b471748b2ae9d61e247.png",
+        "description": "Abstract 3D frosted glass shape background for Light Mode Hero Stat Card",
+        "category": "hero_background_light"
+      },
+      {
+        "url": "https://static.prod-images.emergentagent.com/jobs/2dd186d6-b277-465b-8f49-e2b489bebdb7/images/61e3130f8bbfbdf93ba5ec2918a4fd9f0e6d5e7de20edff1cc300fb191aa6440.png",
+        "description": "Abstract 3D glowing shape background for Dark Mode Hero Stat Card",
+        "category": "hero_background_dark"
+      }
+    ]
+  },
+  "data_testid_rules": {
+    "instruction": "All interactive and key informational elements MUST include a `data-testid` attribute. Use kebab-case and role-based naming (e.g., `data-testid=\"theme-toggle-button\"`, `data-testid=\"customer-row-edit-action\"`)."
+  }
+}

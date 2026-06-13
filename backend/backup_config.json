@@ -1,0 +1,16 @@
+{
+  "enabled": false,
+  "frequency": "weekly",
+  "hour": 3,
+  "minute": 15,
+  "day_of_week": "tue",
+  "email_enabled": false,
+  "email_recipients": [],
+  "retention_days": 7,
+  "last_run": "2026-05-22T18:01:54.914155+00:00",
+  "last_status": "success",
+  "last_error": null,
+  "last_filename": "crm_backup_20260522_180154.json",
+  "last_size_bytes": 1491946,
+  "next_run": "2026-05-23T02:00:00+00:00"
+}
