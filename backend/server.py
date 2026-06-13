@@ -248,8 +248,16 @@ def calculate_similarity(str1: str, str2: str) -> float:
         return 0.0
     norm1 = normalize_text(str1)
     norm2 = normalize_text(str2)
+    if not norm1 or not norm2:
+        return 0.0
     if norm1 == norm2:
         return 1.0
+    # Substring containment boost — "Lamtek" should strongly match "Lamtek Makina"
+    if norm1 in norm2 or norm2 in norm1:
+        shorter = min(len(norm1), len(norm2))
+        longer = max(len(norm1), len(norm2))
+        ratio = shorter / longer if longer else 0
+        return max(ratio, 0.85)
     return SequenceMatcher(None, norm1, norm2).ratio()
 
 def normalize_phone(phone: str) -> str:
@@ -269,12 +277,12 @@ def normalize_website(url: str) -> str:
 def find_similar_customers(customer_data: dict, exclude_id: str = None) -> List[SimilarityResult]:
     results = []
     
-    query = supabase.table("customers").select("id, company_name, website, contact_info")
+    # Paginate to bypass Supabase 1000 row limit — DB may have >1000 customers
+    existing_customers = fetch_all_rows(
+        "customers", "id, company_name, website, contact_info"
+    )
     if exclude_id:
-        query = query.neq("id", exclude_id)
-    
-    response = query.execute()
-    existing_customers = response.data
+        existing_customers = [c for c in existing_customers if c.get("id") != exclude_id]
     
     for existing in existing_customers:
         max_similarity = 0.0

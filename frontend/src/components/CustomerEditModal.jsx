@@ -275,28 +275,43 @@ const CustomerEditModal = ({ open, onClose, customer }) => {
 
         <ScrollArea className="max-h-[calc(90vh-180px)]">
           <div className="p-6 space-y-6">
-            {/* Similarity Warning */}
-            {similarCustomers.length > 0 && (
-              <div className="similarity-warning" data-testid="similarity-warning">
-                <div className="flex items-center gap-2 text-amber-800 font-medium">
-                  <AlertTriangle className="w-5 h-5" />
-                  <span>Benzer müşteriler bulundu!</span>
-                </div>
-                <div className="mt-2 space-y-2">
-                  {similarCustomers.map((similar) => (
-                    <div key={similar.customer_id} className="similarity-item">
-                      <span className="font-medium">{similar.company_name}</span>
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm text-slate-600">({similar.match_type})</span>
-                        <span className={getSimilarityColor(similar.similarity_score)}>
-                          %{similar.similarity_score}
-                        </span>
+            {/* Similarity Warning — compact, with red exact-match callout */}
+            {similarCustomers.length > 0 && (() => {
+              const exact = similarCustomers.find((s) => s.similarity_score >= 100);
+              const others = similarCustomers.filter((s) => s !== exact).slice(0, 4);
+              return (
+                <div className="space-y-1.5" data-testid="similarity-warning">
+                  {exact && (
+                    <div
+                      className="flex items-center gap-2 px-3 py-2 rounded-md bg-red-50 border border-red-200 text-red-800 text-sm"
+                      data-testid="similarity-exact-match"
+                    >
+                      <AlertTriangle className="w-4 h-4 shrink-0" />
+                      <span className="font-semibold truncate">{exact.company_name}</span>
+                      <span className="text-xs text-red-600/80 truncate ml-auto shrink-0">
+                        {exact.match_type} · %{exact.similarity_score}
+                      </span>
+                    </div>
+                  )}
+                  {others.length > 0 && (
+                    <div className="px-3 py-1.5 rounded-md bg-amber-50/70 border border-amber-200 text-xs">
+                      <div className="flex items-center gap-1.5 text-amber-800 font-medium mb-0.5">
+                        <AlertTriangle className="w-3.5 h-3.5" />
+                        <span>Benzer kayıtlar</span>
+                      </div>
+                      <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-slate-700">
+                        {others.map((s) => (
+                          <span key={s.customer_id} className="inline-flex items-center gap-1">
+                            <span className="truncate max-w-[160px]">{s.company_name}</span>
+                            <span className={getSimilarityColor(s.similarity_score)}>%{s.similarity_score}</span>
+                          </span>
+                        ))}
                       </div>
                     </div>
-                  ))}
+                  )}
                 </div>
-              </div>
-            )}
+              );
+            })()}
 
             {/* Basic Information */}
             <div className="form-section">
