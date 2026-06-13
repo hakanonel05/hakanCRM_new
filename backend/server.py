@@ -2595,6 +2595,234 @@ async def get_activity_feed(limit: int = 50):
         return []
 
 
+# ============ TEAM MEMBERS ENDPOINTS ============
+
+@api_router.get("/team-members")
+async def get_team_members():
+    """
+    List all distinct team members aggregated from:
+      - customers.assigned_to
+      - visits.visited_by
+      - activity_log.user_name
+    Returns one row per person with summary stats.
+    """
+    try:
+        members = {}  # name -> stats
+
+        def _bump(name, key, inc=1):
+            n = (name or "").strip()
+            if not n:
+                return
+            m = members.setdefault(n, {
+                "name": n,
+                "customers_count": 0,
+                "followup_count": 0,
+                "won_count": 0,
+                "lost_count": 0,
+                "visits_count": 0,
+                "activities_count": 0,
+                "last_activity": "",
+            })
+            m[key] = m.get(key, 0) + inc
+
+        # Customers
+        cust_resp = supabase.table("customers").select(
+            "assigned_to, status, is_followup"
+        ).execute()
+        for c in (cust_resp.data or []):
+            name = (c.get("assigned_to") or "").strip()
+            if not name:
+                continue
+            _bump(name, "customers_count")
+            if c.get("is_followup"):
+                _bump(name, "followup_count")
+            st = normalize_status(c.get("status", "") or "")
+            if st == "Kazanıldı":
+                _bump(name, "won_count")
+            elif st == "Kaybedildi":
+                _bump(name, "lost_count")
+
+        # Visits
+        try:
+            vis_resp = supabase.table("visits").select("visited_by, created_at").execute()
+            for v in (vis_resp.data or []):
+                name = (v.get("visited_by") or "").strip()
+                if not name:
+                    continue
+                _bump(name, "visits_count")
+                ts = v.get("created_at") or ""
+                if ts and ts > members.get(name, {}).get("last_activity", ""):
+                    members[name]["last_activity"] = ts
+        except Exception:
+            pass
+
+        # Activity log (count + last_activity)
+        try:
+            act_resp = supabase.table("activity_log").select(
+                "user_name, created_at"
+            ).order("created_at", desc=True).limit(5000).execute()
+            for a in (act_resp.data or []):
+                name = (a.get("user_name") or "").strip()
+                if not name:
+                    continue
+                _bump(name, "activities_count")
+                ts = a.get("created_at") or ""
+                if ts and ts > members.get(name, {}).get("last_activity", ""):
+                    members[name]["last_activity"] = ts
+        except Exception:
+            pass
+
+        result = sorted(members.values(), key=lambda m: -m["customers_count"])
+        return {"members": result, "total": len(result)}
+    except Exception as e:
+        logging.error(f"team-members error: {e}")
+        return {"members": [], "total": 0}
+
+
+@api_router.get("/team-members/{name}/profile")
+async def get_team_member_profile(name: str, days: int = 90, activity_limit: int = 100):
+    """
+    Detailed profile for a single team member.
+    Returns:
+      - summary stats
+      - status distribution
+      - market distribution
+      - recent activities (from activity_log)
+      - recent visits
+      - assigned customers list
+      - weekly activity (last N days)
+    """
+    try:
+        name = (name or "").strip()
+        if not name:
+            raise HTTPException(status_code=400, detail="name required")
+
+        # --- Customers assigned to this person ---
+        cust_resp = supabase.table("customers").select(
+            "id, company_name, status, market, city, is_followup, "
+            "next_followup_date, partner, competitor, created_at, updated_at"
+        ).ilike("assigned_to", name).execute()
+        customers = cust_resp.data or []
+
+        # Stats
+        won = sum(1 for c in customers if normalize_status(c.get("status", "")) == "Kazanıldı")
+        lost = sum(1 for c in customers if normalize_status(c.get("status", "")) == "Kaybedildi")
+        followups = sum(1 for c in customers if c.get("is_followup"))
+
+        # Status distribution
+        status_dist = {}
+        for c in customers:
+            st = normalize_status(c.get("status", "")) or "Beklemede"
+            status_dist[st] = status_dist.get(st, 0) + 1
+        status_distribution = sorted(
+            [{"_id": k, "count": v} for k, v in status_dist.items()],
+            key=lambda x: -x["count"],
+        )
+
+        # Market distribution
+        market_dist = {}
+        for c in customers:
+            mk = (c.get("market") or "").strip()
+            if mk:
+                market_dist[mk] = market_dist.get(mk, 0) + 1
+        market_distribution = sorted(
+            [{"_id": k, "count": v} for k, v in market_dist.items()],
+            key=lambda x: -x["count"],
+        )[:10]
+
+        # City distribution
+        city_dist = {}
+        for c in customers:
+            ci = (c.get("city") or "").strip()
+            if ci:
+                city_dist[ci] = city_dist.get(ci, 0) + 1
+        city_distribution = sorted(
+            [{"_id": k, "count": v} for k, v in city_dist.items()],
+            key=lambda x: -x["count"],
+        )[:10]
+
+        # --- Activities (from activity_log) ---
+        activities = []
+        try:
+            act_resp = supabase.table("activity_log").select("*").ilike(
+                "user_name", name
+            ).order("created_at", desc=True).limit(activity_limit).execute()
+            activities = act_resp.data or []
+        except Exception:
+            activities = []
+
+        # --- Visits made by this person ---
+        visits = []
+        try:
+            vis_resp = supabase.table("visits").select("*").ilike(
+                "visited_by", name
+            ).order("created_at", desc=True).limit(100).execute()
+            visits = vis_resp.data or []
+        except Exception:
+            visits = []
+
+        # --- Weekly activity buckets (last `days` days, daily counts) ---
+        from collections import OrderedDict
+        from datetime import timedelta
+        today = datetime.now(timezone.utc).date()
+        buckets = OrderedDict()
+        for i in range(days - 1, -1, -1):
+            d = today - timedelta(days=i)
+            buckets[d.isoformat()] = 0
+
+        for a in activities:
+            ts = a.get("created_at") or ""
+            if ts:
+                try:
+                    d = ts[:10]
+                    if d in buckets:
+                        buckets[d] += 1
+                except Exception:
+                    pass
+        for v in visits:
+            ts = v.get("created_at") or v.get("visit_date") or ""
+            if ts:
+                d = ts[:10]
+                if d in buckets:
+                    buckets[d] += 1
+
+        activity_trend = [{"date": k, "count": v} for k, v in buckets.items()]
+
+        # Last activity timestamp
+        last_act = ""
+        if activities:
+            last_act = activities[0].get("created_at", "")
+        for v in visits:
+            ts = v.get("created_at", "")
+            if ts and ts > last_act:
+                last_act = ts
+
+        return {
+            "name": name,
+            "summary": {
+                "customers_count": len(customers),
+                "followup_count": followups,
+                "won_count": won,
+                "lost_count": lost,
+                "visits_count": len(visits),
+                "activities_count": len(activities),
+                "last_activity": last_act,
+            },
+            "status_distribution": status_distribution,
+            "market_distribution": market_distribution,
+            "city_distribution": city_distribution,
+            "activity_trend": activity_trend,
+            "activities": activities,
+            "visits": visits,
+            "customers": customers,
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logging.error(f"team-member profile error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 # Lightweight health/warmup endpoint — used by external pingers (UptimeRobot,
 # cron-job.org) to keep the Render free-tier container awake. Returns fast
 # without hitting the DB, so it's safe to ping every few minutes.
