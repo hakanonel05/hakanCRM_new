@@ -334,14 +334,6 @@ export default function Layout() {
                 </button>
               </div>
 
-              {/* Quick add button */}
-              <div className="px-4 pt-4">
-                <button className="w-full py-2.5 px-4 bg-primary text-white rounded-xl text-sm font-semibold flex items-center justify-center gap-2 shadow-sm hover:opacity-90 transition-opacity">
-                  <Plus className="w-4 h-4" />
-                  Yeni Kayıt
-                </button>
-              </div>
-
               <nav className="flex-1 overflow-y-auto p-3 space-y-0.5 mt-2" data-stagger>
                 <div className="text-[10px] font-semibold text-on-surface-variant/60 uppercase tracking-[0.14em] px-3 py-2">
                   Ana Menü
@@ -449,16 +441,6 @@ export default function Layout() {
           >
             <ChevronLeft className="w-3 h-3 rotate-180" />
           </button>
-        )}
-
-        {/* Quick Add CTA */}
-        {!collapsed && (
-          <div className="px-3 pt-4 pb-2">
-            <button className="w-full py-2.5 px-4 bg-primary text-white rounded-xl text-sm font-semibold flex items-center justify-center gap-2 shadow-sm hover:opacity-90 transition-opacity">
-              <Plus className="w-4 h-4" />
-              Yeni Kayıt
-            </button>
-          </div>
         )}
 
         {/* Nav */}

@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 import uuid
 
 class CRMAPITester:
-    def __init__(self, base_url="https://run-hub-11.preview.emergentagent.com/api"):
+    def __init__(self, base_url="https://button-consolidation.preview.emergentagent.com/api"):
         self.base_url = base_url
         self.tests_run = 0
         self.tests_passed = 0

@@ -4616,7 +4616,7 @@ else:
 default_origins = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
-    "https://run-hub-11.preview.emergentagent.com",
+    "https://button-consolidation.preview.emergentagent.com",
     "https://darling-dodol-27b576.netlify.app",
     "https://crmaster.netlify.app",
     "https://crmmaster-api.onrender.com"

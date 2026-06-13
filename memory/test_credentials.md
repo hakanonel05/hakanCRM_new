@@ -7,7 +7,7 @@
 - Auth Type: local (email/password)
 
 Login flow:
-1. Go to https://run-hub-11.preview.emergentagent.com/login
+1. Go to https://button-consolidation.preview.emergentagent.com/login
 2. Use email/password form (not Google)
 3. Email: admin.test@crmaster.local
 4. Password: Admin1234

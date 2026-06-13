@@ -66,5 +66,5 @@
   "seed_data_creation": "Test data created during pytest was auto-cleaned by fixtures. Remaining cleanup done post-tests.",
   "retest_needed": false,
   "should_main_agent_self_test": false,
-  "context_for_next_testing_agent": "Bulk import feature fully tested. Three new endpoints working: /api/import/bulk-customers (batch insert/merge), /api/options/bulk (batch options creation), /api/import/preview (optimized similarity check). Frontend ImportModal uses batch operations correctly. Production URL: https://run-hub-11.preview.emergentagent.com. Auth: POST /api/auth/login with provided credentials, session stored in cookie."
+  "context_for_next_testing_agent": "Bulk import feature fully tested. Three new endpoints working: /api/import/bulk-customers (batch insert/merge), /api/options/bulk (batch options creation), /api/import/preview (optimized similarity check). Frontend ImportModal uses batch operations correctly. Production URL: https://button-consolidation.preview.emergentagent.com. Auth: POST /api/auth/login with provided credentials, session stored in cookie."
 }
