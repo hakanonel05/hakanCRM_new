@@ -2965,6 +2965,17 @@ def check_admin_permission(user: Optional[dict]) -> bool:
     return user.get("role") == "admin" or user_email == admin_email
 
 
+def check_super_admin(user: Optional[dict]) -> bool:
+    """
+    Super admin = ONLY the hardcoded ADMIN_EMAIL.
+    Even users with role='admin' do NOT count as super admin.
+    Used to gate user management & permission editing endpoints.
+    """
+    if not user:
+        return False
+    return (user.get("email") or "").lower() == ADMIN_EMAIL.lower()
+
+
 # ============ USER PERMISSIONS ============
 # Stored on disk because we cannot run DDL against the managed Supabase DB.
 # Structure: { user_id: {"can_delete": bool, "can_edit_dashboard": bool} }
@@ -3069,6 +3080,7 @@ async def get_current_user(request: Request, session_token: Optional[str] = Cook
     else:
         user["permissions"] = get_user_permissions(user.get("user_id") or user.get("id"))
         user["is_admin"] = False
+    user["is_super_admin"] = check_super_admin(user)
     return user
 
 @api_router.post("/auth/callback")
@@ -3450,8 +3462,8 @@ async def login(data: LocalLoginRequest, response: Response):
 @api_router.get("/users")
 async def get_users(request: Request, session_token: Optional[str] = Cookie(None)):
     user = await get_current_user_from_request(request, session_token)
-    if not check_admin_permission(user):
-        raise HTTPException(status_code=403, detail="Bu işlem için admin yetkisi gerekli")
+    if not check_super_admin(user):
+        raise HTTPException(status_code=403, detail="Bu işlem için süper admin yetkisi gerekli")
     
     response = supabase.table("users").select("user_id, email, name, picture, role, auth_type, notification_days, created_at").execute()
     data = response.data or []
@@ -3475,8 +3487,8 @@ async def update_user_role(
     session_token: Optional[str] = Cookie(None),
 ):
     user = await get_current_user_from_request(request, session_token)
-    if not check_admin_permission(user):
-        raise HTTPException(status_code=403, detail="Bu işlem için admin yetkisi gerekli")
+    if not check_super_admin(user):
+        raise HTTPException(status_code=403, detail="Bu işlem için süper admin yetkisi gerekli")
     
     # Accept both query param `?role=...` and body `{"role": "..."}`
     new_role = role or (role_data or {}).get("role") or "user"
@@ -3494,8 +3506,8 @@ async def get_user_permissions_endpoint(
     session_token: Optional[str] = Cookie(None),
 ):
     user = await get_current_user_from_request(request, session_token)
-    if not check_admin_permission(user):
-        raise HTTPException(status_code=403, detail="Bu işlem için admin yetkisi gerekli")
+    if not check_super_admin(user):
+        raise HTTPException(status_code=403, detail="Bu işlem için süper admin yetkisi gerekli")
     return {"user_id": user_id, "permissions": get_user_permissions(user_id)}
 
 
@@ -3511,8 +3523,8 @@ async def update_user_permissions(
     Only the included keys are updated. Unknown keys are ignored.
     """
     user = await get_current_user_from_request(request, session_token)
-    if not check_admin_permission(user):
-        raise HTTPException(status_code=403, detail="Bu işlem için admin yetkisi gerekli")
+    if not check_super_admin(user):
+        raise HTTPException(status_code=403, detail="Bu işlem için süper admin yetkisi gerekli")
     for key, value in (payload or {}).items():
         if key in ALL_PERMISSION_KEYS:
             set_user_permission(user_id, key, value)
@@ -3522,8 +3534,8 @@ async def update_user_permissions(
 @api_router.delete("/users/{user_id}")
 async def delete_user(user_id: str, request: Request, session_token: Optional[str] = Cookie(None)):
     user = await get_current_user_from_request(request, session_token)
-    if not check_admin_permission(user):
-        raise HTTPException(status_code=403, detail="Bu işlem için admin yetkisi gerekli")
+    if not check_super_admin(user):
+        raise HTTPException(status_code=403, detail="Bu işlem için süper admin yetkisi gerekli")
     
     supabase.table("users").delete().eq("user_id", user_id).execute()
     return {"message": "Kullanıcı silindi"}
@@ -3532,8 +3544,8 @@ async def delete_user(user_id: str, request: Request, session_token: Optional[st
 async def cleanup_unauthorized_users(request: Request, session_token: Optional[str] = Cookie(None)):
     """Delete all users that are not in the allowed_users whitelist AND revoke their active sessions."""
     user = await get_current_user_from_request(request, session_token)
-    if not check_admin_permission(user):
-        raise HTTPException(status_code=403, detail="Bu işlem için admin yetkisi gerekli")
+    if not check_super_admin(user):
+        raise HTTPException(status_code=403, detail="Bu işlem için süper admin yetkisi gerekli")
     
     # Get allowed emails
     allowed_response = supabase.table("allowed_users").select("email").execute()

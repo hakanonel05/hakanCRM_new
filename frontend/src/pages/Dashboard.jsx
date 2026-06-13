@@ -427,9 +427,59 @@ const donutOptions = {
   },
 };
 
+// Shorten long partner/competitor names for chart x-axis readability.
+// Strips common company-type suffixes (Elektronik, Mühendislik, Makina, ...) so
+// "Halıcı Elektronik" → "Halıcı", "ADS Mühendislik" → "ADS", "KT Elektrik" → "KT".
+// The full name is preserved in the tooltip via a chart.js callback.
+const SHORTEN_STOP_WORDS = new Set([
+  "elektrik",
+  "elektronik",
+  "mühendislik",
+  "muhendislik",
+  "makina",
+  "makine",
+  "otomasyon",
+  "endüstri",
+  "endustri",
+  "endüstriyel",
+  "endustriyel",
+  "san",
+  "san.",
+  "tic",
+  "tic.",
+  "ltd",
+  "ltd.",
+  "şti",
+  "sti",
+  "şti.",
+  "sti.",
+  "a.ş.",
+  "as",
+  "a.ş",
+  "ve",
+  "&",
+]);
+
+const shortenLabel = (label) => {
+  if (!label || typeof label !== "string") return label || "—";
+  const trimmed = label.trim();
+  if (trimmed.length <= 10) return trimmed;
+  const tokens = trimmed.split(/\s+/);
+  if (tokens.length === 1) {
+    return trimmed.length > 12 ? `${trimmed.slice(0, 10)}…` : trimmed;
+  }
+  const kept = [];
+  for (const t of tokens) {
+    if (SHORTEN_STOP_WORDS.has(t.toLowerCase())) break;
+    kept.push(t);
+  }
+  const out = (kept.length ? kept : [tokens[0]]).join(" ");
+  return out.length > 14 ? `${out.slice(0, 12)}…` : out;
+};
+
 // Bar chart options — rounded bars, clean axes (reference: DealDeck)
 const buildBarData = (entries) => ({
-  labels: entries.map((e) => e._id || "—"),
+  labels: entries.map((e) => shortenLabel(e._id || "—")),
   datasets: [
     {
       data: entries.map((e) => e.count),
@@ -533,6 +583,19 @@ const RoundedBar = memo(function RoundedBar({ entries, onBarClick }) {
   const options = useMemo(
     () => ({
       ...barOptions,
+      plugins: {
+        ...barOptions.plugins,
+        tooltip: {
+          ...barOptions.plugins.tooltip,
+          callbacks: {
+            // Show the FULL original label in the tooltip, even when x-axis is abbreviated
+            title: (items) => {
+              const i = items?.[0]?.dataIndex;
+              return (i != null && top[i]?._id) || items?.[0]?.label || "";
+            },
+          },
+        },
+      },
       onClick: (_evt, elements) => {
         if (!elements?.length || !onBarClick) return;
         const idx = elements[0].index;

@@ -192,7 +192,7 @@ const UserCard = memo(function UserCard({ user, isAdmin, collapsed, onLogout, on
 export default function Layout() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, logout, isAdmin } = useAuth();
+  const { user, logout, isAdmin, isSuperAdmin } = useAuth();
 
   const handleLogoutCb = useMemo(() => async () => {
     await logout();
@@ -253,8 +253,15 @@ export default function Layout() {
   const handleLogout = handleLogoutCb;
 
   const navItems = useMemo(
-    () => isAdmin ? [...PUBLIC_NAV, ...ADMIN_NAV] : PUBLIC_NAV,
-    [isAdmin]
+    () => {
+      if (!isAdmin) return PUBLIC_NAV;
+      // Kullanıcılar (User Management) is super-admin only — hide even from manually promoted admins
+      const adminNav = isSuperAdmin
+        ? ADMIN_NAV
+        : ADMIN_NAV.filter((i) => i.to !== "/users");
+      return [...PUBLIC_NAV, ...adminNav];
+    },
+    [isAdmin, isSuperAdmin]
   );
 
   const navItemsWithActive = useMemo(() =>

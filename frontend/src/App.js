@@ -160,13 +160,16 @@ function App() {
 
   // Helper to check if user is admin (role=admin OR hakanonel05@gmail.com)
   const isAdmin = user?.role === "admin" || user?.email?.toLowerCase() === "hakanonel05@gmail.com" || user?.is_admin === true;
+  // Super admin = ONLY hakanonel05@gmail.com (manually assigned admins do NOT count).
+  // Used to gate the User Management page even from other admins.
+  const isSuperAdmin = user?.is_super_admin === true || user?.email?.toLowerCase() === "hakanonel05@gmail.com";
   // Permission flags (admin always true). Falls back to per-user permissions from /auth/me
   const perms = user?.permissions || {};
   const canDelete = isAdmin || !!perms.can_delete;
   const canEditDashboard = isAdmin || !!perms.can_edit_dashboard;
 
   return (
-    <AuthContext.Provider value={{ user, setUser, loading, logout, isAdmin, canDelete, canEditDashboard }}>
+    <AuthContext.Provider value={{ user, setUser, loading, logout, isAdmin, isSuperAdmin, canDelete, canEditDashboard }}>
       <ThemeProvider>
       <div className="App">
         <BrowserRouter>

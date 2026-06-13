@@ -38,14 +38,14 @@ const PERMISSION_DEFS = [
 ];
 
 const UsersPage = () => {
-  const { user: currentUser, isAdmin } = useAuth();
+  const { user: currentUser, isSuperAdmin } = useAuth();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [savingPerm, setSavingPerm] = useState({}); // {`${userId}:${key}`: true}
 
   useEffect(() => {
-    if (isAdmin) fetchUsers();
-  }, [isAdmin]);
+    if (isSuperAdmin) fetchUsers();
+  }, [isSuperAdmin]);
 
   const fetchUsers = async () => {
     try {
@@ -134,14 +134,14 @@ const UsersPage = () => {
     }
   };
 
-  if (!isAdmin) {
+  if (!isSuperAdmin) {
     return (
       <div className="flex items-center justify-center min-h-[400px]" data-testid="users-page-unauthorized">
         <div className="text-center">
           <Shield className="w-16 h-16 text-slate-300 mx-auto mb-4" />
           <h2 className="text-xl font-semibold text-foreground">Yetkisiz Erişim</h2>
           <p className="text-muted-foreground mt-2">
-            Bu sayfaya erişim yetkiniz bulunmamaktadır.
+            Bu sayfa yalnızca süper admin tarafından görüntülenebilir.
           </p>
         </div>
       </div>
