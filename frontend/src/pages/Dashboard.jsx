@@ -695,7 +695,6 @@ const Dashboard = () => {
       }
     }
     if (need.length === 0) return;
-    let cancelled = false;
     (async () => {
       const fetchOne = async (item) => {
         try {
@@ -714,16 +713,16 @@ const Dashboard = () => {
         }
       };
       const results = await Promise.all(need.map(fetchOne));
-      if (cancelled) return;
+      // NOTE: intentionally not using a `cancelled` flag here — under React
+      // StrictMode the effect cleanup runs immediately after the first mount,
+      // which would discard the in-flight responses and leave charts stuck on
+      // "Yükleniyor...". The fetchedKeysRef guards against duplicate fetches.
       setDistributions((prev) => {
         const next = { ...prev };
         for (const r of results) next[r.key] = r.entries;
         return next;
       });
     })();
-    return () => {
-      cancelled = true;
-    };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible, chartConfigs]);
 

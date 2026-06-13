@@ -635,6 +635,23 @@ def _invalidate_kanban_cache():
     _followups_cache["data"] = None
     _data_score_cache["map"] = None
 
+
+def fetch_all_rows(table: str, select_cols: str = "*", page_size: int = 1000):
+    """
+    Fetch ALL rows from a Supabase table via pagination.
+    Supabase caps single .execute() at 1000 rows by default, so we page through.
+    """
+    rows = []
+    offset = 0
+    while True:
+        resp = supabase.table(table).select(select_cols).range(offset, offset + page_size - 1).execute()
+        chunk = resp.data or []
+        rows.extend(chunk)
+        if len(chunk) < page_size:
+            break
+        offset += page_size
+    return rows
+
 @api_router.get("/customers/filter-options")
 async def get_customer_filter_options():
     """Return unique filter values - cached for 60 seconds"""
@@ -2366,14 +2383,14 @@ async def get_stats():
     if _stats_cache["data"] and (now - _stats_cache["timestamp"]) < _STATS_CACHE_TTL:
         return _stats_cache["data"]
     
-    # Only fetch needed fields - NOT select("*")
-    customers_response = supabase.table("customers").select(
-        "id, status, market, city, is_followup, next_followup_date, company_name, created_at, assigned_to, partner", count="exact"
-    ).execute()
+    # Only fetch needed fields - paginate to bypass Supabase 1000 row limit
+    customers = fetch_all_rows(
+        "customers",
+        "id, status, market, city, is_followup, next_followup_date, company_name, created_at, assigned_to, partner",
+    )
     visits_count_response = supabase.table("visits").select("id, is_followup", count="exact").execute()
-    
-    customers = customers_response.data
-    total_customers = customers_response.count or len(customers)
+
+    total_customers = len(customers)
     total_visits = visits_count_response.count or len(visits_count_response.data)
     followup_customers = sum(1 for c in customers if c.get("is_followup"))
     followup_visits = sum(1 for v in visits_count_response.data if v.get("is_followup"))
@@ -2485,11 +2502,9 @@ async def get_stats_distribution(
     if cached and (now - cached["ts"]) < _DISTRIBUTION_CACHE_TTL:
         return cached["data"]
 
-    # Select only the columns we need to keep this fast
+    # Select only the columns we need to keep this fast (paginated to bypass 1000 row limit)
     cols = f"id, is_followup, {field}"
-    # status uses normalize_status so we read it raw
-    response = supabase.table("customers").select(cols).execute()
-    rows = response.data or []
+    rows = fetch_all_rows("customers", cols)
 
     if followup_only:
         rows = [r for r in rows if r.get("is_followup")]
@@ -2625,11 +2640,9 @@ async def get_team_members():
             })
             m[key] = m.get(key, 0) + inc
 
-        # Customers
-        cust_resp = supabase.table("customers").select(
-            "assigned_to, status, is_followup"
-        ).execute()
-        for c in (cust_resp.data or []):
+        # Customers (paginated)
+        cust_rows = fetch_all_rows("customers", "assigned_to, status, is_followup")
+        for c in cust_rows:
             name = (c.get("assigned_to") or "").strip()
             if not name:
                 continue
@@ -2642,10 +2655,10 @@ async def get_team_members():
             elif st == "Kaybedildi":
                 _bump(name, "lost_count")
 
-        # Visits
+        # Visits (paginated)
         try:
-            vis_resp = supabase.table("visits").select("visited_by, created_at").execute()
-            for v in (vis_resp.data or []):
+            vis_rows = fetch_all_rows("visits", "visited_by, created_at")
+            for v in vis_rows:
                 name = (v.get("visited_by") or "").strip()
                 if not name:
                     continue
@@ -2656,12 +2669,10 @@ async def get_team_members():
         except Exception:
             pass
 
-        # Activity log (count + last_activity)
+        # Activity log (count + last_activity) — paginated
         try:
-            act_resp = supabase.table("activity_log").select(
-                "user_name, created_at"
-            ).order("created_at", desc=True).limit(5000).execute()
-            for a in (act_resp.data or []):
+            act_rows = fetch_all_rows("activity_log", "user_name, created_at")
+            for a in act_rows:
                 name = (a.get("user_name") or "").strip()
                 if not name:
                     continue
@@ -2697,12 +2708,23 @@ async def get_team_member_profile(name: str, days: int = 90, activity_limit: int
         if not name:
             raise HTTPException(status_code=400, detail="name required")
 
-        # --- Customers assigned to this person ---
-        cust_resp = supabase.table("customers").select(
+        # --- Customers assigned to this person (paginated) ---
+        select_cols = (
             "id, company_name, status, market, city, is_followup, "
-            "next_followup_date, partner, competitor, created_at, updated_at"
-        ).ilike("assigned_to", name).execute()
-        customers = cust_resp.data or []
+            "next_followup_date, partner, competitor, created_at, updated_at, assigned_to"
+        )
+        customers = []
+        page_size = 1000
+        offset = 0
+        while True:
+            cust_resp = supabase.table("customers").select(select_cols).ilike(
+                "assigned_to", name
+            ).range(offset, offset + page_size - 1).execute()
+            chunk = cust_resp.data or []
+            customers.extend(chunk)
+            if len(chunk) < page_size:
+                break
+            offset += page_size
 
         # Stats
         won = sum(1 for c in customers if normalize_status(c.get("status", "")) == "Kazanıldı")
