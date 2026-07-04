@@ -63,6 +63,85 @@ BACKUP_DIR = _resolve_backup_dir()
 
 CONFIG_FILE = BACKEND_DIR / "backup_config.json"
 
+# ---------------- Supabase Storage persistence ----------------
+# Render's free-tier disk is EPHEMERAL: everything under BACKUP_DIR and the
+# local backup_config.json vanish on every restart/redeploy — which made
+# "backups" useless as backups. Files and config are now mirrored to Supabase
+# Storage buckets (created automatically at startup; no manual setup needed).
+# Local disk remains as a fast cache; storage is the source of truth.
+BACKUPS_BUCKET = "crm-backups"
+STATE_BUCKET = "app-state"
+_CONFIG_STATE_KEY = "backup_config.json"
+
+_supabase = None  # injected by server.py at startup via init_storage()
+
+
+def init_storage(supabase_client) -> None:
+    """Called once at app startup. Ensures buckets exist and pulls the last
+    saved config from storage so schedule settings survive restarts."""
+    global _supabase
+    _supabase = supabase_client
+    for bucket, public in ((BACKUPS_BUCKET, False), (STATE_BUCKET, False)):
+        try:
+            _supabase.storage.create_bucket(bucket, options={"public": public})
+        except Exception:
+            pass  # already exists (or storage unreachable — degrade gracefully)
+    # Seed local config cache from storage (storage wins if present)
+    try:
+        raw = _supabase.storage.from_(STATE_BUCKET).download(_CONFIG_STATE_KEY)
+        if raw:
+            data = json.loads(raw.decode("utf-8"))
+            with _lock:
+                CONFIG_FILE.write_text(
+                    json.dumps({**DEFAULT_CONFIG, **data}, indent=2, ensure_ascii=False)
+                )
+            logger.info("Backup config restored from Supabase Storage")
+    except Exception as e:
+        logger.info("No stored backup config in storage (fresh start ok): %s", e)
+
+
+def _storage_upload(bucket: str, name: str, data: bytes, content_type: str = "application/json") -> bool:
+    if _supabase is None:
+        return False
+    try:
+        _supabase.storage.from_(bucket).upload(
+            name, data, file_options={"content-type": content_type, "upsert": "true"}
+        )
+        return True
+    except Exception as e:
+        logger.warning("Storage upload failed (%s/%s): %s", bucket, name, e)
+        return False
+
+
+def _storage_download(bucket: str, name: str):
+    if _supabase is None:
+        return None
+    try:
+        return _supabase.storage.from_(bucket).download(name)
+    except Exception:
+        return None
+
+
+def _storage_list(bucket: str) -> list:
+    if _supabase is None:
+        return []
+    try:
+        return _supabase.storage.from_(bucket).list() or []
+    except Exception as e:
+        logger.warning("Storage list failed (%s): %s", bucket, e)
+        return []
+
+
+def _storage_remove(bucket: str, names: list) -> bool:
+    if _supabase is None or not names:
+        return False
+    try:
+        _supabase.storage.from_(bucket).remove(names)
+        return True
+    except Exception as e:
+        logger.warning("Storage remove failed (%s): %s", bucket, e)
+        return False
+
 DEFAULT_CONFIG: Dict[str, Any] = {
     "enabled": False,
     "frequency": "daily",
@@ -104,8 +183,11 @@ def save_config(updates: Dict[str, Any]) -> Dict[str, Any]:
     with _lock:
         cur = _read_config_unlocked()
         cur.update(updates or {})
-        CONFIG_FILE.write_text(json.dumps(cur, indent=2, ensure_ascii=False))
-        return cur
+        serialized = json.dumps(cur, indent=2, ensure_ascii=False)
+        CONFIG_FILE.write_text(serialized)
+    # Mirror to persistent storage (outside the lock; failure is non-fatal)
+    _storage_upload(STATE_BUCKET, _CONFIG_STATE_KEY, serialized.encode("utf-8"))
+    return cur
 
 
 def _collect_backup_payload(supabase) -> Dict[str, Any]:
@@ -139,6 +221,20 @@ def _prune_old_backups(retention_days: int) -> int:
                 deleted += 1
         except Exception as e:
             logger.warning("Backup prune failed for %s: %s", p, e)
+
+    # Prune the persistent copies too (timestamp is embedded in the filename:
+    # crm_backup_YYYYMMDD_HHMMSS.json)
+    stale = []
+    for obj in _storage_list(BACKUPS_BUCKET):
+        name = obj.get("name", "")
+        try:
+            ts = datetime.strptime(name, "crm_backup_%Y%m%d_%H%M%S.json")
+            if ts < cutoff:
+                stale.append(name)
+        except ValueError:
+            continue
+    if stale and _storage_remove(BACKUPS_BUCKET, stale):
+        deleted += len(stale)
     return deleted
 
 
@@ -198,6 +294,12 @@ def run_backup_sync(supabase, resend_module=None, sender_email: str = "") -> Dic
         filepath.write_text(content, encoding="utf-8")
         size_bytes = filepath.stat().st_size
 
+        # Persist to Supabase Storage — the local copy dies with the dyno,
+        # the storage copy is the real backup.
+        stored = _storage_upload(BACKUPS_BUCKET, filename, content.encode("utf-8"))
+        if not stored:
+            logger.warning("Backup saved locally only — storage upload failed: %s", filename)
+
         # Optional email
         if config.get("email_enabled") and config.get("email_recipients") and resend_module:
             try:
@@ -235,20 +337,36 @@ def run_backup_sync(supabase, resend_module=None, sender_email: str = "") -> Dic
 
 
 def list_backups() -> list:
-    items = []
-    for p in sorted(BACKUP_DIR.glob("crm_backup_*.json"), reverse=True):
+    """Merge persistent (Supabase Storage) and local backups, newest first.
+    Storage is authoritative — local files disappear on every restart."""
+    seen = {}
+    for obj in _storage_list(BACKUPS_BUCKET):
+        name = obj.get("name", "")
+        if not name.startswith("crm_backup_"):
+            continue
+        meta = obj.get("metadata") or {}
+        seen[name] = {
+            "filename": name,
+            "size_bytes": meta.get("size") or obj.get("size") or 0,
+            "created_at": obj.get("created_at") or "",
+            "location": "cloud",
+        }
+    for p in BACKUP_DIR.glob("crm_backup_*.json"):
+        if p.name in seen:
+            continue
         try:
             stat = p.stat()
-            items.append({
+            seen[p.name] = {
                 "filename": p.name,
                 "size_bytes": stat.st_size,
                 "created_at": datetime.fromtimestamp(
                     stat.st_mtime, tz=timezone.utc
                 ).isoformat(),
-            })
+                "location": "local",
+            }
         except Exception:
             continue
-    return items
+    return sorted(seen.values(), key=lambda x: x["filename"], reverse=True)
 
 
 def delete_backup(filename: str) -> bool:
@@ -256,10 +374,25 @@ def delete_backup(filename: str) -> bool:
     p = (BACKUP_DIR / filename).resolve()
     if not str(p).startswith(str(BACKUP_DIR.resolve())):
         return False
-    if not p.exists() or not p.is_file():
-        return False
-    p.unlink()
-    return True
+    removed_cloud = _storage_remove(BACKUPS_BUCKET, [filename])
+    removed_local = False
+    if p.exists() and p.is_file():
+        p.unlink()
+        removed_local = True
+    return removed_cloud or removed_local
+
+
+def get_backup_bytes(filename: str):
+    """Return backup file content as bytes — local cache first, then storage."""
+    p = get_backup_path(filename)
+    if p:
+        try:
+            return p.read_bytes()
+        except Exception:
+            pass
+    if "/" in filename or "\\" in filename or not filename.startswith("crm_backup_"):
+        return None
+    return _storage_download(BACKUPS_BUCKET, filename)
 
 
 def get_backup_path(filename: str) -> Optional[Path]:

@@ -1,5 +1,5 @@
 from fastapi import FastAPI, APIRouter, HTTPException, Query, Request, Response, Cookie, UploadFile, File, Body
-from fastapi.responses import StreamingResponse, FileResponse
+from fastapi.responses import StreamingResponse, FileResponse, RedirectResponse
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from starlette.middleware.gzip import GZipMiddleware
@@ -43,6 +43,13 @@ RESEND_API_KEY = os.environ.get('RESEND_API_KEY')
 SENDER_EMAIL = os.environ.get('SENDER_EMAIL', 'onboarding@resend.dev')
 resend.api_key = RESEND_API_KEY
 
+# SINGLE SOURCE OF TRUTH for the super-admin account.
+# Previously this address was hardcoded in 7 different places (plus 9 more in
+# the frontend) — changing the admin meant hunting down every copy. Now it can
+# be overridden with the ADMIN_EMAIL environment variable on Render without
+# touching code. Always stored lowercase; compare with .lower() everywhere.
+ADMIN_EMAIL = os.environ.get("ADMIN_EMAIL", "hakanonel05@gmail.com").strip().lower()
+
 # Google Gemini API configuration
 GOOGLE_API_KEY = os.environ.get('GOOGLE_API_KEY')
 if GOOGLE_API_KEY:
@@ -54,7 +61,9 @@ app = FastAPI()
 # Create a router with the /api prefix
 api_router = APIRouter(prefix="/api")
 
-# Uploads directory
+# Uploads directory (local = same-instance cache only; Render disk is
+# ephemeral). The persistent copies live in this Supabase Storage bucket:
+CUSTOMER_FILES_BUCKET = "customer-files"
 UPLOADS_DIR = ROOT_DIR / "uploads"
 UPLOADS_DIR.mkdir(exist_ok=True)
 
@@ -2383,12 +2392,33 @@ async def upload_file(file: UploadFile = File(...), customer_id: str = None):
             shutil.copyfileobj(file.file, buffer)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Dosya kaydedilemedi: {str(e)}")
-    
+
+    # PERSISTENCE FIX: the local disk on Render is wiped on every restart, so
+    # files "uploaded" there silently vanished. The real copy now goes to the
+    # public "customer-files" Supabase Storage bucket (names are unguessable
+    # UUIDs). The local file stays only as a same-instance cache; the stored
+    # URL points at storage so links keep working after any restart.
+    file_url = f"/api/files/{unique_filename}"
+    try:
+        supabase.storage.from_(CUSTOMER_FILES_BUCKET).upload(
+            unique_filename,
+            file_path.read_bytes(),
+            file_options={
+                "content-type": file.content_type or "application/octet-stream",
+                "upsert": "true",
+            },
+        )
+        public_url = supabase.storage.from_(CUSTOMER_FILES_BUCKET).get_public_url(unique_filename)
+        if public_url:
+            file_url = public_url
+    except Exception as e:
+        logging.warning(f"Storage upload failed, falling back to local URL: {e}")
+
     file_info = {
         "id": str(uuid.uuid4()),
         "original_name": file.filename,
         "stored_name": unique_filename,
-        "url": f"/api/files/{unique_filename}",
+        "url": file_url,
         "size": file_path.stat().st_size,
         "content_type": file.content_type,
         "created_at": datetime.now(timezone.utc).isoformat()
@@ -2422,20 +2452,53 @@ async def upload_file(file: UploadFile = File(...), customer_id: str = None):
     
     return file_info
 
+import re as _re
+
+# Uploaded files are always stored as "<uuid4><extension>" — anything else
+# (e.g. "../../etc/passwd") is an attack, not a real file request.
+_SAFE_FILENAME_RE = _re.compile(r"^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}\.[A-Za-z0-9]{1,10}$")
+
+
 @api_router.get("/files/{filename}")
 async def get_file(filename: str):
-    file_path = UPLOADS_DIR / filename
-    if not file_path.exists():
-        raise HTTPException(status_code=404, detail="Dosya bulunamadı")
-    
-    return FileResponse(file_path)
+    # SECURITY: strict whitelist validation — blocks path traversal ("../"),
+    # absolute paths, and any name that doesn't match our own naming scheme.
+    if not _SAFE_FILENAME_RE.match(filename):
+        raise HTTPException(status_code=400, detail="Geçersiz dosya adı")
+
+    file_path = (UPLOADS_DIR / filename).resolve()
+    # Defense in depth: the resolved path must still live inside UPLOADS_DIR
+    if not str(file_path).startswith(str(UPLOADS_DIR.resolve())):
+        raise HTTPException(status_code=400, detail="Geçersiz dosya adı")
+    if file_path.exists():
+        return FileResponse(file_path)
+
+    # Local cache is gone (instance restarted) — redirect to the persistent
+    # copy in Supabase Storage so old /api/files/... links keep working.
+    try:
+        public_url = supabase.storage.from_(CUSTOMER_FILES_BUCKET).get_public_url(filename)
+        if public_url:
+            return RedirectResponse(url=public_url, status_code=307)
+    except Exception:
+        pass
+    raise HTTPException(status_code=404, detail="Dosya bulunamadı")
 
 @api_router.delete("/files/{filename}")
 async def delete_file(filename: str, customer_id: str = None):
-    file_path = UPLOADS_DIR / filename
+    # Same strict validation as get_file — never unlink arbitrary paths
+    if not _SAFE_FILENAME_RE.match(filename):
+        raise HTTPException(status_code=400, detail="Geçersiz dosya adı")
+    file_path = (UPLOADS_DIR / filename).resolve()
+    if not str(file_path).startswith(str(UPLOADS_DIR.resolve())):
+        raise HTTPException(status_code=400, detail="Geçersiz dosya adı")
     
     if file_path.exists():
         file_path.unlink()
+    # Remove the persistent copy too
+    try:
+        supabase.storage.from_(CUSTOMER_FILES_BUCKET).remove([filename])
+    except Exception as e:
+        logging.warning(f"Storage remove failed for {filename}: {e}")
     
     if customer_id:
         response = supabase.table("customers").select("documents").eq("id", customer_id).execute()
@@ -2995,10 +3058,9 @@ class User(BaseModel):
     notification_days: int = 3
     created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
-ADMIN_EMAIL = "hakanonel05@gmail.com"
-
 def get_user_role(email: str) -> str:
-    return "admin" if email == ADMIN_EMAIL else "user"
+    # Case-insensitive: Google can return mixed-case addresses
+    return "admin" if (email or "").strip().lower() == ADMIN_EMAIL else "user"
 
 class SessionData(BaseModel):
     user_id: str
@@ -3156,6 +3218,13 @@ PERMISSIONS_FILE = Path(
 )
 ALL_PERMISSION_KEYS = ("can_delete", "can_edit_dashboard")
 
+# Permissions used to live ONLY in the local JSON file above. Render's free
+# tier wipes the disk on every restart, so granted permissions silently reset
+# ("dün yetkim vardı, bugün yok"). They are now mirrored to the private
+# "app-state" Supabase Storage bucket; the local file is just a warm cache.
+_APP_STATE_BUCKET = "app-state"
+_PERMISSIONS_STATE_KEY = "user_permissions.json"
+
 
 def _load_permissions() -> dict:
     try:
@@ -3168,11 +3237,35 @@ def _load_permissions() -> dict:
 
 
 def _save_permissions(perms: dict) -> None:
+    serialized = json.dumps(perms)
     try:
         with open(PERMISSIONS_FILE, "w") as f:
-            json.dump(perms, f)
+            f.write(serialized)
     except Exception as e:
         logging.warning(f"Could not save user permissions file: {e}")
+    # Persistent copy — survives restarts and redeploys
+    try:
+        supabase.storage.from_(_APP_STATE_BUCKET).upload(
+            _PERMISSIONS_STATE_KEY,
+            serialized.encode("utf-8"),
+            file_options={"content-type": "application/json", "upsert": "true"},
+        )
+    except Exception as e:
+        logging.warning(f"Could not persist permissions to storage: {e}")
+
+
+def _restore_permissions_from_storage() -> None:
+    """Called at startup: storage copy (if any) replaces the ephemeral cache."""
+    global _user_permissions_cache
+    try:
+        raw = supabase.storage.from_(_APP_STATE_BUCKET).download(_PERMISSIONS_STATE_KEY)
+        if raw:
+            _user_permissions_cache = json.loads(raw.decode("utf-8")) or {}
+            logging.info(
+                f"User permissions restored from storage ({len(_user_permissions_cache)} users)"
+            )
+    except Exception as e:
+        logging.info(f"No stored permissions in storage (fresh start ok): {e}")
 
 
 _user_permissions_cache: dict = _load_permissions()
@@ -3275,7 +3368,7 @@ async def auth_callback(request: Request, response: Response):
     whitelist_response = supabase.table("allowed_users").select("*").eq("email", email.lower()).execute()
     
     # Admin email always allowed
-    admin_email = "hakanonel05@gmail.com"
+    admin_email = ADMIN_EMAIL
     is_allowed = email.lower() == admin_email.lower() or (whitelist_response.data and len(whitelist_response.data) > 0)
     
     if not is_allowed:
@@ -3438,7 +3531,7 @@ async def auth_session(request: Request, response: Response):
     if not email:
         raise HTTPException(status_code=400, detail="E-posta adresi alınamadı")
 
-    admin_email = "hakanonel05@gmail.com"
+    admin_email = ADMIN_EMAIL
     email_lc = email.lower()
     whitelist_response = supabase.table("allowed_users").select("email").eq("email", email_lc).execute()
     is_allowed = (
@@ -3572,7 +3665,7 @@ async def register(data: LocalRegisterRequest, response: Response):
 async def login(data: LocalLoginRequest, response: Response):
     # First check whitelist
     email = data.email.lower().strip()
-    admin_email = "hakanonel05@gmail.com"
+    admin_email = ADMIN_EMAIL
     
     try:
         whitelist_response = supabase.table("allowed_users").select("*").eq("email", email).execute()
@@ -3723,7 +3816,7 @@ async def cleanup_unauthorized_users(request: Request, session_token: Optional[s
     allowed_emails = [u["email"].lower() for u in allowed_response.data]
     
     # Always keep admin
-    admin_email = "hakanonel05@gmail.com"
+    admin_email = ADMIN_EMAIL
     if admin_email.lower() not in allowed_emails:
         allowed_emails.append(admin_email.lower())
     
@@ -4249,13 +4342,13 @@ async def download_backup(filename: str, request: Request, session_token: Option
     user = await get_current_user_from_request(request, session_token)
     if not check_admin_permission(user):
         raise HTTPException(status_code=403, detail="Bu işlem için admin yetkisi gerekli")
-    path = backup_service.get_backup_path(filename)
-    if not path:
+    data = backup_service.get_backup_bytes(filename)
+    if data is None:
         raise HTTPException(status_code=404, detail="Yedek dosyası bulunamadı")
-    return FileResponse(
-        path=str(path),
+    return Response(
+        content=data,
         media_type="application/json",
-        filename=filename,
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
 
 
@@ -4939,7 +5032,7 @@ async def send_followup_reminders():
             return {"message": "Bildirimler devre dışı", "sent": 0}
         
         # Resend free plan limitation: only send to account owner email
-        PRIMARY_EMAIL = "hakanonel05@gmail.com"
+        PRIMARY_EMAIL = ADMIN_EMAIL
         
         days_before = settings.get("days_before", 1)
         
@@ -5128,7 +5221,7 @@ Toplam 4-5 cümleyi geçme. Emoji kullan. Profesyonel ama samimi ol."""
 @api_router.post("/test-email")
 async def send_test_email():
     """Send a test email to primary email address"""
-    PRIMARY_EMAIL = "hakanonel05@gmail.com"
+    PRIMARY_EMAIL = ADMIN_EMAIL
     try:
         html_content = """
         <!DOCTYPE html>
@@ -5169,6 +5262,48 @@ async def send_test_email():
 
 # Include router
 app.include_router(api_router)
+
+# ============ GLOBAL API AUTHENTICATION GATE ============
+# SECURITY FIX: previously only ~30 of 107 endpoints checked the session —
+# customer data could be read AND modified without logging in. This middleware
+# closes that hole in one place: every /api request now requires a valid
+# session, except the explicitly public paths below.
+from fastapi.responses import JSONResponse as _JSONResponse
+
+PUBLIC_API_PATHS = {
+    "/api/health",         # warm-up / uptime pingers
+    "/api/auth/session",   # Google (Emergent) session exchange
+    "/api/auth/login",     # email+password login
+    "/api/auth/register",  # account creation (email whitelist enforced inside)
+    "/api/auth/me",        # session probe — returns its own 401 when logged out
+    "/api/auth/logout",
+}
+
+
+@app.middleware("http")
+async def enforce_api_authentication(request: Request, call_next):
+    path = request.url.path
+    if (
+        request.method == "OPTIONS"                       # CORS preflight
+        or not path.startswith("/api/")                   # static frontend etc.
+        or path.rstrip("/") in PUBLIC_API_PATHS
+        # Document links open via plain <a href> navigation, which cannot carry
+        # the session header. Filenames are unguessable UUIDs and the endpoint
+        # itself strictly validates the name (see get_file), so GET stays open.
+        # Deleting files still requires a session like everything else.
+        or (request.method == "GET" and path.startswith("/api/files/"))
+    ):
+        return await call_next(request)
+
+    user = await get_current_user_from_request(request)
+    if not user:
+        return _JSONResponse(
+            status_code=401,
+            content={"detail": "Oturum gerekli. Lütfen giriş yapın."},
+        )
+    # Endpoints can reuse the resolved user instead of re-checking
+    request.state.user = user
+    return await call_next(request)
 
 # CORS
 cors_origins = os.environ.get('CORS_ORIGINS', '')
@@ -5211,6 +5346,24 @@ logger = logging.getLogger(__name__)
 
 
 # ============ STARTUP: BACKUP SCHEDULER ============
+@app.on_event("startup")
+def _init_persistent_storage():
+    """Make ephemeral-disk data survive restarts.
+    Creates the Supabase Storage buckets if missing (idempotent), restores
+    user permissions and backup config from storage, and hands the storage
+    client to the backup service."""
+    try:
+        for bucket, public in ((CUSTOMER_FILES_BUCKET, True), (_APP_STATE_BUCKET, False)):
+            try:
+                supabase.storage.create_bucket(bucket, options={"public": public})
+            except Exception:
+                pass  # already exists
+        _restore_permissions_from_storage()
+        backup_service.init_storage(supabase)
+    except Exception as e:
+        logger.error("Persistent storage init failed (continuing): %s", e)
+
+
 @app.on_event("startup")
 def _start_backup_scheduler():
     try:
