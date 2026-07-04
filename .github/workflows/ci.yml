@@ -1,0 +1,55 @@
+# Otomatik kontrol (CI): GitHub'a her dosya yüklemesinde bu iş akışı çalışır,
+# backend'in hatasız yüklendiğini ve frontend'in derlenebildiğini doğrular.
+# Sonucu repo ana sayfasındaki yeşil ✓ / kırmızı ✗ işaretinden görebilirsiniz.
+# Kırmızı ✗ görürseniz Netlify/Render'a bozuk kod gitmiş demektir — işarete
+# tıklayıp hatanın hangi dosyada olduğunu görebilirsiniz.
+name: Kontrol (CI)
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+jobs:
+  backend:
+    name: Backend kontrolü
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+      - name: Bağımlılıkları kur
+        run: pip install -r backend/requirements.txt
+      - name: Sözdizimi ve yükleme testi
+        working-directory: backend
+        env:
+          SUPABASE_URL: https://dummy.supabase.co
+          SUPABASE_SERVICE_KEY: dummy-key-ci
+          CORS_ORIGINS: http://localhost
+        run: |
+          python -m py_compile server.py
+          python -c "import server; print('server.py hatasiz yüklendi, endpoint sayisi:', len(server.app.routes))"
+
+  frontend:
+    name: Frontend derleme kontrolü
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Bağımlılıkları kur
+        working-directory: frontend
+        run: npm ci --legacy-peer-deps || npm install --legacy-peer-deps
+      - name: Üretim derlemesi
+        working-directory: frontend
+        env:
+          REACT_APP_BACKEND_URL: https://ci-placeholder.example.com
+          CI: "false"
+          GENERATE_SOURCEMAP: "false"
+        run: npx craco build
