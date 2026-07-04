@@ -80,12 +80,94 @@ const SettingsPage = () => {
   const [newAllowedEmail, setNewAllowedEmail] = useState("");
   const [newAllowedName, setNewAllowedName] = useState("");
 
+  // --- Field value merge (e.g. fix "f&b" / "F&B" / "çikolata" → "F&B") ---
+  const [mergeField, setMergeField] = useState("market");
+  const [mergeValues, setMergeValues] = useState([]);
+  const [mergeLoading, setMergeLoading] = useState(false);
+  const [mergeSelected, setMergeSelected] = useState([]);
+  const [mergeTarget, setMergeTarget] = useState("");
+  const [merging, setMerging] = useState(false);
+
+  const MERGE_FIELDS = {
+    market: "Market",
+    application: "Uygulama",
+    city: "Şehir",
+    district: "İlçe",
+    competitor: "Rakip",
+    partner: "Partner",
+    assigned_to: "Takip Eden",
+  };
+
+  const fetchMergeValues = async (field) => {
+    setMergeLoading(true);
+    setMergeSelected([]);
+    setMergeTarget("");
+    try {
+      const res = await axios.get(`${API}/field-values/${field}`);
+      setMergeValues(res.data?.values || []);
+    } catch (e) {
+      toast.error("Değerler yüklenemedi");
+      setMergeValues([]);
+    } finally {
+      setMergeLoading(false);
+    }
+  };
+
+  const toggleMergeValue = (value) => {
+    setMergeSelected((prev) =>
+      prev.includes(value) ? prev.filter((v) => v !== value) : [...prev, value]
+    );
+  };
+
+  const handleMerge = async () => {
+    const target = mergeTarget.trim();
+    const sources = mergeSelected.filter((v) => v !== target);
+    if (!target) {
+      toast.error("Hedef değer girin (örn: F&B)");
+      return;
+    }
+    if (sources.length === 0) {
+      toast.error("Birleştirilecek en az bir değer seçin");
+      return;
+    }
+    const totalCount = mergeValues
+      .filter((v) => sources.includes(v.value))
+      .reduce((a, v) => a + v.count, 0);
+    const ok = window.confirm(
+      `${sources.join(", ")} → "${target}"\n\n` +
+      `Bu işlem ${totalCount} müşteri kaydını kalıcı olarak güncelleyecek. Devam edilsin mi?`
+    );
+    if (!ok) return;
+
+    setMerging(true);
+    try {
+      const res = await axios.post(`${API}/field-values/merge`, {
+        field: mergeField,
+        from_values: sources,
+        to_value: target,
+      });
+      toast.success(res.data?.message || "Değerler birleştirildi");
+      fetchMergeValues(mergeField);
+      fetchOptions();
+    } catch (e) {
+      toast.error(e?.response?.data?.detail || "Birleştirme başarısız oldu");
+    } finally {
+      setMerging(false);
+    }
+  };
+
   // Fetch options, email settings, and allowed users on mount
   useEffect(() => {
     fetchOptions();
     fetchEmailSettings();
     fetchAllowedUsers();
   }, []);
+
+  // Load distinct values whenever the merge field changes
+  useEffect(() => {
+    fetchMergeValues(mergeField);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mergeField]);
   
   const fetchAllowedUsers = async () => {
     try {
@@ -613,6 +695,114 @@ const SettingsPage = () => {
 
         {/* Automated Backup - Admin Only */}
         {isAdmin && <AutomatedBackupSettings />}
+
+        {/* Field Value Merge - Admin Only */}
+        {isAdmin && (
+          <div className="bg-card rounded-xl border border-border p-6">
+            <div className="flex items-center gap-3 mb-1">
+              <div className="w-10 h-10 bg-amber-100 rounded-lg flex items-center justify-center">
+                <Database className="w-5 h-5 text-amber-600" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-foreground">Veri Birleştirme ve Düzeltme</h3>
+                <p className="text-sm text-muted-foreground">
+                  Aynı anlama gelen farklı yazımları tek değerde birleştirin — tüm müşteri kayıtları güncellenir
+                </p>
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground mb-4 ml-[52px]">
+              Örnek: &quot;f&amp;b&quot;, &quot;food &amp; beverage&quot; ve &quot;çikolata&quot; değerlerini seçip hedefe &quot;F&amp;B&quot; yazın.
+            </p>
+
+            <div className="flex items-center gap-3 mb-3">
+              <Label className="text-sm shrink-0">Alan:</Label>
+              <Select value={mergeField} onValueChange={setMergeField}>
+                <SelectTrigger className="w-[180px] h-9">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.entries(MERGE_FIELDS).map(([key, label]) => (
+                    <SelectItem key={key} value={key}>{label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {mergeSelected.length > 0 && (
+                <Badge variant="secondary" className="text-xs">
+                  {mergeSelected.length} değer seçildi
+                </Badge>
+              )}
+            </div>
+
+            {mergeLoading ? (
+              <div className="text-center py-6">
+                <Loader2 className="w-6 h-6 animate-spin mx-auto text-muted-foreground/70" />
+              </div>
+            ) : (
+              <>
+                <div className="max-h-[260px] overflow-y-auto border border-border rounded-lg divide-y divide-border mb-3">
+                  {mergeValues.length === 0 && (
+                    <p className="text-sm text-muted-foreground p-3">Bu alanda kayıtlı değer yok.</p>
+                  )}
+                  {mergeValues.map((item) => (
+                    <label
+                      key={item.value}
+                      className={`flex items-center justify-between px-3 py-2 cursor-pointer text-sm hover:bg-muted/50 ${
+                        mergeSelected.includes(item.value) ? "bg-amber-50" : ""
+                      }`}
+                    >
+                      <span className="flex items-center gap-2 min-w-0">
+                        <input
+                          type="checkbox"
+                          className="accent-amber-600 shrink-0"
+                          checked={mergeSelected.includes(item.value)}
+                          onChange={() => toggleMergeValue(item.value)}
+                        />
+                        <span className="truncate">{item.value}</span>
+                      </span>
+                      <span className="flex items-center gap-2 shrink-0">
+                        <Badge variant="secondary" className="text-xs">{item.count} müşteri</Badge>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 text-xs px-2 text-muted-foreground hover:text-foreground"
+                          onClick={(e) => { e.preventDefault(); setMergeTarget(item.value); }}
+                          title="Bu değeri hedef yap"
+                        >
+                          Hedef yap
+                        </Button>
+                      </span>
+                    </label>
+                  ))}
+                </div>
+
+                <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
+                  <div className="flex items-center gap-2 flex-1">
+                    <Label className="text-sm shrink-0">Yeni değer:</Label>
+                    <Input
+                      placeholder="Örn: F&B"
+                      value={mergeTarget}
+                      onChange={(e) => setMergeTarget(e.target.value)}
+                      className="h-9"
+                    />
+                  </div>
+                  <Button
+                    onClick={handleMerge}
+                    disabled={merging || mergeSelected.length === 0 || !mergeTarget.trim()}
+                    className="h-9"
+                  >
+                    {merging ? (
+                      <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                    ) : (
+                      <Pencil className="w-4 h-4 mr-2" />
+                    )}
+                    Seçilenleri Birleştir
+                  </Button>
+                </div>
+              </>
+            )}
+          </div>
+        )}
 
         {/* Options Management - Admin Only */}
         {isAdmin && (

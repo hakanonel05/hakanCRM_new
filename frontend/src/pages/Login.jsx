@@ -38,6 +38,25 @@ const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
+  const [slowServer, setSlowServer] = useState(false);
+
+  // Warm up the backend as soon as the login screen mounts (Render free tier
+  // sleeps when idle; cold starts take 30-60s). By the time the user types
+  // their credentials, the server is usually already awake.
+  useEffect(() => {
+    fetch(`${API}/health`, { cache: "no-store" }).catch(() => {});
+  }, []);
+
+  // If a login request takes more than ~4s, the backend is almost certainly
+  // cold-starting — tell the user instead of showing a silent spinner.
+  useEffect(() => {
+    if (!loading) {
+      setSlowServer(false);
+      return;
+    }
+    const t = setTimeout(() => setSlowServer(true), 4000);
+    return () => clearTimeout(t);
+  }, [loading]);
 
   useEffect(() => {
     if (authChecked) return;
@@ -367,6 +386,12 @@ const Login = () => {
                 </>
               )}
             </button>
+
+            {slowServer && (
+              <p className="text-xs text-muted-foreground text-center animate-pulse">
+                Sunucu uyandırılıyor, lütfen bekleyin... (ücretsiz sunucu planında ilk açılış 30-60 sn sürebilir)
+              </p>
+            )}
           </form>
 
           {/* Mode toggle */}
