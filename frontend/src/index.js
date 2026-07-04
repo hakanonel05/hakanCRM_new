@@ -10,15 +10,8 @@ root.render(
   </React.StrictMode>,
 );
 
-// Register Service Worker for PWA
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/service-worker.js')
-      .then((registration) => {
-        console.log('SW registered:', registration.scope);
-      })
-      .catch((error) => {
-        console.log('SW registration failed:', error);
-      });
-  });
-}
+// NOTE: Service Worker registration lives in public/index.html (/sw.js).
+// The old duplicate registration of /service-worker.js was removed because:
+// 1) Two SWs fighting over the same scope caused re-install churn on every load.
+// 2) /service-worker.js used a cache-FIRST strategy for index.html with a fixed
+//    cache name, which could serve a stale app shell forever.
