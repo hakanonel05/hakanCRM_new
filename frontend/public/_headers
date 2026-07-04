@@ -15,6 +15,9 @@
 /sw.js
   Cache-Control: no-cache, no-store, must-revalidate
 
+/service-worker.js
+  Cache-Control: no-cache, no-store, must-revalidate
+
 ## Fonts / icons served from public
 /*.woff2
   Cache-Control: public, max-age=31536000, immutable

@@ -153,16 +153,27 @@
             });
         </script>
         <script>
-            // Register Service Worker for PWA
+            // SERVICE WORKER CLEANUP — intentionally NOT registering any SW.
+            // The app previously registered two service workers on the same
+            // scope (/sw.js and /service-worker.js). They fought over control,
+            // served stale cached pages, and could trigger reload loops
+            // (e.g. bouncing between /auth/callback and /). The app is an
+            // online CRM; offline caching adds no value here.
+            // This block removes any previously installed worker and its caches.
             if ('serviceWorker' in navigator) {
                 window.addEventListener('load', function() {
-                    navigator.serviceWorker.register('/sw.js')
-                        .then(function(registration) {
-                            console.log('SW registered:', registration.scope);
+                    navigator.serviceWorker.getRegistrations()
+                        .then(function(regs) {
+                            regs.forEach(function(r) { r.unregister(); });
                         })
-                        .catch(function(error) {
-                            console.log('SW registration failed:', error);
-                        });
+                        .catch(function() {});
+                    if (window.caches && caches.keys) {
+                        caches.keys()
+                            .then(function(names) {
+                                names.forEach(function(n) { caches.delete(n); });
+                            })
+                            .catch(function() {});
+                    }
                 });
             }
         </script>
