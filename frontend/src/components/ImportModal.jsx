@@ -54,6 +54,10 @@ const ImportModal = ({ open, onClose, onImportComplete }) => {
   // Progress tracking
   const [importProgress, setImportProgress] = useState({ current: 0, total: 0 });
   const [importStatus, setImportStatus] = useState(""); // "importing", "success", "error"
+  // Live counters shown DURING import (updated after every chunk)
+  const [importLive, setImportLive] = useState({ added: 0, updated: 0, failed: 0 });
+  // Final summary shown AFTER import: {added, updated, failed, skipped}
+  const [importResult, setImportResult] = useState(null);
   
   // Preview state
   const [previewData, setPreviewData] = useState([]);
@@ -105,6 +109,8 @@ const ImportModal = ({ open, onClose, onImportComplete }) => {
     setPreviewStats({ new: 0, similar: 0, duplicate: 0 });
     setImportProgress({ current: 0, total: 0 });
     setImportStatus("");
+    setImportLive({ added: 0, updated: 0, failed: 0 });
+    setImportResult(null);
   };
 
   const handleClose = () => {
@@ -536,22 +542,19 @@ const ImportModal = ({ open, onClose, onImportComplete }) => {
         }
         setImportProgress({ current: 1, total: total + 1 });
 
-        // Step 2: Bulk import customers in chunks
-        const CHUNK_SIZE = 50;
+        // Step 2: Bulk import customers in chunks.
+        // Smaller chunks = more frequent progress updates, so the user SEES
+        // things moving instead of a bar stuck at 0% for a minute.
+        const CHUNK_SIZE = 25;
         let successCount = 0;
         let failCount = 0;
         let mergeCount = 0;
+        setImportLive({ added: 0, updated: 0, failed: 0 });
 
         // Process new items in chunks
         for (let i = 0; i < newItems.length; i += CHUNK_SIZE) {
           const chunk = newItems.slice(i, i + CHUNK_SIZE);
-          const mergeChunk = [];
-          
-          // Include merge items proportionally
-          if (i === 0 && mergeItems.length > 0) {
-            // Send all merge items with the first chunk
-          }
-          
+
           try {
             const response = await axios.post(`${API}/import/bulk-customers`, {
               items: chunk,
@@ -564,9 +567,10 @@ const ImportModal = ({ open, onClose, onImportComplete }) => {
             console.error('Chunk import hatası:', error);
             failCount += chunk.length;
           }
-          
+
           const processed = Math.min(i + CHUNK_SIZE, newItems.length) + (i === 0 ? mergeItems.length : 0);
           setImportProgress({ current: 1 + processed, total: total + 1 });
+          setImportLive({ added: successCount, updated: mergeCount, failed: failCount });
         }
 
         // If no new items but merge items exist
@@ -582,27 +586,32 @@ const ImportModal = ({ open, onClose, onImportComplete }) => {
             console.error('Merge import hatası:', error);
             failCount += mergeItems.length;
           }
+          setImportLive({ added: successCount, updated: mergeCount, failed: failCount });
         }
 
         setImportProgress({ current: total + 1, total: total + 1 });
         setImporting(false);
         setImportStatus(failCount === 0 ? "success" : "error");
 
-        if (successCount > 0 || mergeCount > 0) {
-          let message = "";
-          if (mergeCount > 0 && successCount > 0) {
-            message = `${successCount} yeni eklendi, ${mergeCount} güncellendi`;
-          } else if (mergeCount > 0) {
-            message = `${mergeCount} kayıt güncellendi`;
-          } else {
-            message = `${successCount} kayıt başarıyla import edildi`;
-          }
-          toast.success(message);
-          onImportComplete();
-          setTimeout(() => handleClose(), 1500);
-        }
+        const skippedCount = skipItems.size;
+        // Instant toast with full counts
+        const parts = [];
+        if (successCount > 0) parts.push(`${successCount} yeni eklendi`);
+        if (mergeCount > 0) parts.push(`${mergeCount} güncellendi`);
+        if (skippedCount > 0) parts.push(`${skippedCount} atlandı`);
+        if (failCount > 0) parts.push(`${failCount} hata`);
+        const message = parts.join(", ") || "İşlem tamamlandı";
         if (failCount > 0) {
-          toast.error(`${failCount} kayıt import edilemedi`);
+          toast.error(message);
+        } else {
+          toast.success(message);
+        }
+
+        // Show a persistent summary screen — do NOT auto-close, so the user
+        // can clearly see what happened (added / updated / skipped / failed).
+        setImportResult({ added: successCount, updated: mergeCount, failed: failCount, skipped: skippedCount });
+        if (successCount > 0 || mergeCount > 0) {
+          onImportComplete();
         }
       } else {
         // Visit import - still one by one since visits are less common
@@ -624,14 +633,21 @@ const ImportModal = ({ open, onClose, onImportComplete }) => {
         setImporting(false);
         setImportStatus(failCount === 0 ? "success" : "error");
         setImportProgress({ current: total, total });
-        
-        if (successCount > 0) {
-          toast.success(`${successCount} ziyaret başarıyla import edildi`);
-          onImportComplete();
-          setTimeout(() => handleClose(), 1500);
-        }
+
+        const skippedVisits = skipItems.size;
+        const vParts = [];
+        if (successCount > 0) vParts.push(`${successCount} ziyaret eklendi`);
+        if (skippedVisits > 0) vParts.push(`${skippedVisits} atlandı`);
+        if (failCount > 0) vParts.push(`${failCount} hata`);
+        const vMessage = vParts.join(", ") || "İşlem tamamlandı";
         if (failCount > 0) {
-          toast.error(`${failCount} ziyaret import edilemedi`);
+          toast.error(vMessage);
+        } else {
+          toast.success(vMessage);
+        }
+        setImportResult({ added: successCount, updated: 0, failed: failCount, skipped: skippedVisits });
+        if (successCount > 0) {
+          onImportComplete();
         }
       }
     } catch (error) {
@@ -855,13 +871,73 @@ const ImportModal = ({ open, onClose, onImportComplete }) => {
                   %{importProgress.total > 0 ? Math.round((importProgress.current / importProgress.total) * 100) : 0}
                 </p>
                 <p className="text-sm text-slate-500 mt-1">
-                  {importProgress.current === 0 ? 'Hazırlanıyor...' :
+                  {importProgress.current === 0 ? 'Sunucuya bağlanılıyor... (sunucu uykudaysa ilk yanıt 30-60 sn sürebilir)' :
                    importProgress.current === 1 && importType === 'company' ? 'Seçenekler kaydedildi, müşteriler aktarılıyor...' :
                    importProgress.total > 0 
-                    ? `%${Math.round((importProgress.current / importProgress.total) * 100)} tamamlandı`
+                    ? `${Math.min(importProgress.current, importProgress.total)} / ${importProgress.total} kayıt işlendi`
                     : 'Hazırlanıyor...'}
                 </p>
+
+                {/* Live counters — updates after every batch */}
+                {(importLive.added > 0 || importLive.updated > 0 || importLive.failed > 0) && (
+                  <div className="grid grid-cols-3 gap-2 mt-4">
+                    <div className="bg-emerald-50 border border-emerald-200 rounded-lg py-2">
+                      <p className="text-lg font-bold text-emerald-700">{importLive.added}</p>
+                      <p className="text-[11px] text-emerald-600">Eklendi</p>
+                    </div>
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg py-2">
+                      <p className="text-lg font-bold text-blue-700">{importLive.updated}</p>
+                      <p className="text-[11px] text-blue-600">Güncellendi</p>
+                    </div>
+                    <div className="bg-red-50 border border-red-200 rounded-lg py-2">
+                      <p className="text-lg font-bold text-red-700">{importLive.failed}</p>
+                      <p className="text-[11px] text-red-600">Hata</p>
+                    </div>
+                  </div>
+                )}
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* Final result summary — stays on screen until the user closes it */}
+        {!importing && importResult && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-2xl p-8 max-w-md w-full mx-4 shadow-2xl text-center">
+              <div className={`w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4 ${importResult.failed > 0 ? 'bg-amber-100' : 'bg-emerald-100'}`}>
+                {importResult.failed > 0 ? (
+                  <AlertTriangle className="w-10 h-10 text-amber-600" />
+                ) : (
+                  <CheckCircle className="w-10 h-10 text-emerald-600" />
+                )}
+              </div>
+              <h3 className="text-xl font-bold text-slate-800 mb-1">
+                {importResult.failed > 0 ? 'İçe Aktarma Tamamlandı (hatalarla)' : 'İçe Aktarma Tamamlandı'}
+              </h3>
+              <p className="text-sm text-slate-500 mb-5">İşlem sonucu aşağıda özetlenmiştir</p>
+
+              <div className="grid grid-cols-2 gap-3 mb-6">
+                <div className="bg-emerald-50 border border-emerald-200 rounded-xl py-3">
+                  <p className="text-2xl font-bold text-emerald-700">{importResult.added}</p>
+                  <p className="text-xs text-emerald-600">Yeni Eklendi</p>
+                </div>
+                <div className="bg-blue-50 border border-blue-200 rounded-xl py-3">
+                  <p className="text-2xl font-bold text-blue-700">{importResult.updated}</p>
+                  <p className="text-xs text-blue-600">Güncellendi</p>
+                </div>
+                <div className="bg-slate-50 border border-slate-200 rounded-xl py-3">
+                  <p className="text-2xl font-bold text-slate-700">{importResult.skipped}</p>
+                  <p className="text-xs text-slate-500">Atlandı / Yoksayıldı</p>
+                </div>
+                <div className="bg-red-50 border border-red-200 rounded-xl py-3">
+                  <p className="text-2xl font-bold text-red-700">{importResult.failed}</p>
+                  <p className="text-xs text-red-600">Hata</p>
+                </div>
+              </div>
+
+              <Button onClick={handleClose} className="w-full">
+                Tamam
+              </Button>
             </div>
           </div>
         )}
