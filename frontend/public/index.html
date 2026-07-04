@@ -12,6 +12,27 @@
         <link rel="apple-touch-icon" href="%PUBLIC_URL%/logo192.png" />
         <title>CRMaster - Müşteri Yönetim Sistemi</title>
 
+        <!-- Backend warm-up: Render free tier sleeps after ~15 min idle and a
+             cold start takes 30-60s. Fire a ping to /api/health the instant the
+             HTML arrives, so the server wakes up WHILE the JS bundle is still
+             downloading/parsing — instead of only when the app makes its first
+             real API call. %REACT_APP_BACKEND_URL% is inlined at build time. -->
+        <script>
+            (function () {
+                var backend = "%REACT_APP_BACKEND_URL%";
+                if (backend && backend.indexOf("http") === 0) {
+                    try {
+                        fetch(backend + "/api/health", {
+                            mode: "cors",
+                            cache: "no-store",
+                            keepalive: true,
+                        }).catch(function () {});
+                    } catch (e) {}
+                }
+            })();
+        </script>
+        <link rel="preconnect" href="%REACT_APP_BACKEND_URL%" crossorigin />
+
         <!-- Google Fonts — preconnect first, then async stylesheet -->
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
