@@ -3167,12 +3167,82 @@ def _b64d(text: str) -> bytes:
 
 def _issue_session_token(session_data: "SessionData") -> str:
     """Create a signed, self-contained session token and cache it in memory."""
-    payload = json.dumps(session_data.model_dump(), separators=(",", ":")).encode()
+    payload_dict = session_data.model_dump()
+    # Unique per issuance ("jti"): without this, two logins with identical
+    # timestamps would produce byte-identical tokens — and revoking one on
+    # logout would accidentally revoke the other.
+    payload_dict["jti"] = uuid.uuid4().hex
+    payload = json.dumps(payload_dict, separators=(",", ":")).encode()
     sig = hmac.new(_SESSION_SECRET, payload, hashlib.sha256).digest()
     token = f"{_SIGNED_TOKEN_PREFIX}{_b64e(payload)}.{_b64e(sig)}"
     sessions[token] = session_data
     _save_sessions_to_disk()
     return token
+
+
+# --- Token revocation (logout support for signed tokens) ---
+# Signed tokens validate themselves, which means deleting them from the
+# sessions dict is NOT enough to log someone out — the browser's copy would
+# stay valid until expiry. Logout therefore records the token's hash in this
+# revocation registry (mirrored to persistent storage so it survives
+# restarts). Entries self-expire together with the tokens they block.
+_REVOKED_TOKENS: dict = {}  # sha256(token) -> expiry ISO timestamp
+_REVOKED_STATE_KEY = "revoked_tokens.json"
+
+
+def _token_hash(token: str) -> str:
+    return hashlib.sha256(token.encode()).hexdigest()
+
+
+def _prune_revoked_tokens() -> None:
+    now = datetime.now(timezone.utc)
+    for h, exp in list(_REVOKED_TOKENS.items()):
+        try:
+            if datetime.fromisoformat(str(exp).replace("Z", "+00:00")) < now:
+                del _REVOKED_TOKENS[h]
+        except Exception:
+            del _REVOKED_TOKENS[h]
+
+
+def _persist_revoked_tokens() -> None:
+    try:
+        supabase.storage.from_("app-state").upload(
+            _REVOKED_STATE_KEY,
+            json.dumps(_REVOKED_TOKENS).encode("utf-8"),
+            file_options={"content-type": "application/json", "upsert": "true"},
+        )
+    except Exception as e:
+        logging.warning(f"Could not persist revoked tokens: {e}")
+
+
+def _revoke_token(token: Optional[str]) -> None:
+    if not token:
+        return
+    session = sessions.get(token) or _verify_signed_token(token)
+    expires = (
+        session.expires_at
+        if session
+        else (datetime.now(timezone.utc) + timedelta(days=8)).isoformat()
+    )
+    _prune_revoked_tokens()
+    _REVOKED_TOKENS[_token_hash(token)] = expires
+    _persist_revoked_tokens()
+
+
+def _is_token_revoked(token: str) -> bool:
+    return _token_hash(token) in _REVOKED_TOKENS
+
+
+def _restore_revoked_tokens_from_storage() -> None:
+    global _REVOKED_TOKENS
+    try:
+        raw = supabase.storage.from_("app-state").download(_REVOKED_STATE_KEY)
+        if raw:
+            _REVOKED_TOKENS = json.loads(raw.decode("utf-8")) or {}
+            _prune_revoked_tokens()
+            logging.info(f"Revoked token registry restored ({len(_REVOKED_TOKENS)} entries)")
+    except Exception:
+        pass
 
 
 def _verify_signed_token(token: str) -> Optional["SessionData"]:
@@ -3186,7 +3256,9 @@ def _verify_signed_token(token: str) -> Optional["SessionData"]:
         expected = hmac.new(_SESSION_SECRET, payload, hashlib.sha256).digest()
         if not hmac.compare_digest(expected, _b64d(sig_b64)):
             return None
-        return SessionData(**json.loads(payload))
+        data = json.loads(payload)
+        data.pop("jti", None)  # issuance nonce — not a SessionData field
+        return SessionData(**data)
     except Exception:
         return None
 
@@ -3303,6 +3375,8 @@ async def get_current_user_from_request(request: Request, session_token: Optiona
     token = session_token or request.headers.get("x-session-token") or request.cookies.get("session_token")
     if not token:
         return None
+    if _is_token_revoked(token):
+        return None  # user logged out — signed token must not resurrect the session
     
     # Try in-memory first
     session = sessions.get(token)
@@ -3430,10 +3504,12 @@ async def auth_callback(request: Request, response: Response):
 
 @api_router.post("/auth/logout")
 async def logout(request: Request, response: Response, session_token: Optional[str] = Cookie(None)):
-    if session_token and session_token in sessions:
-        del sessions[session_token]
-    if session_token:
-        _delete_persisted_session(session_token)
+    # Cookie may be blocked cross-site — accept the header fallback too
+    token = session_token or request.headers.get("x-session-token")
+    if token:
+        sessions.pop(token, None)
+        _delete_persisted_session(token)
+        _revoke_token(token)  # signed tokens stay valid unless explicitly revoked
     
     response.delete_cookie(key="session_token")
     return {"message": "Çıkış yapıldı"}
@@ -5359,6 +5435,7 @@ def _init_persistent_storage():
             except Exception:
                 pass  # already exists
         _restore_permissions_from_storage()
+        _restore_revoked_tokens_from_storage()
         backup_service.init_storage(supabase)
     except Exception as e:
         logger.error("Persistent storage init failed (continuing): %s", e)
