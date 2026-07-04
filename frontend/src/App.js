@@ -131,15 +131,21 @@ function App() {
 
   const logout = async () => {
     try {
+      // Send the token explicitly — the cookie is often blocked cross-site,
+      // and without the token the backend can't revoke the session.
+      const token = localStorage.getItem("crmaster_session_token");
       await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/auth/logout`, {
         method: "POST",
-        credentials: "include"
+        credentials: "include",
+        headers: token ? { "X-Session-Token": token } : {}
       });
     } catch (error) {
       console.error("Logout error:", error);
     }
     clearStoredUser();
     setUser(null);
+    // Full reload → login page starts from a clean, consistent state
+    window.location.replace("/login");
   };
 
   // Role helpers — single definition lives in lib/config.js
