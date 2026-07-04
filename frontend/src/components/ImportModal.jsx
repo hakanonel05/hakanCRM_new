@@ -139,7 +139,11 @@ const ImportModal = ({ open, onClose, onImportComplete }) => {
   const downloadCompanyTemplate = async () => {
     try {
       const response = await fetch(`${API}/export/customers/template`, {
-        credentials: "include"
+        credentials: "include",
+        headers: (() => {
+          const t = localStorage.getItem("crmaster_session_token");
+          return t ? { "X-Session-Token": t } : {};
+        })()
       });
       if (!response.ok) throw new Error("Download failed");
       
@@ -158,7 +162,11 @@ const ImportModal = ({ open, onClose, onImportComplete }) => {
   const downloadVisitTemplate = async () => {
     try {
       const response = await fetch(`${API}/export/visits/template`, {
-        credentials: "include"
+        credentials: "include",
+        headers: (() => {
+          const t = localStorage.getItem("crmaster_session_token");
+          return t ? { "X-Session-Token": t } : {};
+        })()
       });
       if (!response.ok) throw new Error("Download failed");
       
