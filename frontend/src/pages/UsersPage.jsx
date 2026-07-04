@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { ADMIN_EMAIL } from "../lib/config";
 import Breadcrumb from "../components/Breadcrumb";
 import axios from "axios";
 import {
@@ -230,7 +231,7 @@ const UsersPage = () => {
                     </div>
                   </TableCell>
                   <TableCell>
-                    {isSelf || u.email?.toLowerCase() === "hakanonel05@gmail.com" ? (
+                    {isSelf || u.email?.toLowerCase() === ADMIN_EMAIL ? (
                       <Badge className="bg-amber-100 text-amber-700">
                         <ShieldCheck className="w-3 h-3 mr-1" />
                         Admin

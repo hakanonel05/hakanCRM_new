@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { getStoredUser, fetchCurrentUser, storeUser } from "../lib/auth";
 import { useNavigate } from "react-router-dom";
 import {
   Eye,
@@ -61,28 +62,15 @@ const Login = () => {
   useEffect(() => {
     if (authChecked) return;
     const checkAuth = async () => {
-      const stored = localStorage.getItem("crmaster_user");
-      if (stored) {
-        try {
-          const parsedUser = JSON.parse(stored);
-          if (parsedUser?.email) {
-            navigate("/", { replace: true });
-            return;
-          }
-        } catch {
-          localStorage.removeItem("crmaster_user");
-        }
+      // Shared logic — same helpers App.js uses (lib/auth.js)
+      if (getStoredUser()) {
+        navigate("/", { replace: true });
+        return;
       }
-      try {
-        const response = await fetch(`${API}/auth/me`, { credentials: "include" });
-        if (response.ok) {
-          const userData = await response.json();
-          localStorage.setItem("crmaster_user", JSON.stringify(userData));
-          navigate("/", { replace: true });
-          return;
-        }
-      } catch {
-        /* not logged in */
+      const userData = await fetchCurrentUser();
+      if (userData) {
+        navigate("/", { replace: true });
+        return;
       }
       setChecking(false);
       setAuthChecked(true);
@@ -112,10 +100,7 @@ const Login = () => {
       if (response.ok) {
         const userData = await response.json();
         toast.success("Giriş başarılı!");
-        localStorage.setItem("crmaster_user", JSON.stringify(userData));
-        if (userData.session_token) {
-          localStorage.setItem("crmaster_session_token", userData.session_token);
-        }
+        storeUser(userData);
         window.location.href = "/";
       } else {
         const data = await response.json();
@@ -149,10 +134,7 @@ const Login = () => {
       if (response.ok) {
         const userData = await response.json();
         toast.success("Kayıt başarılı! Hoş geldiniz.");
-        localStorage.setItem("crmaster_user", JSON.stringify(userData));
-        if (userData.session_token) {
-          localStorage.setItem("crmaster_session_token", userData.session_token);
-        }
+        storeUser(userData);
         window.location.href = "/";
       } else {
         const data = await response.json();

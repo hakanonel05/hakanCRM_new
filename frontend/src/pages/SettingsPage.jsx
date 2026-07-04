@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { ADMIN_EMAIL } from "../lib/config";
 import Breadcrumb from "../components/Breadcrumb";
 import axios from "axios";
 import { 
@@ -269,7 +270,7 @@ const SettingsPage = () => {
     setSendingTestEmail(true);
     try {
       await axios.post(`${API}/test-email`);
-      toast.success("Test e-postası hakanonel05@gmail.com adresine gönderildi");
+      toast.success(`Test e-postası ${ADMIN_EMAIL} adresine gönderildi`);
     } catch (error) {
       toast.error(error.response?.data?.detail || "Test e-postası gönderilemedi");
     } finally {
@@ -470,14 +471,14 @@ const SettingsPage = () => {
             </div>
             <div>
               <h3 className="font-semibold text-foreground">E-posta Bildirimleri</h3>
-              <p className="text-sm text-muted-foreground">Takip hatırlatmaları hakanonel05@gmail.com adresine gönderilir</p>
+              <p className="text-sm text-muted-foreground">Takip hatırlatmaları {ADMIN_EMAIL} adresine gönderilir</p>
             </div>
           </div>
           
           {/* Info box */}
           <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
             <p className="text-sm text-primary">
-              📧 Tüm hatırlatma e-postaları <strong>hakanonel05@gmail.com</strong> adresine gönderilecek.
+              📧 Tüm hatırlatma e-postaları <strong>{ADMIN_EMAIL}</strong> adresine gönderilecek.
             </p>
           </div>
           
@@ -530,7 +531,7 @@ const SettingsPage = () => {
             {/* Info box */}
             <div className="mb-4 p-3 bg-purple-50 border border-purple-200 rounded-lg">
               <p className="text-sm text-purple-700">
-                🔒 Sadece bu listedeki ve <strong>hakanonel05@gmail.com</strong> giriş yapabilir.
+                🔒 Sadece bu listedeki ve <strong>{ADMIN_EMAIL}</strong> giriş yapabilir.
               </p>
             </div>
             
