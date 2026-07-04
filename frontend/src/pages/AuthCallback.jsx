@@ -1,35 +1,65 @@
-import { useEffect, useState } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "../App";
+
+// Key for remembering which session_id we already exchanged. A session_id can
+// be used ONLY ONCE — if this page reloads (service worker churn, user
+// refresh, browser restore), retrying the same id fails with 401 and used to
+// cause a login bounce loop. With this guard a reload simply routes the user
+// to wherever they belong instead of re-attempting the exchange.
+const USED_SESSION_KEY = "crmaster_used_session_id";
 
 const AuthCallback = () => {
   const navigate = useNavigate();
-  const location = useLocation();
   const { setUser } = useAuth();
   const [error, setError] = useState(null);
-  const [processed, setProcessed] = useState(false);
+  // useRef (not state) so the guard works even across synchronous re-renders
+  const startedRef = useRef(false);
 
   useEffect(() => {
-    // Prevent double processing
-    if (processed) return;
-    setProcessed(true);
+    if (startedRef.current) return;
+    startedRef.current = true;
 
     const processAuth = async () => {
-      // Get session_id from URL fragment
-      const hash = location.hash;
+      // Read session_id from the URL fragment, then IMMEDIATELY strip it from
+      // the address bar so any reload of this page can't resubmit it.
+      const hash = window.location.hash || "";
       const sessionIdMatch = hash.match(/session_id=([^&]+)/);
-      
-      if (!sessionIdMatch) {
-        console.log("No session_id found, redirecting to login");
-        navigate("/login", { replace: true });
+      const sessionId = sessionIdMatch ? sessionIdMatch[1] : null;
+      if (sessionId) {
+        try {
+          window.history.replaceState(null, "", "/auth/callback");
+        } catch (e) {
+          /* ignore */
+        }
+      }
+
+      const storedUserRaw = localStorage.getItem("crmaster_user");
+      let storedUser = null;
+      try {
+        storedUser = storedUserRaw ? JSON.parse(storedUserRaw) : null;
+      } catch (e) {
+        storedUser = null;
+      }
+
+      // No session_id in URL → nothing to exchange.
+      if (!sessionId) {
+        navigate(storedUser?.email ? "/" : "/login", { replace: true });
         return;
       }
 
-      const sessionId = sessionIdMatch[1];
-      console.log("Processing session_id:", sessionId.substring(0, 10) + "...");
+      // This exact session_id was already exchanged (page got reloaded).
+      // Do NOT retry — decide based on whether we're already logged in.
+      if (sessionStorage.getItem(USED_SESSION_KEY) === sessionId) {
+        navigate(storedUser?.email ? "/" : "/login", { replace: true });
+        return;
+      }
 
       try {
-        // Exchange session_id for user data
+        // Mark as used BEFORE the request — even if the tab reloads mid-flight
+        // we must never send the same id twice.
+        sessionStorage.setItem(USED_SESSION_KEY, sessionId);
+
         const response = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/auth/session`, {
           method: "POST",
           headers: {
@@ -45,23 +75,25 @@ const AuthCallback = () => {
         }
 
         const user = await response.json();
-        console.log("Auth successful, user:", user.email);
-        
+
         // Store user and session_token for fallback auth (cookie may be blocked by browser)
         localStorage.setItem("crmaster_user", JSON.stringify(user));
         if (user.session_token) {
           localStorage.setItem("crmaster_session_token", user.session_token);
         }
-        
-        // Update auth context
+
+        // Update auth context and go to the app
         setUser(user);
-        
-        // Navigate to dashboard
         navigate("/", { replace: true });
-      } catch (error) {
-        console.error("Auth error:", error);
-        setError(error.message);
-        // Wait a bit then redirect to login
+      } catch (err) {
+        console.error("Auth error:", err);
+        // If a previous login is still valid, don't bounce the user out —
+        // this breaks any callback/login loop.
+        if (storedUser?.email) {
+          navigate("/", { replace: true });
+          return;
+        }
+        setError(err.message);
         setTimeout(() => {
           navigate("/login", { replace: true });
         }, 3000);
@@ -69,7 +101,8 @@ const AuthCallback = () => {
     };
 
     processAuth();
-  }, [location, navigate, setUser, processed]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   if (error) {
     return (
