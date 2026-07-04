@@ -62,14 +62,19 @@ const Login = () => {
   useEffect(() => {
     if (authChecked) return;
     const checkAuth = async () => {
-      // Shared logic — same helpers App.js uses (lib/auth.js)
+      // Shared logic — same helpers App.js uses (lib/auth.js).
+      // IMPORTANT: use a FULL page load (window.location.replace), not SPA
+      // navigate(). With navigate(), App's in-memory user state could
+      // disagree with localStorage right after logout, and the two pages
+      // bounced each other forever (login <-> /). A full reload re-boots App
+      // so both sides always read the same source — the loop is impossible.
       if (getStoredUser()) {
-        navigate("/", { replace: true });
+        window.location.replace("/");
         return;
       }
       const userData = await fetchCurrentUser();
       if (userData) {
-        navigate("/", { replace: true });
+        window.location.replace("/");
         return;
       }
       setChecking(false);
