@@ -1,6 +1,8 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { useState, useEffect, createContext, useContext, lazy, Suspense } from "react";
 import axios from "axios";
+import { isAdminUser, isSuperAdminUser } from "./lib/config";
+import { getStoredUser, fetchCurrentUser, clearStoredUser } from "./lib/auth";
 import Layout from "./components/Layout";
 import Login from "./pages/Login";
 import AuthCallback from "./pages/AuthCallback";
@@ -106,35 +108,18 @@ function App() {
   const checkAuth = async () => {
     try {
       // First check localStorage - this is the primary auth source
-      const stored = localStorage.getItem("crmaster_user");
-      if (stored) {
-        try {
-          const parsedUser = JSON.parse(stored);
-          if (parsedUser && parsedUser.email) {
-            setUser(parsedUser);
-            setLoading(false);
-            setAuthChecked(true);
-            return; // User found in localStorage, no need to call API
-          }
-        } catch {
-          localStorage.removeItem("crmaster_user");
-    localStorage.removeItem("crmaster_session_token");
-        }
+      const storedUser = getStoredUser();
+      if (storedUser) {
+        setUser(storedUser);
+        setLoading(false);
+        setAuthChecked(true);
+        return; // User found in localStorage, no need to call API
       }
-      
+
       // Only call API if no localStorage user (for Emergent Auth callback)
-      const response = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/auth/me`, {
-        method: "GET",
-        credentials: "include",
-        headers: {
-          "Content-Type": "application/json"
-        }
-      });
-      
-      if (response.ok) {
-        const userData = await response.json();
+      const userData = await fetchCurrentUser();
+      if (userData) {
         setUser(userData);
-        localStorage.setItem("crmaster_user", JSON.stringify(userData));
       }
     } catch (error) {
       console.log("Auth check error:", error);
@@ -153,16 +138,13 @@ function App() {
     } catch (error) {
       console.error("Logout error:", error);
     }
-    localStorage.removeItem("crmaster_user");
-    localStorage.removeItem("crmaster_session_token");
+    clearStoredUser();
     setUser(null);
   };
 
-  // Helper to check if user is admin (role=admin OR hakanonel05@gmail.com)
-  const isAdmin = user?.role === "admin" || user?.email?.toLowerCase() === "hakanonel05@gmail.com" || user?.is_admin === true;
-  // Super admin = ONLY hakanonel05@gmail.com (manually assigned admins do NOT count).
-  // Used to gate the User Management page even from other admins.
-  const isSuperAdmin = user?.is_super_admin === true || user?.email?.toLowerCase() === "hakanonel05@gmail.com";
+  // Role helpers — single definition lives in lib/config.js
+  const isAdmin = isAdminUser(user);
+  const isSuperAdmin = isSuperAdminUser(user);
   // Permission flags (admin always true). Falls back to per-user permissions from /auth/me
   const perms = user?.permissions || {};
   const canDelete = isAdmin || !!perms.can_delete;
