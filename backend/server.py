@@ -2168,6 +2168,110 @@ async def delete_option(option_id: str):
     supabase.table("options").delete().eq("id", option_id).execute()
     return {"message": "Seçenek silindi"}
 
+# ============ FIELD VALUE MERGE / RENAME ============
+# Fixes messy data like "f&b" / "F&B" / "food & beverage" being treated as
+# different markets. Unlike the options endpoints above (which only edit the
+# dropdown list), these endpoints rewrite the ACTUAL customer records.
+
+MERGEABLE_FIELDS = {"market", "application", "city", "district", "competitor", "partner", "assigned_to"}
+FIELD_LABELS_TR = {
+    "market": "Market", "application": "Uygulama", "city": "Şehir",
+    "district": "İlçe", "competitor": "Rakip", "partner": "Partner",
+    "assigned_to": "Takip Eden",
+}
+
+
+@api_router.get("/field-values/{field_name}")
+async def get_field_values(field_name: str):
+    """Distinct values of a customer field with usage counts (for merge UI)."""
+    if field_name not in MERGEABLE_FIELDS:
+        raise HTTPException(status_code=400, detail="Bu alan için değer listesi alınamaz")
+
+    counts: dict = {}
+    page_size = 1000
+    offset = 0
+    while True:
+        response = supabase.table("customers").select(field_name).range(offset, offset + page_size - 1).execute()
+        if not response.data:
+            break
+        for row in response.data:
+            val = (row.get(field_name) or "").strip()
+            if val:
+                counts[val] = counts.get(val, 0) + 1
+        if len(response.data) < page_size:
+            break
+        offset += page_size
+
+    values = [{"value": v, "count": c} for v, c in counts.items()]
+    # Sort case-insensitively so near-duplicates ("f&b" / "F&B") appear together
+    values.sort(key=lambda x: (x["value"].casefold(), -x["count"]))
+    return {"field": field_name, "values": values}
+
+
+@api_router.post("/field-values/merge")
+async def merge_field_values(data: dict, request: Request, session_token: Optional[str] = Cookie(None)):
+    """Merge/rename field values across ALL customers.
+    Body: {"field": "market", "from_values": ["f&b", "çikolata"], "to_value": "F&B"}
+    Admin only — this is a bulk data rewrite."""
+    user = await get_current_user_from_request(request, session_token)
+    if not check_admin_permission(user):
+        raise HTTPException(status_code=403, detail="Bu işlem için admin yetkisi gerekli")
+
+    field = (data.get("field") or "").strip()
+    to_value = (data.get("to_value") or "").strip()
+    from_values = [str(v).strip() for v in (data.get("from_values") or []) if str(v).strip()]
+    # Renaming a value to itself is a no-op; drop it
+    from_values = [v for v in from_values if v != to_value]
+
+    if field not in MERGEABLE_FIELDS:
+        raise HTTPException(status_code=400, detail="Geçersiz alan")
+    if not to_value:
+        raise HTTPException(status_code=400, detail="Hedef değer boş olamaz")
+    if not from_values:
+        raise HTTPException(status_code=400, detail="Birleştirilecek en az bir kaynak değer seçin")
+
+    # Rewrite customer records
+    response = supabase.table("customers").update({
+        field: to_value,
+        "updated_at": datetime.now(timezone.utc).isoformat(),
+    }).in_(field, from_values).execute()
+    updated_count = len(response.data or [])
+
+    # Keep the dropdown options table consistent: remove merged values,
+    # make sure the target value exists.
+    try:
+        supabase.table("options").delete().eq("field_name", field).in_("value", from_values).execute()
+        existing = supabase.table("options").select("id").eq("field_name", field).eq("value", to_value).execute()
+        if not existing.data:
+            supabase.table("options").insert({
+                "id": str(uuid.uuid4()),
+                "field_name": field,
+                "value": to_value,
+            }).execute()
+    except Exception as e:
+        logging.warning(f"Options table sync failed during merge: {e}")
+
+    # Invalidate caches so filters/stats/kanban reflect the change immediately
+    _filter_options_cache["data"] = None
+    _stats_cache["data"] = None
+    _invalidate_kanban_cache()
+
+    label = FIELD_LABELS_TR.get(field, field)
+    await log_activity(
+        activity_type="field_values_merged",
+        title=f"{label} birleştirildi: {', '.join(from_values[:3])}{'...' if len(from_values) > 3 else ''} → {to_value}",
+        subtitle=f"{updated_count} müşteri güncellendi",
+        user_email=(user or {}).get("email", ""),
+        user_name=(user or {}).get("name", ""),
+    )
+
+    return {
+        "message": f"{updated_count} müşteri kaydında {label} değeri '{to_value}' olarak güncellendi",
+        "updated_customers": updated_count,
+        "field": field,
+        "to_value": to_value,
+    }
+
 # ============ SAVED FILTERS ENDPOINTS ============
 
 @api_router.get("/filters", response_model=List[SavedFilter])
@@ -2965,6 +3069,66 @@ def _load_session_from_db(token: str) -> Optional[SessionData]:
 # Load existing sessions on module init
 _load_sessions_from_disk()
 
+# ============ SIGNED (STATELESS) SESSION TOKENS ============
+# Render free tier restarts wipe both process memory AND the local filesystem,
+# so tokens stored only in `sessions` / sessions.json die on every cold start.
+# The user's browser still holds the token, the frontend still shows them as
+# logged in (localStorage), but the backend no longer recognizes the token →
+# every permission check fails with "yetki yok" even for the super admin.
+#
+# Fix: tokens are now SELF-CONTAINED and HMAC-signed. The token itself carries
+# the session payload, so the backend can validate it after any restart with
+# zero stored state. The in-memory `sessions` dict remains as a fast cache.
+import hmac
+import hashlib
+import base64
+
+# Must be stable across restarts. Prefer a dedicated SESSION_SECRET env var;
+# fall back to SUPABASE_SERVICE_KEY which is already set and secret.
+_SESSION_SECRET = (
+    os.environ.get("SESSION_SECRET")
+    or os.environ.get("SUPABASE_SERVICE_KEY")
+    or "crmaster-dev-secret-change-me"
+).encode()
+
+_SIGNED_TOKEN_PREFIX = "st2."
+
+
+def _b64e(raw: bytes) -> str:
+    return base64.urlsafe_b64encode(raw).rstrip(b"=").decode()
+
+
+def _b64d(text: str) -> bytes:
+    pad = "=" * (-len(text) % 4)
+    return base64.urlsafe_b64decode(text + pad)
+
+
+def _issue_session_token(session_data: "SessionData") -> str:
+    """Create a signed, self-contained session token and cache it in memory."""
+    payload = json.dumps(session_data.model_dump(), separators=(",", ":")).encode()
+    sig = hmac.new(_SESSION_SECRET, payload, hashlib.sha256).digest()
+    token = f"{_SIGNED_TOKEN_PREFIX}{_b64e(payload)}.{_b64e(sig)}"
+    sessions[token] = session_data
+    _save_sessions_to_disk()
+    return token
+
+
+def _verify_signed_token(token: str) -> Optional["SessionData"]:
+    """Validate a signed token without any server-side state. Returns None if invalid."""
+    if not token or not token.startswith(_SIGNED_TOKEN_PREFIX):
+        return None
+    try:
+        body = token[len(_SIGNED_TOKEN_PREFIX):]
+        payload_b64, sig_b64 = body.split(".", 1)
+        payload = _b64d(payload_b64)
+        expected = hmac.new(_SESSION_SECRET, payload, hashlib.sha256).digest()
+        if not hmac.compare_digest(expected, _b64d(sig_b64)):
+            return None
+        return SessionData(**json.loads(payload))
+    except Exception:
+        return None
+
+
 def check_admin_permission(user: Optional[dict]) -> bool:
     if not user:
         return False
@@ -3050,7 +3214,14 @@ async def get_current_user_from_request(request: Request, session_token: Optiona
     # Try in-memory first
     session = sessions.get(token)
     
-    # Fallback to DB (for cases where backend restarted)
+    # Fallback 1: self-validating signed token (survives backend restarts —
+    # this is what fixes "yetki yok" errors after Render cold starts)
+    if not session:
+        session = _verify_signed_token(token)
+        if session:
+            sessions[token] = session  # Restore to in-memory cache
+    
+    # Fallback 2: legacy disk-loaded sessions
     if not session:
         session = _load_session_from_db(token)
         if session:
@@ -3137,7 +3308,6 @@ async def auth_callback(request: Request, response: Response):
         }
         supabase.table("users").insert(user_doc).execute()
     
-    session_token = f"session_{uuid.uuid4().hex}"
     session_data = SessionData(
         user_id=user_id,
         email=email,
@@ -3145,8 +3315,7 @@ async def auth_callback(request: Request, response: Response):
         picture=picture,
         role=role
     )
-    sessions[session_token] = session_data
-    _save_sessions_to_disk()
+    session_token = _issue_session_token(session_data)
     
     response.set_cookie(
         key="session_token",
@@ -3308,7 +3477,6 @@ async def auth_session(request: Request, response: Response):
         supabase.table("users").insert(user_doc).execute()
     
     # Create session
-    session_token = f"session_{uuid.uuid4().hex}"
     session_data = SessionData(
         user_id=user_id,
         email=email,
@@ -3316,8 +3484,7 @@ async def auth_session(request: Request, response: Response):
         picture=picture,
         role=role
     )
-    sessions[session_token] = session_data
-    _save_sessions_to_disk()
+    session_token = _issue_session_token(session_data)
     
     response.set_cookie(
         key="session_token",
@@ -3371,7 +3538,6 @@ async def register(data: LocalRegisterRequest, response: Response):
     
     supabase.table("users").insert(user_doc).execute()
     
-    session_token = f"session_{uuid.uuid4().hex}"
     session_data = SessionData(
         user_id=user_id,
         email=data.email,
@@ -3379,8 +3545,7 @@ async def register(data: LocalRegisterRequest, response: Response):
         picture="",
         role=role
     )
-    sessions[session_token] = session_data
-    _save_sessions_to_disk()
+    session_token = _issue_session_token(session_data)
     
     response.set_cookie(
         key="session_token",
@@ -3433,7 +3598,6 @@ async def login(data: LocalLoginRequest, response: Response):
     if not pwd_context.verify(data.password, user.get("password_hash", "")):
         raise HTTPException(status_code=401, detail="Geçersiz e-posta veya şifre")
     
-    session_token = f"session_{uuid.uuid4().hex}"
     session_data = SessionData(
         user_id=user["user_id"],
         email=user["email"],
@@ -3441,8 +3605,7 @@ async def login(data: LocalLoginRequest, response: Response):
         picture=user.get("picture", ""),
         role=user["role"]
     )
-    sessions[session_token] = session_data
-    _save_sessions_to_disk()
+    session_token = _issue_session_token(session_data)
     
     response.set_cookie(
         key="session_token",
