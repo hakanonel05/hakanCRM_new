@@ -1,9 +1,21 @@
-import React, { createContext, useContext, useState, useCallback } from "react";
+import React, { createContext, useContext, useState, useCallback, lazy, Suspense } from "react";
 import { useNavigate } from "react-router-dom";
 import { Dialog, DialogContent } from "../components/ui/dialog";
 import { Button } from "../components/ui/button";
 import { X, ExternalLink } from "lucide-react";
-import CustomerDetailPage from "../pages/CustomerDetailPage";
+
+// Lazy-load: this provider wraps Layout, so a static import would pull the
+// entire 1600+ line CustomerDetailPage (and everything it imports) into the
+// MAIN bundle on first load, defeating route-level code splitting. Lazy keeps
+// it in its own chunk; it's fetched only when a customer modal actually opens
+// (and it's the same chunk the /customers/:id route already uses).
+const CustomerDetailPage = lazy(() => import("../pages/CustomerDetailPage"));
+
+const ModalLoader = () => (
+  <div className="flex items-center justify-center h-full min-h-[300px]">
+    <div className="w-8 h-8 border-[3px] border-primary/20 border-t-primary rounded-full animate-spin"></div>
+  </div>
+);
 
 const CustomerModalContext = createContext(null);
 
@@ -85,12 +97,14 @@ export const CustomerModalProvider = ({ children }) => {
           {/* Scrollable content area — renders CustomerDetailPage in modal mode */}
           <div className="flex-1 overflow-y-auto">
             {customerId && (
-              <CustomerDetailPage
-                customerId={customerId}
-                isModal={true}
-                onClose={closeCustomerModal}
-                onNavigateToFull={goToFullPage}
-              />
+              <Suspense fallback={<ModalLoader />}>
+                <CustomerDetailPage
+                  customerId={customerId}
+                  isModal={true}
+                  onClose={closeCustomerModal}
+                  onNavigateToFull={goToFullPage}
+                />
+              </Suspense>
             )}
           </div>
         </DialogContent>
