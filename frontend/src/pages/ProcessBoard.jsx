@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import { createPortal } from "react-dom";
 import axios from "axios";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import { useCustomerModal } from "../contexts/CustomerModalContext";
@@ -435,7 +436,7 @@ const ProcessBoard = () => {
                 return (
                   <div
                     key={stage.id}
-                    className="flex-shrink-0 w-64 rounded-2xl bg-white/20 border border-white/40 backdrop-blur-xl shadow-[0_8px_32px_rgba(0,0,0,0.04)] flex flex-col max-h-[calc(100vh-260px)]"
+                    className="flex-shrink-0 w-64 rounded-2xl bg-white/60 border border-white/40 shadow-[0_8px_32px_rgba(0,0,0,0.04)] flex flex-col max-h-[calc(100vh-260px)]"
                   >
                     {/* Stage başlığı */}
                     <div className={`px-3 py-2 ${colors.header} rounded-t-2xl border-b border-white/40`}>
@@ -471,12 +472,13 @@ const ProcessBoard = () => {
                             const c = card.customer || {};
                             return (
                               <Draggable key={card.id} draggableId={card.id} index={index}>
-                                {(prov, snap) => (
+                                {(prov, snap) => {
+                                  const cardEl = (
                                   <div
                                     ref={prov.innerRef}
                                     {...prov.draggableProps}
                                     className={`glass-card p-2 group transition-all hover:-translate-y-0.5 ${
-                                      snap.isDragging ? "shadow-glass ring-2 ring-primary/30" : ""
+                                      snap.isDragging ? "shadow-glass ring-2 ring-primary/30 bg-white" : ""
                                     }`}
                                   >
                                     <div className="flex items-start gap-2">
@@ -554,7 +556,13 @@ const ProcessBoard = () => {
                                       </button>
                                     </div>
                                   </div>
-                                )}
+                                  );
+                                  // Sürüklenirken kartı body'ye taşı: blur/transform içeren
+                                  // ata kapsayıcıların imleç kaymasına yol açmasını engeller.
+                                  return snap.isDragging
+                                    ? createPortal(cardEl, document.body)
+                                    : cardEl;
+                                }}
                               </Draggable>
                             );
                           })}
