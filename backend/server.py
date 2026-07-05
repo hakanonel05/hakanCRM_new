@@ -242,6 +242,25 @@ class KanbanView(KanbanViewBase):
     created_by: Optional[str] = ""
     created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
+# ============ PROCESS BOARD MODELS (manuel süreç panoları) ============
+# Kullanıcının kendi elleriyle oluşturduğu stage'ler (ör. "Teklif Çalışması")
+# ve o stage'lere manuel eklediği müşteriler. Status kanban'dan tamamen ayrıdır.
+
+class ProcessBoardCreate(BaseModel):
+    name: str
+
+class ProcessStageCreate(BaseModel):
+    name: str
+    color: Optional[str] = ""
+
+class ProcessCardCreate(BaseModel):
+    customer_id: str
+    note: Optional[str] = ""
+
+class ProcessCardMove(BaseModel):
+    stage_id: str
+    position: int = 0
+
 # ============ HELPER FUNCTIONS ============
 
 def normalize_text(text: str) -> str:
@@ -4305,6 +4324,320 @@ async def update_customer_field(customer_id: str, field: str = Query(...), value
     
     _invalidate_kanban_cache()
     return {"message": "Alan güncellendi", "field": field, "value": value}
+
+# ============ PROCESS BOARDS (manuel süreç panoları) ============
+# Kullanıcı kendi stage'lerini oluşturur ve müşterileri manuel ekler.
+# Tablolar: process_boards, process_stages, process_cards (Supabase SQL ile kurulur).
+
+# Kartlarda gösterilecek müşteri alanları (status kanban ile aynı set).
+_PROCESS_CARD_CUSTOMER_FIELDS = (
+    "id, company_name, market, application, city, status, "
+    "potential_level, assigned_to, contact_info, is_followup, partner"
+)
+
+
+def _renumber_stage_positions(stage_id: str):
+    """Bir stage içindeki kartların position değerlerini 0..n sıralı hale getirir."""
+    rows = (
+        supabase.table("process_cards")
+        .select("id, position")
+        .eq("stage_id", stage_id)
+        .order("position")
+        .execute()
+        .data
+        or []
+    )
+    for idx, row in enumerate(rows):
+        if row.get("position") != idx:
+            supabase.table("process_cards").update({"position": idx}).eq("id", row["id"]).execute()
+
+
+@api_router.get("/process/boards")
+async def list_process_boards():
+    rows = (
+        supabase.table("process_boards")
+        .select("*")
+        .order("position")
+        .execute()
+        .data
+        or []
+    )
+    return rows
+
+
+@api_router.post("/process/boards")
+async def create_process_board(data: ProcessBoardCreate):
+    name = (data.name or "").strip()
+    if not name:
+        raise HTTPException(status_code=400, detail="Pano adı gerekli")
+    existing = supabase.table("process_boards").select("position").order("position", desc=True).limit(1).execute().data
+    next_pos = (existing[0]["position"] + 1) if existing else 0
+    doc = {
+        "id": str(uuid.uuid4()),
+        "name": name,
+        "position": next_pos,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+    supabase.table("process_boards").insert(doc).execute()
+    return doc
+
+
+@api_router.put("/process/boards/{board_id}")
+async def rename_process_board(board_id: str, data: ProcessBoardCreate):
+    name = (data.name or "").strip()
+    if not name:
+        raise HTTPException(status_code=400, detail="Pano adı gerekli")
+    exists = supabase.table("process_boards").select("id").eq("id", board_id).execute().data
+    if not exists:
+        raise HTTPException(status_code=404, detail="Pano bulunamadı")
+    supabase.table("process_boards").update({"name": name}).eq("id", board_id).execute()
+    return {"id": board_id, "name": name}
+
+
+@api_router.delete("/process/boards/{board_id}")
+async def delete_process_board(board_id: str):
+    # Kartları ve stage'leri de temizle (FK cascade yoksa manuel siliyoruz).
+    supabase.table("process_cards").delete().eq("board_id", board_id).execute()
+    supabase.table("process_stages").delete().eq("board_id", board_id).execute()
+    supabase.table("process_boards").delete().eq("id", board_id).execute()
+    return {"message": "Pano silindi"}
+
+
+@api_router.get("/process/boards/{board_id}/full")
+async def get_process_board_full(board_id: str):
+    """Pano + stage'ler + her stage'in kartları (müşteri bilgisiyle birlikte)."""
+    board = supabase.table("process_boards").select("*").eq("id", board_id).execute().data
+    if not board:
+        raise HTTPException(status_code=404, detail="Pano bulunamadı")
+
+    stages = (
+        supabase.table("process_stages")
+        .select("*")
+        .eq("board_id", board_id)
+        .order("position")
+        .execute()
+        .data
+        or []
+    )
+    cards = (
+        supabase.table("process_cards")
+        .select("*")
+        .eq("board_id", board_id)
+        .order("position")
+        .execute()
+        .data
+        or []
+    )
+
+    # Kartlardaki müşterileri tek seferde çek, id -> müşteri map'i kur.
+    customer_ids = list({c["customer_id"] for c in cards})
+    customers_map = {}
+    if customer_ids:
+        # Supabase .in_ ile toplu çek (büyük listeler için parçala).
+        for i in range(0, len(customer_ids), 200):
+            chunk = customer_ids[i : i + 200]
+            rows = (
+                supabase.table("customers")
+                .select(_PROCESS_CARD_CUSTOMER_FIELDS)
+                .in_("id", chunk)
+                .execute()
+                .data
+                or []
+            )
+            for r in rows:
+                customers_map[r["id"]] = r
+
+    cards_by_stage = {}
+    for c in cards:
+        cust = customers_map.get(c["customer_id"])
+        if not cust:
+            # Müşteri silinmişse kartı atla (arka planda temizlenebilir).
+            continue
+        cards_by_stage.setdefault(c["stage_id"], []).append(
+            {
+                "id": c["id"],
+                "note": c.get("note", ""),
+                "position": c.get("position", 0),
+                "customer": cust,
+            }
+        )
+
+    stages_out = [
+        {
+            "id": s["id"],
+            "name": s["name"],
+            "color": s.get("color", ""),
+            "position": s.get("position", 0),
+            "cards": cards_by_stage.get(s["id"], []),
+        }
+        for s in stages
+    ]
+
+    return {
+        "board": {"id": board[0]["id"], "name": board[0]["name"], "position": board[0].get("position", 0)},
+        "stages": stages_out,
+    }
+
+
+@api_router.post("/process/boards/{board_id}/stages")
+async def create_process_stage(board_id: str, data: ProcessStageCreate):
+    name = (data.name or "").strip()
+    if not name:
+        raise HTTPException(status_code=400, detail="Stage adı gerekli")
+    board = supabase.table("process_boards").select("id").eq("id", board_id).execute().data
+    if not board:
+        raise HTTPException(status_code=404, detail="Pano bulunamadı")
+    existing = (
+        supabase.table("process_stages")
+        .select("position")
+        .eq("board_id", board_id)
+        .order("position", desc=True)
+        .limit(1)
+        .execute()
+        .data
+    )
+    next_pos = (existing[0]["position"] + 1) if existing else 0
+    doc = {
+        "id": str(uuid.uuid4()),
+        "board_id": board_id,
+        "name": name,
+        "color": data.color or "",
+        "position": next_pos,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+    supabase.table("process_stages").insert(doc).execute()
+    return {**doc, "cards": []}
+
+
+@api_router.put("/process/stages/{stage_id}")
+async def update_process_stage(stage_id: str, data: ProcessStageCreate):
+    exists = supabase.table("process_stages").select("id").eq("id", stage_id).execute().data
+    if not exists:
+        raise HTTPException(status_code=404, detail="Stage bulunamadı")
+    update = {"name": (data.name or "").strip()}
+    if data.color is not None:
+        update["color"] = data.color
+    supabase.table("process_stages").update(update).eq("id", stage_id).execute()
+    return {"id": stage_id, **update}
+
+
+@api_router.delete("/process/stages/{stage_id}")
+async def delete_process_stage(stage_id: str):
+    # Stage silinince içindeki kartlar da silinir (müşteri kaydı etkilenmez).
+    supabase.table("process_cards").delete().eq("stage_id", stage_id).execute()
+    supabase.table("process_stages").delete().eq("id", stage_id).execute()
+    return {"message": "Stage silindi"}
+
+
+@api_router.post("/process/stages/{stage_id}/cards")
+async def add_process_card(stage_id: str, data: ProcessCardCreate):
+    stage = supabase.table("process_stages").select("id, board_id").eq("id", stage_id).execute().data
+    if not stage:
+        raise HTTPException(status_code=404, detail="Stage bulunamadı")
+    board_id = stage[0]["board_id"]
+
+    # Aynı müşteri aynı panoda birden fazla stage'de olamaz.
+    dup = (
+        supabase.table("process_cards")
+        .select("id")
+        .eq("board_id", board_id)
+        .eq("customer_id", data.customer_id)
+        .execute()
+        .data
+    )
+    if dup:
+        raise HTTPException(status_code=409, detail="Bu müşteri zaten bu panoda mevcut")
+
+    existing = (
+        supabase.table("process_cards")
+        .select("position")
+        .eq("stage_id", stage_id)
+        .order("position", desc=True)
+        .limit(1)
+        .execute()
+        .data
+    )
+    next_pos = (existing[0]["position"] + 1) if existing else 0
+    doc = {
+        "id": str(uuid.uuid4()),
+        "board_id": board_id,
+        "stage_id": stage_id,
+        "customer_id": data.customer_id,
+        "note": data.note or "",
+        "position": next_pos,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+    supabase.table("process_cards").insert(doc).execute()
+
+    cust = (
+        supabase.table("customers")
+        .select(_PROCESS_CARD_CUSTOMER_FIELDS)
+        .eq("id", data.customer_id)
+        .execute()
+        .data
+    )
+    return {
+        "id": doc["id"],
+        "note": doc["note"],
+        "position": doc["position"],
+        "stage_id": stage_id,
+        "customer": cust[0] if cust else None,
+    }
+
+
+@api_router.delete("/process/cards/{card_id}")
+async def delete_process_card(card_id: str):
+    row = supabase.table("process_cards").select("stage_id").eq("id", card_id).execute().data
+    supabase.table("process_cards").delete().eq("id", card_id).execute()
+    if row:
+        _renumber_stage_positions(row[0]["stage_id"])
+    return {"message": "Kart kaldırıldı"}
+
+
+@api_router.patch("/process/cards/{card_id}/move")
+async def move_process_card(card_id: str, data: ProcessCardMove):
+    card = supabase.table("process_cards").select("*").eq("id", card_id).execute().data
+    if not card:
+        raise HTTPException(status_code=404, detail="Kart bulunamadı")
+    card = card[0]
+    old_stage = card["stage_id"]
+    new_stage = data.stage_id
+
+    target_stage = supabase.table("process_stages").select("board_id").eq("id", new_stage).execute().data
+    if not target_stage:
+        raise HTTPException(status_code=404, detail="Hedef stage bulunamadı")
+
+    # Hedef stage'deki mevcut kartlar (taşınan hariç), sıralı.
+    dest_cards = [
+        c
+        for c in (
+            supabase.table("process_cards")
+            .select("id, position")
+            .eq("stage_id", new_stage)
+            .order("position")
+            .execute()
+            .data
+            or []
+        )
+        if c["id"] != card_id
+    ]
+
+    pos = max(0, min(data.position, len(dest_cards)))
+    dest_cards.insert(pos, {"id": card_id})
+
+    # Taşınan kartın stage'ini güncelle.
+    supabase.table("process_cards").update({"stage_id": new_stage}).eq("id", card_id).execute()
+
+    # Hedef stage pozisyonlarını 0..n yeniden yaz.
+    for idx, c in enumerate(dest_cards):
+        supabase.table("process_cards").update({"position": idx}).eq("id", c["id"]).execute()
+
+    # Farklı stage'e taşındıysa eski stage'i de sıkıştır.
+    if old_stage != new_stage:
+        _renumber_stage_positions(old_stage)
+
+    return {"message": "Kart taşındı", "stage_id": new_stage, "position": pos}
+
 
 # ============ EXPORT ENDPOINTS ============
 
