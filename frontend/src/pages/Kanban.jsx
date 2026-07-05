@@ -44,6 +44,7 @@ import {
 } from "../components/ui/dropdown-menu";
 import { toast } from "sonner";
 import CustomerDetailCard from "../components/CustomerDetailCard";
+import ProcessBoard from "./ProcessBoard";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -87,6 +88,8 @@ const getColumnColors = (columnName, index) => {
 
 const Kanban = () => {
   const { openCustomerModal } = useCustomerModal();
+  // "status" = mevcut otomatik durum panosu, "process" = manuel süreç panoları
+  const [boardMode, setBoardMode] = useState("status");
   const [columns, setColumns] = useState({});
   const [loading, setLoading] = useState(true);
   const [selectedCustomer, setSelectedCustomer] = useState(null);
@@ -281,7 +284,7 @@ const Kanban = () => {
   // Get current group label
   const currentGroupLabel = groupFields.find(f => f.value === currentGroupBy)?.label || "Durum";
 
-  if (loading && Object.keys(columns).length === 0) {
+  if (boardMode === "status" && loading && Object.keys(columns).length === 0) {
     return (
       <div className="h-full flex flex-col" data-testid="kanban-page">
         <div className="page-header">
@@ -326,11 +329,37 @@ const Kanban = () => {
           <Breadcrumb className="mb-1" />
           <h1 className="page-title">Kanban Panosu</h1>
           <p className="page-subtitle">
-            {totalCustomers} müşteri · {currentGroupLabel}&apos;a göre gruplandı
+            {boardMode === "status"
+              ? `${totalCustomers} müşteri · ${currentGroupLabel}'a göre gruplandı`
+              : "Manuel süreç panoları"}
           </p>
         </div>
-        
+
         <div className="flex items-center gap-2">
+          {/* Durum / Süreç sekme geçişi */}
+          <div className="flex items-center rounded-lg bg-muted p-0.5">
+            <button
+              onClick={() => setBoardMode("status")}
+              className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                boardMode === "status" ? "bg-card shadow-sm text-foreground" : "text-muted-foreground"
+              }`}
+              data-testid="board-mode-status"
+            >
+              Durum Panosu
+            </button>
+            <button
+              onClick={() => setBoardMode("process")}
+              className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                boardMode === "process" ? "bg-card shadow-sm text-foreground" : "text-muted-foreground"
+              }`}
+              data-testid="board-mode-process"
+            >
+              Süreç Panoları
+            </button>
+          </div>
+
+          {boardMode === "status" && (
+          <>
           {/* Quick Group By Dropdown */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -364,11 +393,13 @@ const Kanban = () => {
             <Plus className="w-4 h-4" />
             Görünüm Kaydet
           </Button>
+          </>
+          )}
         </div>
       </div>
 
       {/* Saved Views Tabs */}
-      {savedViews.length > 0 && (
+      {boardMode === "status" && savedViews.length > 0 && (
         <div className="px-4 mb-4">
           <div className="flex items-center gap-2 overflow-x-auto pb-2">
             <span className="text-sm text-muted-foreground flex-shrink-0">Kayıtlı Görünümler:</span>
@@ -401,7 +432,11 @@ const Kanban = () => {
         </div>
       )}
 
-      {/* Kanban Board */}
+      {/* Süreç Panoları modu */}
+      {boardMode === "process" && <ProcessBoard />}
+
+      {/* Kanban Board (Durum modu) */}
+      {boardMode === "status" && (
       <div className="flex-1 overflow-x-auto overflow-y-hidden pb-4">
         <DragDropContext onDragEnd={handleDragEnd}>
           <div className="flex gap-3 h-full px-4" style={{ minWidth: 'max-content' }}>
@@ -550,6 +585,7 @@ const Kanban = () => {
           </div>
         </DragDropContext>
       </div>
+      )}
 
       {/* Customer Detail Card */}
       <CustomerDetailCard
