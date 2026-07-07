@@ -1,1 +1,6 @@
+# Ham netlify.app adresine gelenleri Access korumali ana adrese gonder.
+# Boylece crmaster.netlify.app dogrudan (Access'siz) acilmaz.
+https://crmaster.netlify.app/*    https://crmaster.net/:splat    301!
+
+# React SPA yonlendirmesi (mevcut kural - degistirme):
 /*    /index.html   200
