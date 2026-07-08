@@ -261,8 +261,29 @@ const ProcessBoard = () => {
 
   // ---- Sürükle-bırak ----
   const handleDragEnd = async (result) => {
-    const { source, destination, draggableId } = result;
+    const { source, destination, draggableId, type } = result;
     if (!destination) return;
+
+    // --- Stage (kolon) sürükleme: yatay sıralama ---
+    if (type === "STAGE") {
+      if (destination.index === source.index) return;
+      const snapshot = stages;
+      const next = [...stages];
+      const [movedStage] = next.splice(source.index, 1);
+      next.splice(destination.index, 0, movedStage);
+      setStages(next);
+      try {
+        await axios.patch(`${API}/process/boards/${activeBoardId}/stages/reorder`, {
+          stage_ids: next.map((s) => s.id),
+        });
+      } catch {
+        toast.error("Stage sırası kaydedilemedi");
+        setStages(snapshot);
+      }
+      return;
+    }
+
+    // --- Kart sürükleme ---
     if (destination.droppableId === source.droppableId && destination.index === source.index) return;
 
     const srcStageId = source.droppableId;
@@ -281,6 +302,7 @@ const ProcessBoard = () => {
     setStages(next);
 
     try {
+      // draggableId "card-..." değil, kart id'sinin kendisi (Draggable id'si card.id)
       await axios.patch(`${API}/process/cards/${draggableId}/move`, {
         stage_id: dstStageId,
         position: destination.index,
@@ -429,36 +451,52 @@ const ProcessBoard = () => {
       {activeBoard && (
         <div className="flex-1 overflow-x-auto overflow-y-hidden pb-4">
           <DragDropContext onDragEnd={handleDragEnd}>
-            <div className="flex gap-3 h-full px-4" style={{ minWidth: "max-content" }}>
-              {stages.map((stage, idx) => {
-                const colors = stageColors(idx);
-                const cards = stage.cards || [];
-                return (
-                  <div
-                    key={stage.id}
-                    className="flex-shrink-0 w-64 rounded-2xl bg-white/60 border border-white/40 shadow-[0_8px_32px_rgba(0,0,0,0.04)] flex flex-col max-h-[calc(100vh-260px)]"
-                  >
-                    {/* Stage başlığı */}
-                    <div className={`px-3 py-2 ${colors.header} rounded-t-2xl border-b border-white/40`}>
-                      <div className="flex items-center justify-between gap-2">
-                        <h3 className={`font-semibold text-sm ${colors.text} truncate`}>{stage.name}</h3>
-                        <div className="flex items-center gap-1.5 flex-shrink-0">
-                          <span className={`${colors.badge} text-white text-xs font-bold px-2 py-0.5 rounded-full`}>
-                            {cards.length}
-                          </span>
-                          <button
-                            onClick={() => handleDeleteStage(stage.id)}
-                            className="text-muted-foreground/60 hover:text-red-600 transition-colors"
-                            title="Stage'i sil"
+            <Droppable droppableId="board-stages" direction="horizontal" type="STAGE">
+              {(boardProvided) => (
+                <div
+                  ref={boardProvided.innerRef}
+                  {...boardProvided.droppableProps}
+                  className="flex gap-3 h-full px-4"
+                  style={{ minWidth: "max-content" }}
+                >
+                  {stages.map((stage, idx) => {
+                    const colors = stageColors(idx);
+                    const cards = stage.cards || [];
+                    return (
+                      <Draggable key={stage.id} draggableId={`stage-${stage.id}`} index={idx}>
+                        {(stageProv, stageSnap) => (
+                          <div
+                            ref={stageProv.innerRef}
+                            {...stageProv.draggableProps}
+                            className={`flex-shrink-0 w-64 rounded-2xl bg-white/60 border border-white/40 shadow-[0_8px_32px_rgba(0,0,0,0.04)] flex flex-col max-h-[calc(100vh-260px)] ${
+                              stageSnap.isDragging ? "ring-2 ring-primary/40 shadow-glass" : ""
+                            }`}
                           >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      </div>
-                    </div>
+                            {/* Stage başlığı — sürükleme tutamacı */}
+                            <div
+                              {...stageProv.dragHandleProps}
+                              className={`px-3 py-2 ${colors.header} rounded-t-2xl border-b border-white/40 cursor-grab active:cursor-grabbing`}
+                            >
+                              <div className="flex items-center justify-between gap-2">
+                                <h3 className={`font-semibold text-sm ${colors.text} truncate`}>{stage.name}</h3>
+                                <div className="flex items-center gap-1.5 flex-shrink-0">
+                                  <span className={`${colors.badge} text-white text-xs font-bold px-2 py-0.5 rounded-full`}>
+                                    {cards.length}
+                                  </span>
+                                  <button
+                                    onClick={() => handleDeleteStage(stage.id)}
+                                    onMouseDown={(e) => e.stopPropagation()}
+                                    className="text-muted-foreground/60 hover:text-red-600 transition-colors"
+                                    title="Stage'i sil"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
 
-                    {/* Kartlar */}
-                    <Droppable droppableId={stage.id}>
+                            {/* Kartlar */}
+                            <Droppable droppableId={stage.id} type="CARD">
                       {(provided, snapshot) => (
                         <div
                           ref={provided.innerRef}
@@ -582,23 +620,28 @@ const ProcessBoard = () => {
                               <p className="text-xs">Boş stage</p>
                             </div>
                           )}
-                        </div>
-                      )}
-                    </Droppable>
-                  </div>
-                );
-              })}
+                                </div>
+                              )}
+                            </Droppable>
+                          </div>
+                        )}
+                      </Draggable>
+                    );
+                  })}
+                  {boardProvided.placeholder}
 
-              {/* Hiç stage yoksa */}
-              {stages.length === 0 && !boardLoading && (
-                <div className="flex flex-col items-center justify-center text-center text-muted-foreground gap-2 w-full py-16">
-                  <Plus className="w-10 h-10 opacity-30" />
-                  <p className="text-sm">
-                    Bu panoda henüz stage yok. Yukarıdan “Stage Ekle” ile başla.
-                  </p>
+                  {/* Hiç stage yoksa */}
+                  {stages.length === 0 && !boardLoading && (
+                    <div className="flex flex-col items-center justify-center text-center text-muted-foreground gap-2 w-full py-16">
+                      <Plus className="w-10 h-10 opacity-30" />
+                      <p className="text-sm">
+                        Bu panoda henüz stage yok. Yukarıdan “Stage Ekle” ile başla.
+                      </p>
+                    </div>
+                  )}
                 </div>
               )}
-            </div>
+            </Droppable>
           </DragDropContext>
         </div>
       )}
