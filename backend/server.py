@@ -261,6 +261,9 @@ class ProcessCardMove(BaseModel):
     stage_id: str
     position: int = 0
 
+class ProcessStageReorder(BaseModel):
+    stage_ids: List[str]
+
 # ============ HELPER FUNCTIONS ============
 
 def normalize_text(text: str) -> str:
@@ -4477,6 +4480,19 @@ async def get_process_board_full(board_id: str):
         "board": {"id": board[0]["id"], "name": board[0]["name"], "position": board[0].get("position", 0)},
         "stages": stages_out,
     }
+
+
+@api_router.patch("/process/boards/{board_id}/stages/reorder")
+async def reorder_process_stages(board_id: str, data: ProcessStageReorder):
+    """Bir panodaki stage'lerin sırasını (position) verilen id listesine göre günceller."""
+    board = supabase.table("process_boards").select("id").eq("id", board_id).execute().data
+    if not board:
+        raise HTTPException(status_code=404, detail="Pano bulunamadı")
+    for idx, stage_id in enumerate(data.stage_ids):
+        supabase.table("process_stages").update({"position": idx}).eq("id", stage_id).eq(
+            "board_id", board_id
+        ).execute()
+    return {"message": "Stage sırası güncellendi"}
 
 
 @api_router.post("/process/boards/{board_id}/stages")
