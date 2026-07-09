@@ -3062,7 +3062,7 @@ async def get_team_member_profile(name: str, days: int = 90, activity_limit: int
 # Lightweight health/warmup endpoint — used by external pingers (UptimeRobot,
 # cron-job.org) to keep the Render free-tier container awake. Returns fast
 # without hitting the DB, so it's safe to ping every few minutes.
-@api_router.get("/health")
+@api_router.api_route("/health", methods=["GET", "HEAD"])
 async def health():
     return {"status": "ok", "service": "crmaster-backend", "ts": int(_time.time())}
 
