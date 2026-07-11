@@ -2748,6 +2748,44 @@ async def get_stats_distribution(
     return result
 
 
+@api_router.get("/stats/city-markets")
+async def get_city_market_distribution(
+    city: str = Query(..., description="İl adı (ör. İstanbul)"),
+):
+    """Belirli bir ildeki müşterilerin market bazında dağılımı.
+
+    Türkiye haritası pop-up'ında kullanılır: bir ile tıklanınca o ilin
+    market kırılımını (F&B, Metal, ...) döndürür. Hafif: sadece gerekli
+    kolonları çeker.
+    """
+    city = (city or "").strip()
+    if not city:
+        raise HTTPException(status_code=400, detail="city gerekli")
+
+    rows = (
+        supabase.table("customers")
+        .select("id, market")
+        .eq("city", city)
+        .execute()
+        .data
+        or []
+    )
+    dist: Dict[str, int] = {}
+    for r in rows:
+        m = (r.get("market") or "").strip() or "Belirtilmemiş"
+        dist[m] = dist.get(m, 0) + 1
+
+    entries = sorted(
+        [{"market": k, "count": v} for k, v in dist.items()],
+        key=lambda x: -x["count"],
+    )
+    return {
+        "city": city,
+        "total": len(rows),
+        "entries": entries,
+    }
+
+
 @api_router.get("/stats/segment")
 async def get_stats_segment(
     field: str = Query(..., description="Dimension to filter on (market, status, city, assigned_to, partner)"),
