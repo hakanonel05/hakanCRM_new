@@ -5,6 +5,7 @@ import { useAuth } from "../App";
 import axios from "axios";
 import { swrCache } from "../utils/swrCache";
 import Breadcrumb from "../components/Breadcrumb";
+import TurkeyMap from "../components/TurkeyMap";
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -1248,6 +1249,11 @@ const Dashboard = () => {
             )}
           </Button>
         </div>
+      </div>
+
+      {/* Türkiye Müşteri Yoğunluğu Haritası */}
+      <div className="px-3 pt-2">
+        <TurkeyMap />
       </div>
 
       {/* Grid */}
