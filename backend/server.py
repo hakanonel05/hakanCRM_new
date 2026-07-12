@@ -5117,55 +5117,56 @@ async def generate_custom_report(data: ReportRequest, request: Request, session_
     if data.include_notes:
         headers.append("Notlar")
     
-    # Create workbook
-    wb = Workbook()
-    ws = wb.active
-    ws.title = "Rapor"
-    
+    # Create workbook (write_only: büyük raporlarda bellek ve süreyi ciddi azaltır)
+    from openpyxl.cell import WriteOnlyCell
+    from openpyxl.utils import get_column_letter
+    wb = Workbook(write_only=True)
+    ws = wb.create_sheet("Rapor")
+
     # Header styling
     header_font = Font(bold=True, color="FFFFFF")
     header_fill = PatternFill(start_color="059669", end_color="059669", fill_type="solid")
-    
-    for col_idx, header in enumerate(headers, 1):
-        cell = ws.cell(row=1, column=col_idx, value=header)
-        cell.font = header_font
-        cell.fill = header_fill
-    
+
+    header_cells = []
+    for header in headers:
+        c = WriteOnlyCell(ws, value=header)
+        c.font = header_font
+        c.fill = header_fill
+        header_cells.append(c)
+    ws.append(header_cells)
+
+    # Sütun genişlikleri: başlık uzunluğundan (tüm hücreleri tarayan pahalı
+    # otomatik-genişlik döngüsü kaldırıldı — büyük raporlarda ana yavaşlatıcıydı).
+    for idx, header in enumerate(headers, 1):
+        ws.column_dimensions[get_column_letter(idx)].width = min(max(len(str(header)) + 2, 12), 45)
+
     # Build rows
-    row_idx = 2
     for customer in customers:
-        # Get contact info
         contacts = customer.get("contact_info", {})
         if isinstance(contacts, dict):
             contacts = [contacts] if contacts.get("name") else []
         elif not isinstance(contacts, list):
             contacts = []
-        
-        # Get customer visits and calls
+
         cust_visits = visits_dict.get(customer.get("id"), [])
         cust_calls = calls_dict.get(customer.get("id"), [])
-        
-        # Determine how many rows we need
-        max_rows = max(1, len(contacts) if data.contact_columns else 1, 
+
+        max_rows = max(1, len(contacts) if data.contact_columns else 1,
                        len(cust_visits) if data.visit_columns else 1,
                        len(cust_calls) if data.call_columns else 1)
-        
+
         for i in range(max_rows):
-            col_idx = 1
-            
-            # Customer columns (only on first row or repeated)
+            row_values = []
+
             for col in data.customer_columns:
-                # Map "web" to "website" for database field
                 db_col = "website" if col == "web" else col
                 value = customer.get(db_col, "")
                 if col == "is_followup":
                     value = "Evet" if value else "Hayır"
                 elif col == "created_at" and value:
                     value = value[:10]
-                ws.cell(row=row_idx, column=col_idx, value=value if i == 0 else "")
-                col_idx += 1
-            
-            # Contact columns
+                row_values.append(value if i == 0 else "")
+
             for col in data.contact_columns:
                 contact = contacts[i] if i < len(contacts) else {}
                 if col == "contact_name":
@@ -5178,10 +5179,8 @@ async def generate_custom_report(data: ReportRequest, request: Request, session_
                     value = contact.get("email", "")
                 else:
                     value = ""
-                ws.cell(row=row_idx, column=col_idx, value=value)
-                col_idx += 1
-            
-            # Visit columns
+                row_values.append(value)
+
             for col in data.visit_columns:
                 visit = cust_visits[i] if i < len(cust_visits) else {}
                 if col == "visit_date":
@@ -5196,10 +5195,8 @@ async def generate_custom_report(data: ReportRequest, request: Request, session_
                     value = visit.get("notes", "")
                 else:
                     value = ""
-                ws.cell(row=row_idx, column=col_idx, value=value)
-                col_idx += 1
-            
-            # Call columns
+                row_values.append(value)
+
             for col in data.call_columns:
                 call = cust_calls[i] if i < len(cust_calls) else {}
                 if col == "call_date":
@@ -5210,30 +5207,15 @@ async def generate_custom_report(data: ReportRequest, request: Request, session_
                     value = call.get("notes", "")
                 else:
                     value = ""
-                ws.cell(row=row_idx, column=col_idx, value=value)
-                col_idx += 1
-            
-            # Notes
+                row_values.append(value)
+
             if data.include_notes:
                 notes_list = customer.get("notes_list", [])
                 notes_text = "; ".join([n.get("text", "") for n in notes_list if isinstance(n, dict)]) if i == 0 else ""
-                ws.cell(row=row_idx, column=col_idx, value=notes_text)
-            
-            row_idx += 1
-    
-    # Auto-width columns
-    for col in ws.columns:
-        max_length = 0
-        column = col[0].column_letter
-        for cell in col:
-            try:
-                if len(str(cell.value or "")) > max_length:
-                    max_length = len(str(cell.value or ""))
-            except:
-                pass
-        adjusted_width = min(max_length + 2, 50)
-        ws.column_dimensions[column].width = adjusted_width
-    
+                row_values.append(notes_text)
+
+            ws.append(row_values)
+
     output = io.BytesIO()
     wb.save(output)
     output.seek(0)
