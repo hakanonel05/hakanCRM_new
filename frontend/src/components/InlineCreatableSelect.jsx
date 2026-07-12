@@ -113,7 +113,7 @@ const InlineCreatableSelect = ({
       <PopoverTrigger asChild>
         <button
           className={cn(
-            "text-left px-2.5 py-1 rounded-md text-xs font-medium cursor-pointer inline-flex items-center whitespace-nowrap",
+            "text-left px-2.5 py-1 rounded-full text-xs font-medium cursor-pointer inline-flex items-center whitespace-nowrap",
             "hover:opacity-80 transition-opacity",
             value ? colorClass : "text-slate-400"
           )}
@@ -162,7 +162,7 @@ const InlineCreatableSelect = ({
             >
               {value === opt.value && <Check className="w-4 h-4 text-emerald-600" />}
               <span className={cn(
-                "px-2.5 py-1 rounded-md text-xs font-medium",
+                "px-2.5 py-1 rounded-full text-xs font-medium",
                 getColorForValue(opt.value),
                 value !== opt.value && "ml-6"
               )}>
