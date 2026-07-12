@@ -1693,10 +1693,12 @@ const Customers = () => {
           </div>
         )}
 
-        {/* Modern minimal table card */}
+        {/* Modern minimal table card — flex-1 lets it fill exactly the
+            remaining vertical space (no hardcoded height / no gap at the
+            bottom, regardless of how tall the header/filter bar above it
+            end up being). */}
         <div 
-          className="bg-card rounded-xl border border-border shadow-sm flex flex-col w-full mx-2 sm:mx-6 my-2 sm:my-3"
-          style={{ height: 'calc(100vh - 220px)' }}
+          className="bg-card rounded-xl border border-border shadow-sm flex flex-col w-full mx-2 sm:mx-6 my-2 sm:my-3 flex-1 min-h-0"
         >
           {/* Initial loading skeleton */}
           {loading && customers.length === 0 ? (
