@@ -1278,59 +1278,61 @@ const Customers = () => {
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col overflow-hidden transition-all duration-300">
-        {/* Header - modern minimalist */}
-        <div className="flex items-center justify-between gap-3 px-4 sm:px-8 py-3 sm:py-4 bg-card border-b border-border">
-          <div className="min-w-0">
-            <Breadcrumb className="mb-1" />
-            <h1 className="font-heading text-xl sm:text-2xl font-bold text-foreground tracking-tight leading-none">
-              Müşteriler
-            </h1>
-            <p className="text-[12px] sm:text-[13px] text-muted-foreground mt-1 font-medium">
-              <span className="tabular-nums">{totalItems.toLocaleString("tr-TR")}</span> kayıt
-              {hasActiveFilters && (
-                <span className="ml-2 inline-flex items-center gap-1 text-primary">
-                  <span className="w-1 h-1 rounded-full bg-primary" />
-                  filtrelendi
-                </span>
-              )}
-            </p>
-          </div>
-          <div className="flex items-center gap-2 flex-shrink-0">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-muted-foreground hover:text-foreground hover:bg-muted px-2 sm:px-3 h-9 rounded-lg"
-              onClick={() => setCloudBackupOpen(true)}
-              title="Yedekle"
-            >
-              <Cloud className="w-4 h-4 sm:mr-1.5" />
-              <span className="hidden sm:inline">Yedekle</span>
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-muted-foreground hover:text-foreground hover:bg-muted px-2 sm:px-3 h-9 rounded-lg"
-              onClick={() => setImportModalOpen(true)}
-              title="İçe Aktar"
-            >
-              <Upload className="w-4 h-4 sm:mr-1.5" />
-              <span className="hidden sm:inline">İçe Aktar</span>
-            </Button>
-            <Button
-              className="bg-primary hover:opacity-90 text-white transition-all px-3 sm:px-4 h-9 rounded-lg font-medium shadow-none"
-              size="sm"
-              onClick={() => setAddModalOpen(true)}
-              title="Yeni Müşteri"
-              data-testid="new-customer-btn"
-            >
-              <Plus className="w-4 h-4 sm:mr-1.5" />
-              <span className="hidden sm:inline">Yeni Müşteri</span>
-            </Button>
+        {/* Header - compact single-line */}
+        <div className="px-4 sm:px-6 pt-2 pb-1.5 bg-card border-b border-border">
+          <Breadcrumb className="mb-0.5" />
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-baseline gap-2 min-w-0">
+              <h1 className="font-heading text-lg sm:text-xl font-bold text-foreground tracking-tight leading-none">
+                Müşteriler
+              </h1>
+              <span className="text-[12px] text-muted-foreground font-medium whitespace-nowrap">
+                <span className="tabular-nums">{totalItems.toLocaleString("tr-TR")}</span> kayıt
+                {hasActiveFilters && (
+                  <span className="ml-1.5 inline-flex items-center gap-1 text-primary">
+                    <span className="w-1 h-1 rounded-full bg-primary" />
+                    filtrelendi
+                  </span>
+                )}
+              </span>
+            </div>
+            <div className="flex items-center gap-1.5 flex-shrink-0">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-muted-foreground hover:text-foreground hover:bg-muted px-2 sm:px-3 h-8 rounded-lg"
+                onClick={() => setCloudBackupOpen(true)}
+                title="Yedekle"
+              >
+                <Cloud className="w-4 h-4 sm:mr-1.5" />
+                <span className="hidden sm:inline">Yedekle</span>
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-muted-foreground hover:text-foreground hover:bg-muted px-2 sm:px-3 h-8 rounded-lg"
+                onClick={() => setImportModalOpen(true)}
+                title="İçe Aktar"
+              >
+                <Upload className="w-4 h-4 sm:mr-1.5" />
+                <span className="hidden sm:inline">İçe Aktar</span>
+              </Button>
+              <Button
+                className="bg-primary hover:opacity-90 text-white transition-all px-3 sm:px-4 h-8 rounded-lg font-medium shadow-none"
+                size="sm"
+                onClick={() => setAddModalOpen(true)}
+                title="Yeni Müşteri"
+                data-testid="new-customer-btn"
+              >
+                <Plus className="w-4 h-4 sm:mr-1.5" />
+                <span className="hidden sm:inline">Yeni Müşteri</span>
+              </Button>
+            </div>
           </div>
         </div>
 
         {/* Filters Bar - modern minimal */}
-        <div className="flex items-center gap-2 px-4 sm:px-8 py-3 sm:py-4 bg-card border-b border-border overflow-x-auto sm:flex-wrap [&>*]:flex-shrink-0">
+        <div className="flex items-center gap-2 px-4 sm:px-6 py-2 bg-card border-b border-border overflow-x-auto sm:flex-wrap [&>*]:flex-shrink-0">
           <div className="relative flex-1 min-w-[200px] max-w-md">
             <SearchInput
               value={search}
