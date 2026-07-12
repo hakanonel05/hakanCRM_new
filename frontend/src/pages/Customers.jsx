@@ -249,16 +249,16 @@ const STATUS_COLOR_MAP = Object.fromEntries(
   STATUS_OPTIONS.map(s => [s.value, `${s.bg} ${s.text} ${s.border}`])
 );
 
-// Avatar gradient palette — deterministic by company name
+// Avatar palette — flat pastel circles, deterministic by company name
 const AVATAR_GRADIENTS = [
-  "bg-gradient-to-br from-primary to-primary-container",
-  "bg-gradient-to-br from-emerald-500 to-teal-600",
-  "bg-gradient-to-br from-amber-500 to-orange-600",
-  "bg-gradient-to-br from-rose-500 to-pink-600",
-  "bg-gradient-to-br from-blue-500 to-cyan-600",
-  "bg-gradient-to-br from-purple-500 to-fuchsia-600",
-  "bg-gradient-to-br from-cyan-500 to-sky-600",
-  "bg-gradient-to-br from-lime-500 to-emerald-600",
+  "bg-violet-100 text-violet-700",
+  "bg-emerald-100 text-emerald-700",
+  "bg-amber-100 text-amber-700",
+  "bg-rose-100 text-rose-700",
+  "bg-blue-100 text-blue-700",
+  "bg-fuchsia-100 text-fuchsia-700",
+  "bg-cyan-100 text-cyan-700",
+  "bg-lime-100 text-lime-700",
 ];
 
 const getAvatarGradient = (name) => {
@@ -268,30 +268,11 @@ const getAvatarGradient = (name) => {
   return AVATAR_GRADIENTS[Math.abs(h) % AVATAR_GRADIENTS.length];
 };
 
-// Row background colors based on status
+// Row background: kept neutral (white/hover-gray only) — status is already
+// communicated by the colored Durum pill, so tinting the whole row is
+// redundant visual noise in the minimalist layout.
 const getRowBackgroundColor = (customer, callOutcome) => {
-  // Priority: Call outcome > Customer status
-  if (callOutcome) {
-    switch (callOutcome) {
-      case "Olumlu": return "bg-emerald-50/70 hover:bg-emerald-100/70";
-      case "Olumsuz": return "bg-red-50/70 hover:bg-red-100/70";
-      case "Aranacak": return "bg-amber-50/70 hover:bg-amber-100/70";
-      case "Beklemede": return "bg-blue-50/70 hover:bg-blue-100/70";
-      case "Teklif Verildi": return "bg-primary/5 hover:bg-primary/10";
-      default: break;
-    }
-  }
-  
-  // Fallback to customer status - synced with Kanban colors
-  switch (customer.status) {
-    case "Beklemede": return "bg-amber-50/50 hover:bg-amber-100/50";
-    case "İletişimde": return "bg-blue-50/50 hover:bg-blue-100/50";
-    case "Teklif Verildi": return "bg-purple-50/50 hover:bg-purple-100/50";
-    case "Çalışılıyor": return "bg-emerald-50/50 hover:bg-emerald-100/50";
-    case "Kazanıldı": return "bg-green-50/50 hover:bg-green-100/50";
-    case "Kaybedildi": return "bg-red-50/50 hover:bg-red-100/50";
-    default: return "bg-card hover:bg-muted/30";
-  }
+  return "bg-card hover:bg-muted/40";
 };
 
 // Filter fields configuration
@@ -1162,13 +1143,13 @@ const Customers = () => {
         value={currentStatus}
         onValueChange={(value) => saveSelectEdit(customer.id, "status", value)}
       >
-        <SelectTrigger className={`h-7 text-xs rounded-md font-medium border-0 ${colorClass} min-w-[110px]`} data-testid={`status-select-${customer.id}`}>
+        <SelectTrigger className={`h-7 text-xs rounded-full font-medium border-0 ${colorClass} min-w-[110px]`} data-testid={`status-select-${customer.id}`}>
           <SelectValue placeholder="Durum seç" />
         </SelectTrigger>
         <SelectContent>
           {STATUS_OPTIONS.map(opt => (
             <SelectItem key={opt.value} value={opt.value}>
-              <span className={`px-2.5 py-1 rounded-md text-xs font-medium ${opt.bg} ${opt.text}`}>
+              <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${opt.bg} ${opt.text}`}>
                 {opt.label}
               </span>
             </SelectItem>
@@ -1189,13 +1170,13 @@ const Customers = () => {
         value={currentOutcome}
         onValueChange={(value) => saveCallOutcome(customer.id, value)}
       >
-        <SelectTrigger className={`h-7 text-xs rounded-md font-medium border-0 ${colorClass} min-w-[80px]`}>
+        <SelectTrigger className={`h-7 text-xs rounded-full font-medium border-0 ${colorClass} min-w-[80px]`}>
           <SelectValue placeholder="-" />
         </SelectTrigger>
         <SelectContent>
           {outcomeOptions.map(outcome => (
             <SelectItem key={outcome} value={outcome}>
-              <span className={`px-2.5 py-1 rounded-md text-xs font-medium ${CALL_OUTCOME_COLORS[outcome]}`}>
+              <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${CALL_OUTCOME_COLORS[outcome]}`}>
                 {outcome}
               </span>
             </SelectItem>
@@ -1258,7 +1239,7 @@ const Customers = () => {
   );
 
   return (
-    <div className="flex h-full overflow-hidden bg-muted/30/50" data-testid="customers-page">
+    <div className="flex h-full overflow-hidden bg-slate-50" data-testid="customers-page">
       {/* Subtle loading bar at the top (no blocking overlay) */}
       {loading && customers.length > 0 && (
         <div className="absolute top-0 left-0 right-0 h-0.5 bg-emerald-500 animate-pulse z-50" />
@@ -1305,7 +1286,7 @@ const Customers = () => {
               <span className="hidden sm:inline">İçe Aktar</span>
             </Button>
             <Button
-              className="bg-primary hover:opacity-90 text-white shadow-[0_4px_12px_-4px_rgba(0,42,67,0.45)] hover:shadow-[0_6px_16px_-4px_rgba(0,42,67,0.5)] hover:-translate-y-0.5 transition-all px-3 sm:px-4 h-9 rounded-lg font-medium"
+              className="bg-primary hover:opacity-90 text-white transition-all px-3 sm:px-4 h-9 rounded-lg font-medium shadow-none"
               size="sm"
               onClick={() => setAddModalOpen(true)}
               title="Yeni Müşteri"
@@ -1335,7 +1316,7 @@ const Customers = () => {
               <Button 
                 variant={activeFilters.length > 0 ? "default" : "outline"} 
                 size="sm"
-                className={activeFilters.length > 0 ? "bg-primary hover:bg-primary/90" : ""}
+                className={`rounded-full ${activeFilters.length > 0 ? "bg-primary hover:bg-primary/90" : "border-slate-200"}`}
               >
                 <SlidersHorizontal className="w-4 h-4 mr-2" />
                 Filtre
@@ -1493,7 +1474,7 @@ const Customers = () => {
 
           {/* Quick Filters */}
           <Select value={marketFilter} onValueChange={setMarketFilter}>
-            <SelectTrigger className="w-[120px] h-8 text-xs">
+            <SelectTrigger className="w-[120px] h-8 text-xs rounded-full border-slate-200">
               <SelectValue placeholder="Market" />
             </SelectTrigger>
             <SelectContent>
@@ -1505,7 +1486,7 @@ const Customers = () => {
           </Select>
 
           <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-[120px] h-8 text-xs">
+            <SelectTrigger className="w-[120px] h-8 text-xs rounded-full border-slate-200">
               <SelectValue placeholder="Durum" />
             </SelectTrigger>
             <SelectContent>
@@ -1519,7 +1500,7 @@ const Customers = () => {
           </Select>
 
           <Select value={cityFilter} onValueChange={setCityFilter}>
-            <SelectTrigger className="w-[100px] h-8 text-xs">
+            <SelectTrigger className="w-[100px] h-8 text-xs rounded-full border-slate-200">
               <SelectValue placeholder="Şehir" />
             </SelectTrigger>
             <SelectContent>
@@ -1531,7 +1512,7 @@ const Customers = () => {
           </Select>
 
           <Select value={applicationFilter} onValueChange={setApplicationFilter}>
-            <SelectTrigger className="w-[120px] h-8 text-xs">
+            <SelectTrigger className="w-[120px] h-8 text-xs rounded-full border-slate-200">
               <SelectValue placeholder="Uygulama" />
             </SelectTrigger>
             <SelectContent>
@@ -1543,7 +1524,7 @@ const Customers = () => {
           </Select>
 
           <Select value={competitorFilter} onValueChange={setCompetitorFilter}>
-            <SelectTrigger className="w-[100px] h-8 text-xs">
+            <SelectTrigger className="w-[100px] h-8 text-xs rounded-full border-slate-200">
               <SelectValue placeholder="Rakip" />
             </SelectTrigger>
             <SelectContent>
@@ -1555,7 +1536,7 @@ const Customers = () => {
           </Select>
 
           <Select value={partnerFilter} onValueChange={setPartnerFilter}>
-            <SelectTrigger className="w-[100px] h-8 text-xs">
+            <SelectTrigger className="w-[100px] h-8 text-xs rounded-full border-slate-200">
               <SelectValue placeholder="Partner" />
             </SelectTrigger>
             <SelectContent>
@@ -1567,7 +1548,7 @@ const Customers = () => {
           </Select>
 
           <Select value={callFilter} onValueChange={setCallFilter}>
-            <SelectTrigger className="w-[100px] h-8 text-xs">
+            <SelectTrigger className="w-[100px] h-8 text-xs rounded-full border-slate-200">
               <SelectValue placeholder="Arama" />
             </SelectTrigger>
             <SelectContent>
@@ -1589,7 +1570,7 @@ const Customers = () => {
           <div className="ml-auto flex items-center gap-1.5">
             <span className="text-xs text-muted-foreground/70 hidden md:inline">Sırala:</span>
             <Select value={sortBy} onValueChange={setSortBy}>
-              <SelectTrigger className="w-[130px] h-8 text-xs border-slate-200 bg-card">
+              <SelectTrigger className="w-[130px] h-8 text-xs rounded-full border-slate-200 bg-card">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -1602,7 +1583,7 @@ const Customers = () => {
             <Button
               variant="outline"
               size="sm"
-              className="h-8 w-8 p-0 border-slate-200 bg-card hover:bg-muted/30"
+              className="h-8 w-8 p-0 rounded-full border-slate-200 bg-card hover:bg-muted/30"
               onClick={() => setSortOrder(sortOrder === "asc" ? "desc" : "asc")}
               title={sortOrder === "asc" ? "Artan" : "Azalan"}
             >
@@ -1712,8 +1693,8 @@ const Customers = () => {
             id="customer-table-scroll"
           >
             <table style={{ tableLayout: 'fixed', width: '100%' }}>
-              <thead className="sticky top-0 z-10 bg-card/95 backdrop-blur-md">
-                <tr className="border-b-2 border-border">
+              <thead className="sticky top-0 z-10 bg-slate-50/95 backdrop-blur-md">
+                <tr className="border-b border-border">
                   {isAdmin && (
                     <th style={{ width: columnWidths.checkbox }} className="px-2 py-3 relative">
                       <Checkbox checked={selectAll} onCheckedChange={toggleSelectAll} />
@@ -1854,7 +1835,7 @@ const Customers = () => {
                     <td style={{ width: columnWidths.company_name }} className="px-2 py-2.5">
                       <div className="flex items-center gap-2.5 overflow-hidden">
                         <div 
-                          className={`w-8 h-8 rounded-lg flex-shrink-0 flex items-center justify-center text-white font-semibold text-[13px] cursor-pointer transition-transform hover:scale-105 hover:shadow-md ${getAvatarGradient(customer.company_name)}`}
+                          className={`w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center font-semibold text-[13px] cursor-pointer transition-transform hover:scale-105 ${getAvatarGradient(customer.company_name)}`}
                           onClick={() => openCustomerModal(customer.id)}
                           title="Detay göster"
                         >
@@ -1961,7 +1942,7 @@ const Customers = () => {
           
           {/* Pagination - Bottom bar */}
           {totalPages > 1 && (
-            <div className="flex items-center justify-between px-4 py-2.5 border-t border-border bg-muted/30/50">
+            <div className="flex items-center justify-between px-4 py-2.5 border-t border-border bg-slate-50">
               <span className="text-xs text-slate-500">
                 Sayfa <span className="font-medium text-foreground">{currentPage}</span> / {totalPages} • {totalItems.toLocaleString("tr-TR")} kayıt
               </span>
