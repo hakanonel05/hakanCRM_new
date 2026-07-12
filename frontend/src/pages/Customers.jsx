@@ -261,6 +261,37 @@ const AVATAR_GRADIENTS = [
   "bg-lime-100 text-lime-700",
 ];
 
+// Tamamen büyük harfle girilmiş firma isimlerini (ör. "ZORLU DEĞİRMEN") okunaklı
+// hale getirir ("Zorlu Değirmen"). Türkçe İ/ı kurallarına duyarlıdır. Sadece
+// TAMAMEN büyük harfli değerlere dokunur — zaten düzgün yazılmış (ör. "Zirvemak
+// Kalıp") ya da elle düzeltilmiş isimler asla değiştirilmez. Kısaltma içeren
+// parçalar (nokta geçenler, ör. "A.Ş.", "LTD.") olduğu gibi bırakılır.
+const TR_LOWER_MAP = { "İ": "i", "I": "ı" };
+const TR_UPPER_MAP = { "i": "İ", "ı": "I" };
+const toLowerTR = (s) => s.replace(/[İI]/g, (c) => TR_LOWER_MAP[c]).toLocaleLowerCase("tr-TR");
+const toUpperTR = (s) => s.replace(/[iı]/g, (c) => TR_UPPER_MAP[c]).toLocaleUpperCase("tr-TR");
+const isAllCapsTR = (s) => {
+  const letters = (s || "").replace(/[^A-Za-zÇĞİIÖŞÜçğıiöşü]/g, "");
+  return letters.length > 0 && letters === toUpperTR(letters);
+};
+const TITLE_CASE_LOWER_WORDS = new Set(["ve", "ile"]);
+const toTitleCaseTR = (name) => {
+  if (!name || !isAllCapsTR(name)) return name;
+  return name
+    .split(" ")
+    .map((word) => {
+      if (!word) return word;
+      if (word.includes(".")) return word; // kısaltma (A.Ş., Ltd. vb.) — dokunma
+      const lower = toLowerTR(word);
+      if (TITLE_CASE_LOWER_WORDS.has(lower)) return lower;
+      return lower
+        .split("-")
+        .map((seg) => (seg ? toUpperTR(seg[0]) + seg.slice(1) : seg))
+        .join("-");
+    })
+    .join(" ");
+};
+
 const getAvatarGradient = (name) => {
   if (!name) return AVATAR_GRADIENTS[0];
   let h = 0;
@@ -1849,11 +1880,14 @@ const Customers = () => {
                             placeholder="-"
                             displayClass="font-heading text-[14px] font-semibold tracking-tight text-foreground truncate block hover:text-primary transition-colors"
                             onSingleClick={() => openCustomerModal(customer.id)}
-                            renderDisplay={(val) => (
-                              <span title={val || "Tıkla: detay · Çift tıkla: düzenle"}>
-                                {normalizedNeedle ? highlightMatch(val || "-", normalizedNeedle) : (val || "-")}
-                              </span>
-                            )}
+                            renderDisplay={(val) => {
+                              const display = toTitleCaseTR(val) || "-";
+                              return (
+                                <span title={val || "Tıkla: detay · Çift tıkla: düzenle"}>
+                                  {normalizedNeedle ? highlightMatch(display, normalizedNeedle) : display}
+                                </span>
+                              );
+                            }}
                             onSaved={(newVal) => {
                               setCustomers(prev => prev.map(c => c.id === customer.id ? { ...c, company_name: newVal } : c));
                             }}
