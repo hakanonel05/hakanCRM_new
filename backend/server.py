@@ -5117,6 +5117,22 @@ async def generate_custom_report(data: ReportRequest, request: Request, session_
     if data.include_notes:
         headers.append("Notlar")
     
+    # Hücre değerini güvenli metne çevir (write_only mod liste/dict kabul etmez).
+    def _xlsx_val(v):
+        if v is None or isinstance(v, (str, int, float, bool)):
+            return v
+        if isinstance(v, (list, tuple)):
+            parts = []
+            for x in v:
+                if isinstance(x, dict):
+                    parts.append(str(x.get("name") or x.get("text") or x.get("title") or "; ".join(f"{k}:{val}" for k, val in x.items())))
+                else:
+                    parts.append(str(x))
+            return ", ".join(p for p in parts if p)
+        if isinstance(v, dict):
+            return str(v.get("name") or v.get("text") or "; ".join(f"{k}: {val}" for k, val in v.items()))
+        return str(v)
+
     # Create workbook (write_only: büyük raporlarda bellek ve süreyi ciddi azaltır)
     from openpyxl.cell import WriteOnlyCell
     from openpyxl.utils import get_column_letter
@@ -5214,7 +5230,7 @@ async def generate_custom_report(data: ReportRequest, request: Request, session_
                 notes_text = "; ".join([n.get("text", "") for n in notes_list if isinstance(n, dict)]) if i == 0 else ""
                 row_values.append(notes_text)
 
-            ws.append(row_values)
+            ws.append([_xlsx_val(v) for v in row_values])
 
     output = io.BytesIO()
     wb.save(output)
