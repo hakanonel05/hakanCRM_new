@@ -123,6 +123,26 @@ function colorFor(count, max) {
   return "rgb(" + r + "," + g + "," + b + ")";
 }
 
+// Tamamen büyük harfli firma isimlerini okunaklı hale getirir (ör. "ZORLU
+// DEĞİRMEN" → "Zorlu Değirmen"). Zaten düzgün yazılmış isimlere dokunmaz.
+const _trLower = (s) => s.replace(/[İI]/g, (c) => ({ İ: "i", I: "ı" }[c])).toLocaleLowerCase("tr-TR");
+const _trUpper = (s) => s.replace(/[iı]/g, (c) => ({ i: "İ", ı: "I" }[c])).toLocaleUpperCase("tr-TR");
+const toTitleCaseTR = (name) => {
+  if (!name) return name;
+  const letters = name.replace(/[^A-Za-zÇĞİIÖŞÜçğıiöşü]/g, "");
+  if (!letters || letters !== _trUpper(letters)) return name;
+  return name
+    .split(" ")
+    .map((w) => {
+      if (!w) return w;
+      if (w.includes(".")) return w;
+      const lower = _trLower(w);
+      if (lower === "ve" || lower === "ile") return lower;
+      return lower.split("-").map((s) => (s ? _trUpper(s[0]) + s.slice(1) : s)).join("-");
+    })
+    .join(" ");
+};
+
 const MARKET_COLORS = ["#0d9488", "#3b82f6", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899", "#14b8a6", "#64748b"];
 
 // Sistemdeki sabit durum değerleri (içe aktarma şablonuyla birebir aynı).
@@ -515,11 +535,11 @@ export default function TurkeyMap() {
                       className="w-full text-left flex items-center gap-3 py-2 hover:bg-muted/50 rounded-lg px-2 transition-colors"
                     >
                       <div className="w-8 h-8 bg-blue-500 rounded flex items-center justify-center text-white font-semibold text-xs flex-shrink-0">
-                        {c.company_name?.charAt(0) || "?"}
+                        {toTitleCaseTR(c.company_name)?.charAt(0) || "?"}
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-1.5">
-                          <span className="font-medium text-sm text-foreground truncate">{c.company_name}</span>
+                          <span className="font-medium text-sm text-foreground truncate">{toTitleCaseTR(c.company_name)}</span>
                           {c.is_followup && <Bell className="w-3 h-3 text-amber-500 flex-shrink-0" />}
                         </div>
                         <div className="text-xs text-muted-foreground truncate">
