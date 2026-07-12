@@ -2698,12 +2698,20 @@ async def get_stats_distribution(
     field: str = Query(..., description="Dimension to aggregate: market, status, city, assigned_to, partner, application, competitor"),
     followup_only: bool = Query(False),
     limit: int = Query(10, ge=1, le=50),
+    market: Optional[str] = None,
+    application: Optional[str] = None,
+    status: Optional[str] = None,
+    competitor: Optional[str] = None,
+    partner: Optional[str] = None,
+    assigned_to: Optional[str] = None,
 ):
-    """Aggregate count by field across all customers.
+    """Aggregate count by field across all customers, with optional filters.
 
-    Used by the dashboard's editable donut widgets. Lightweight: fetches only
+    Used by the dashboard's editable donut widgets AND the Turkey map (which
+    can be narrowed by market/application/status/competitor/partner/assigned_to
+    the same way the Customers page filters work). Lightweight: fetches only
     the needed columns, computes the distribution in-memory. Cached 30s per
-    (field, followup_only, limit) tuple.
+    (field, followup_only, limit, filters) tuple.
     """
     allowed = {"market", "status", "city", "assigned_to", "partner",
                "application", "competitor"}
@@ -2711,17 +2719,34 @@ async def get_stats_distribution(
         raise HTTPException(status_code=400, detail=f"field must be one of {sorted(allowed)}")
 
     now = _time.time()
-    cache_key = f"{field}::{int(followup_only)}::{limit}"
+    filt_sig = "|".join([market or "", application or "", status or "", competitor or "", partner or "", assigned_to or ""])
+    cache_key = f"{field}::{int(followup_only)}::{limit}::{filt_sig}"
     cached = _distribution_cache.get(cache_key)
     if cached and (now - cached["ts"]) < _DISTRIBUTION_CACHE_TTL:
         return cached["data"]
 
-    # Select only the columns we need to keep this fast (paginated to bypass 1000 row limit)
-    cols = f"id, is_followup, {field}"
+    # Select the grouping column + every filterable column (small, fixed set of
+    # text columns — cheap to fetch even for the whole table).
+    filter_cols = {"market", "application", "status", "competitor", "partner", "assigned_to"}
+    cols = ", ".join(sorted({"id", "is_followup", field} | filter_cols))
     rows = fetch_all_rows("customers", cols)
 
     if followup_only:
         rows = [r for r in rows if r.get("is_followup")]
+    # Same equality-match semantics as the /customers list filters (raw value,
+    # no normalization) so results stay consistent with the Customers page.
+    if market:
+        rows = [r for r in rows if (r.get("market") or "") == market]
+    if application:
+        rows = [r for r in rows if (r.get("application") or "") == application]
+    if status:
+        rows = [r for r in rows if (r.get("status") or "") == status]
+    if competitor:
+        rows = [r for r in rows if (r.get("competitor") or "") == competitor]
+    if partner:
+        rows = [r for r in rows if (r.get("partner") or "") == partner]
+    if assigned_to:
+        rows = [r for r in rows if (r.get("assigned_to") or "") == assigned_to]
 
     dist: Dict[str, int] = {}
     for r in rows:
@@ -2751,25 +2776,44 @@ async def get_stats_distribution(
 @api_router.get("/stats/city-markets")
 async def get_city_market_distribution(
     city: str = Query(..., description="İl adı (ör. İstanbul)"),
+    market: Optional[str] = None,
+    application: Optional[str] = None,
+    status: Optional[str] = None,
+    competitor: Optional[str] = None,
+    partner: Optional[str] = None,
+    assigned_to: Optional[str] = None,
 ):
-    """Belirli bir ildeki müşterilerin market bazında dağılımı.
+    """Belirli bir ildeki müşterilerin market bazında dağılımı, isteğe bağlı
+    filtrelerle daraltılabilir (Türkiye haritasındaki filtre çubuğu için —
+    örn. yalnızca partner='Halıcı' olan müşteriler).
 
     Türkiye haritası pop-up'ında kullanılır: bir ile tıklanınca o ilin
-    market kırılımını (F&B, Metal, ...) döndürür. Hafif: sadece gerekli
-    kolonları çeker.
+    market kırılımını (F&B, Metal, ...) döndürür.
+
+    NOT: Supabase .execute() varsayılan olarak 1000 satırla sınırlı; büyük
+    şehirlerde (İstanbul ~2000 müşteri) bu sınıra takılmamak için
+    fetch_all_rows ile sayfalanarak çekiliyor.
     """
     city = (city or "").strip()
     if not city:
         raise HTTPException(status_code=400, detail="city gerekli")
 
-    rows = (
-        supabase.table("customers")
-        .select("id, market")
-        .eq("city", city)
-        .execute()
-        .data
-        or []
-    )
+    cols = "id, city, market, application, status, competitor, partner, assigned_to"
+    rows = fetch_all_rows("customers", cols)
+    rows = [r for r in rows if (r.get("city") or "") == city]
+    if market:
+        rows = [r for r in rows if (r.get("market") or "") == market]
+    if application:
+        rows = [r for r in rows if (r.get("application") or "") == application]
+    if status:
+        rows = [r for r in rows if (r.get("status") or "") == status]
+    if competitor:
+        rows = [r for r in rows if (r.get("competitor") or "") == competitor]
+    if partner:
+        rows = [r for r in rows if (r.get("partner") or "") == partner]
+    if assigned_to:
+        rows = [r for r in rows if (r.get("assigned_to") or "") == assigned_to]
+
     dist: Dict[str, int] = {}
     for r in rows:
         m = (r.get("market") or "").strip() or "Belirtilmemiş"
