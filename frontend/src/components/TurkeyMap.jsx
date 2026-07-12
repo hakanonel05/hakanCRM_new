@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { useCustomerModal } from "../contexts/CustomerModalContext";
-import { MapPin, Loader2, X, Maximize2, Minimize2, ExternalLink, Building2, Bell } from "lucide-react";
+import { MapPin, Loader2, X, Maximize2, Minimize2, ExternalLink, Building2, Bell, Filter } from "lucide-react";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 const VIEWBOX = "0 0 1000 431";
@@ -125,12 +125,21 @@ function colorFor(count, max) {
 
 const MARKET_COLORS = ["#0d9488", "#3b82f6", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899", "#14b8a6", "#64748b"];
 
+// Sistemdeki sabit durum değerleri (içe aktarma şablonuyla birebir aynı).
+const STATUS_OPTIONS = ["Beklemede", "İletişimde", "Çalışılıyor", "Takip Ediliyor", "Olumsuz", "Kapandı"];
+
 export default function TurkeyMap() {
   const navigate = useNavigate();
   const { openCustomerModal } = useCustomerModal();
   const [counts, setCounts] = useState({});
   const [loading, setLoading] = useState(true);
   const [hover, setHover] = useState(null);
+
+  // Filtre çubuğu — Müşteriler sayfasındakiyle aynı mantık: market, durum,
+  // uygulama, rakip, partner. Seçilince harita ve alttaki pop-up'lar otomatik
+  // olarak sadece o filtreye uyan müşterileri yansıtır.
+  const [filters, setFilters] = useState({ market: "", application: "", status: "", competitor: "", partner: "" });
+  const [filterOptions, setFilterOptions] = useState({ market: [], application: [], competitor: [], partner: [] });
 
   // Pop-up durumu
   const [selectedCity, setSelectedCity] = useState(null);
@@ -142,13 +151,45 @@ export default function TurkeyMap() {
   const [custLoading, setCustLoading] = useState(false);
   const [fullscreen, setFullscreen] = useState(false);
 
-  // Harita verisi
+  // Filtre seçeneklerini (mevcut market/uygulama/rakip/partner değerleri) bir
+  // kez çek — Müşteriler sayfasının kullandığı aynı endpoint, 60sn cache'li.
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const { data } = await axios.get(`${API}/customers/filter-options`);
+        if (!alive) return;
+        setFilterOptions({
+          market: data.market || [],
+          application: data.application || [],
+          competitor: data.competitor || [],
+          partner: data.partner || [],
+        });
+      } catch (err) {
+        console.error("Filtre seçenekleri alınamadı:", err);
+      }
+    })();
+    return () => { alive = false; };
+  }, []);
+
+  const buildFilterQS = useCallback((f) => {
+    const p = new URLSearchParams();
+    Object.entries(f).forEach(([k, v]) => { if (v) p.set(k, v); });
+    return p.toString();
+  }, []);
+
+  const activeFilterCount = useMemo(() => Object.values(filters).filter(Boolean).length, [filters]);
+  const updateFilter = useCallback((key, value) => setFilters((f) => ({ ...f, [key]: value })), []);
+  const clearFilters = useCallback(() => setFilters({ market: "", application: "", status: "", competitor: "", partner: "" }), []);
+
+  // Harita verisi — aktif filtrelere göre yeniden çekilir (dinamik renklendirme).
   useEffect(() => {
     let alive = true;
     (async () => {
       try {
         setLoading(true);
-        const { data } = await axios.get(`${API}/stats/distribution?field=city&limit=50`);
+        const qs = buildFilterQS(filters);
+        const { data } = await axios.get(`${API}/stats/distribution?field=city&limit=50${qs ? "&" + qs : ""}`);
         if (!alive) return;
         const byKey = {};
         PROVINCES.forEach((p) => { byKey[normKey(p.n)] = p.n; });
@@ -167,7 +208,7 @@ export default function TurkeyMap() {
       }
     })();
     return () => { alive = false; };
-  }, []);
+  }, [filters, buildFilterQS]);
 
   const max = useMemo(() => Math.max(1, ...Object.values(counts)), [counts]);
   const total = useMemo(() => Object.values(counts).reduce((a, b) => a + b, 0), [counts]);
@@ -176,7 +217,7 @@ export default function TurkeyMap() {
     [counts]
   );
 
-  // İle tıkla → pop-up aç, market dağılımını çek
+  // İle tıkla → pop-up aç, market dağılımını çek (aktif filtrelerle birlikte)
   const openCity = useCallback(async (name) => {
     setSelectedCity(name);
     setActiveMarket(null);
@@ -184,7 +225,8 @@ export default function TurkeyMap() {
     setMarkets([]);
     setMarketsLoading(true);
     try {
-      const { data } = await axios.get(`${API}/stats/city-markets?city=${encodeURIComponent(name)}`);
+      const qs = buildFilterQS(filters);
+      const { data } = await axios.get(`${API}/stats/city-markets?city=${encodeURIComponent(name)}${qs ? "&" + qs : ""}`);
       setMarkets(data.entries || []);
       setCityTotal(data.total || 0);
     } catch (err) {
@@ -192,16 +234,23 @@ export default function TurkeyMap() {
     } finally {
       setMarketsLoading(false);
     }
-  }, []);
+  }, [filters, buildFilterQS]);
 
-  // Market seç → o müşterileri listele ("__ALL__" = tümü)
-  const selectMarket = useCallback(async (market) => {
+  // Market seç → o müşterileri listele ("__ALL__" = tümü). Global filtre
+  // olarak bir market seçiliyse (üstteki filtre çubuğundan) o zaten tüm
+  // dağılıma yansımıştır; burada sadece pop-up içindeki yerel seçim +
+  // diğer aktif filtreler (durum, uygulama, rakip, partner) birlikte uygulanır.
+  const selectMarket = useCallback(async (marketSel) => {
     if (!selectedCity) return;
-    setActiveMarket(market);
+    setActiveMarket(marketSel);
     setCustLoading(true);
     try {
+      const effectiveMarket = marketSel !== "__ALL__" ? marketSel : (filters.market || "");
       let url = `${API}/customers?city=${encodeURIComponent(selectedCity)}&limit=200&sort_by=company_name&sort_order=asc`;
-      if (market && market !== "__ALL__") url += `&market=${encodeURIComponent(market)}`;
+      if (effectiveMarket) url += `&market=${encodeURIComponent(effectiveMarket)}`;
+      const { market: _omitMarket, ...otherFilters } = filters;
+      const qs = buildFilterQS(otherFilters);
+      if (qs) url += `&${qs}`;
       const { data } = await axios.get(url);
       setCustomers(data.data || data.items || []);
     } catch (err) {
@@ -210,18 +259,26 @@ export default function TurkeyMap() {
     } finally {
       setCustLoading(false);
     }
-  }, [selectedCity]);
+  }, [selectedCity, filters, buildFilterQS]);
 
   const closeModal = () => {
     setSelectedCity(null);
     setFullscreen(false);
   };
 
+  // "Müşterilerde Aç" — il + market + üstteki tüm aktif filtreleri URL'e
+  // taşır; Customers.jsx artık bu parametreleri sayfa açılışında okuyor.
   const openInCustomers = () => {
-    let url = `/customers?city=${encodeURIComponent(selectedCity)}`;
-    if (activeMarket && activeMarket !== "__ALL__") url += `&market=${encodeURIComponent(activeMarket)}`;
+    const effectiveMarket = activeMarket && activeMarket !== "__ALL__" ? activeMarket : (filters.market || "");
+    const p = new URLSearchParams();
+    p.set("city", selectedCity);
+    if (effectiveMarket) p.set("market", effectiveMarket);
+    if (filters.application) p.set("application", filters.application);
+    if (filters.status) p.set("status", filters.status);
+    if (filters.competitor) p.set("competitor", filters.competitor);
+    if (filters.partner) p.set("partner", filters.partner);
     closeModal();
-    navigate(url);
+    navigate(`/customers?${p.toString()}`);
   };
 
   return (
@@ -231,7 +288,74 @@ export default function TurkeyMap() {
           <MapPin className="w-4 h-4 text-tertiary-md" />
           <h3 className="font-semibold text-foreground text-sm">Türkiye Müşteri Yoğunluğu</h3>
         </div>
-        <span className="text-xs text-muted-foreground">{total} müşteri</span>
+        <span className="text-xs text-muted-foreground">
+          {total} müşteri{activeFilterCount > 0 ? " (filtrelenmiş)" : ""}
+        </span>
+      </div>
+
+      {/* Filtre çubuğu — seçim yapınca harita ve popup'lar otomatik güncellenir */}
+      <div className="flex flex-wrap items-center gap-1.5 mb-3 pb-3 border-b border-border/60">
+        <div className="flex items-center gap-1 text-xs text-muted-foreground mr-0.5">
+          <Filter className="w-3.5 h-3.5" />
+        </div>
+        <select
+          value={filters.market}
+          onChange={(e) => updateFilter("market", e.target.value)}
+          className="text-xs border border-border rounded-md px-2 py-1 bg-background text-foreground max-w-[130px]"
+        >
+          <option value="">Market (Tümü)</option>
+          {filterOptions.market.map((v) => (
+            <option key={v} value={v}>{v}</option>
+          ))}
+        </select>
+        <select
+          value={filters.status}
+          onChange={(e) => updateFilter("status", e.target.value)}
+          className="text-xs border border-border rounded-md px-2 py-1 bg-background text-foreground max-w-[130px]"
+        >
+          <option value="">Durum (Tümü)</option>
+          {STATUS_OPTIONS.map((v) => (
+            <option key={v} value={v}>{v}</option>
+          ))}
+        </select>
+        <select
+          value={filters.application}
+          onChange={(e) => updateFilter("application", e.target.value)}
+          className="text-xs border border-border rounded-md px-2 py-1 bg-background text-foreground max-w-[130px]"
+        >
+          <option value="">Uygulama (Tümü)</option>
+          {filterOptions.application.map((v) => (
+            <option key={v} value={v}>{v}</option>
+          ))}
+        </select>
+        <select
+          value={filters.competitor}
+          onChange={(e) => updateFilter("competitor", e.target.value)}
+          className="text-xs border border-border rounded-md px-2 py-1 bg-background text-foreground max-w-[130px]"
+        >
+          <option value="">Rakip (Tümü)</option>
+          {filterOptions.competitor.map((v) => (
+            <option key={v} value={v}>{v}</option>
+          ))}
+        </select>
+        <select
+          value={filters.partner}
+          onChange={(e) => updateFilter("partner", e.target.value)}
+          className="text-xs border border-border rounded-md px-2 py-1 bg-background text-foreground max-w-[130px]"
+        >
+          <option value="">Partner (Tümü)</option>
+          {filterOptions.partner.map((v) => (
+            <option key={v} value={v}>{v}</option>
+          ))}
+        </select>
+        {activeFilterCount > 0 && (
+          <button
+            onClick={clearFilters}
+            className="flex items-center gap-1 text-xs px-2 py-1 rounded-md bg-red-50 text-red-600 hover:bg-red-100 transition-colors"
+          >
+            <X className="w-3 h-3" /> Temizle ({activeFilterCount})
+          </button>
+        )}
       </div>
 
       <div className="relative flex-1 min-h-[260px]">
