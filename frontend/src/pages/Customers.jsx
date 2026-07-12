@@ -474,12 +474,16 @@ const Customers = () => {
   // Filters
   const [search, setSearch] = useState("");
   // (debouncedSearch now derived inline below, no separate state)
-  const [marketFilter, setMarketFilter] = useState("");
-  const [statusFilter, setStatusFilter] = useState("");
-  const [cityFilter, setCityFilter] = useState("");
-  const [applicationFilter, setApplicationFilter] = useState("");
-  const [competitorFilter, setCompetitorFilter] = useState("");
-  const [partnerFilter, setPartnerFilter] = useState("");
+  // Filtreler sayfa açılışında URL'deki ?market=&city=&status=... gibi
+  // parametrelerden okunur — böylece başka bir sayfadan (ör. Türkiye
+  // haritasındaki "Müşterilerde Aç" butonu) gelen bağlantılar, ilgili
+  // filtreleri otomatik uygulamış olarak açılır.
+  const [marketFilter, setMarketFilter] = useState(() => new URLSearchParams(window.location.search).get("market") || "");
+  const [statusFilter, setStatusFilter] = useState(() => new URLSearchParams(window.location.search).get("status") || "");
+  const [cityFilter, setCityFilter] = useState(() => new URLSearchParams(window.location.search).get("city") || "");
+  const [applicationFilter, setApplicationFilter] = useState(() => new URLSearchParams(window.location.search).get("application") || "");
+  const [competitorFilter, setCompetitorFilter] = useState(() => new URLSearchParams(window.location.search).get("competitor") || "");
+  const [partnerFilter, setPartnerFilter] = useState(() => new URLSearchParams(window.location.search).get("partner") || "");
   const [callFilter, setCallFilter] = useState("");
   
   // Debounce handled inside SearchInput component now. `search` is already debounced.
