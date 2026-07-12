@@ -68,6 +68,10 @@ const ImportModal = ({ open, onClose, onImportComplete }) => {
   const [checkingSimilarity, setCheckingSimilarity] = useState(false);
   const [previewStats, setPreviewStats] = useState({ new: 0, similar: 0, duplicate: 0 });
   const [processingFile, setProcessingFile] = useState(false); // Dosya işleniyor mu?
+  // "reading"  -> Excel/CSV okunuyor ve satırlara ayrılıyor (hızlı, tarayıcıda)
+  // "comparing"-> Sunucuya gönderilip mevcut müşterilerle karşılaştırılıyor (yavaş olabilir)
+  const [processingPhase, setProcessingPhase] = useState("");
+  const [processingRowCount, setProcessingRowCount] = useState(0);
 
   useEffect(() => {
     if (open) {
@@ -111,6 +115,9 @@ const ImportModal = ({ open, onClose, onImportComplete }) => {
     setImportStatus("");
     setImportLive({ added: 0, updated: 0, failed: 0 });
     setImportResult(null);
+    setProcessingFile(false);
+    setProcessingPhase("");
+    setProcessingRowCount(0);
   };
 
   const handleClose = () => {
@@ -205,6 +212,8 @@ const ImportModal = ({ open, onClose, onImportComplete }) => {
     console.log("Processing file:", file.name);
     setSelectedFile(file);
     setProcessingFile(true); // Dosya işlemeye başladı
+    setProcessingPhase("reading");
+    setProcessingRowCount(0);
     
     const isXlsx = file.name.endsWith('.xlsx') || file.name.endsWith('.xls');
     
@@ -264,6 +273,7 @@ const ImportModal = ({ open, onClose, onImportComplete }) => {
     if (lines.length < 2) {
       setParseErrors(['Dosyada yeterli veri bulunamadı']);
       setProcessingFile(false);
+      setProcessingPhase("");
       return;
     }
 
@@ -285,14 +295,24 @@ const ImportModal = ({ open, onClose, onImportComplete }) => {
 
     setParseErrors(errors);
     setPreviewData(parsed);
-    setProcessingFile(false); // Dosya işleme tamamlandı
+    setProcessingRowCount(parsed.length);
 
-    // Check similarity for companies
-    if (importType === 'company' && parsed.length > 0) {
-      await checkSimilarities(parsed);
+    try {
+      // Dosya okuma bitti ama gösterge kapanmıyor: şirket içe aktarmada sıra
+      // sunucuya gidip mevcut müşterilerle karşılaştırma yapmaya geliyor.
+      // Bu adım (özellikle liste büyükse veya sunucu az önce uyandıysa) uzun
+      // sürebilir — kullanıcı "sistem donmuş" sanmasın diye göstergeyi açık
+      // tutup mesajı güncelliyoruz.
+      if (importType === 'company' && parsed.length > 0) {
+        setProcessingPhase("comparing");
+        await checkSimilarities(parsed);
+      }
+    } finally {
+      // Ne olursa olsun (başarı/hata) gösterge mutlaka kapanır.
+      setProcessingFile(false);
+      setProcessingPhase("");
+      setStep('preview');
     }
-
-    setStep('preview');
   };
 
   const parseCSVLine = (line) => {
@@ -719,16 +739,36 @@ const ImportModal = ({ open, onClose, onImportComplete }) => {
 
   const renderCompanyStep = () => (
     <div className="p-6 space-y-6">
-      {/* Dosya işlenirken loading göstergesi */}
+      {/* Dosya işlenirken / sunucuyla karşılaştırılırken loading göstergesi.
+          İki aşama var, kullanıcı hangisinde olduğumuzu görsün diye ayrı
+          metinler gösteriyoruz — aksi halde "karşılaştırma" aşamasında
+          (sunucuya istek gidip beklenirken) ekran boş kalıp sistem
+          donmuş gibi görünüyordu. */}
       {processingFile && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white rounded-2xl p-8 max-w-md w-full mx-4 shadow-2xl text-center">
             <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
               <Loader2 className="w-10 h-10 text-blue-600 animate-spin" />
             </div>
-            <h3 className="text-xl font-bold text-slate-800 mb-2">Dosya İşleniyor...</h3>
-            <p className="text-slate-500 mb-2">Excel dosyası okunuyor ve analiz ediliyor</p>
-            <p className="text-sm text-slate-400">Bu işlem dosya boyutuna göre biraz zaman alabilir</p>
+            {processingPhase === "comparing" ? (
+              <>
+                <h3 className="text-xl font-bold text-slate-800 mb-2">Müşteriler Karşılaştırılıyor...</h3>
+                <p className="text-slate-500 mb-2">
+                  {processingRowCount > 0
+                    ? `${processingRowCount} kayıt, mevcut müşterilerinizle karşılaştırılıyor`
+                    : "Mevcut müşterilerinizle karşılaştırılıyor"}
+                </p>
+                <p className="text-sm text-slate-400">
+                  Büyük listelerde bu adım 1-2 dakika sürebilir. Lütfen bu pencereyi kapatmayın.
+                </p>
+              </>
+            ) : (
+              <>
+                <h3 className="text-xl font-bold text-slate-800 mb-2">Dosya İşleniyor...</h3>
+                <p className="text-slate-500 mb-2">Excel dosyası okunuyor ve analiz ediliyor</p>
+                <p className="text-sm text-slate-400">Bu işlem dosya boyutuna göre biraz zaman alabilir</p>
+              </>
+            )}
           </div>
         </div>
       )}
@@ -796,6 +836,21 @@ const ImportModal = ({ open, onClose, onImportComplete }) => {
 
   const renderVisitStep = () => (
     <div className="p-6 space-y-6">
+      {/* Dosya işlenirken loading göstergesi (ziyaret içe aktarmada karşılaştırma
+          adımı yok, sadece okuma/analiz — o yüzden tek aşamalı) */}
+      {processingFile && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl p-8 max-w-md w-full mx-4 shadow-2xl text-center">
+            <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Loader2 className="w-10 h-10 text-blue-600 animate-spin" />
+            </div>
+            <h3 className="text-xl font-bold text-slate-800 mb-2">Dosya İşleniyor...</h3>
+            <p className="text-slate-500 mb-2">Excel dosyası okunuyor ve analiz ediliyor</p>
+            <p className="text-sm text-slate-400">Bu işlem dosya boyutuna göre biraz zaman alabilir</p>
+          </div>
+        </div>
+      )}
+
       <div>
         <Label className="text-base">Ziyaretleri Eklenecek Şirket *</Label>
         <Select value={selectedCustomerId} onValueChange={setSelectedCustomerId}>
