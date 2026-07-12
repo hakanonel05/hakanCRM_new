@@ -1270,7 +1270,7 @@ const Customers = () => {
   );
 
   return (
-    <div className="flex h-full overflow-hidden bg-slate-50" data-testid="customers-page">
+    <div className="flex h-screen overflow-hidden bg-slate-50" data-testid="customers-page">
       {/* Subtle loading bar at the top (no blocking overlay) */}
       {loading && customers.length > 0 && (
         <div className="absolute top-0 left-0 right-0 h-0.5 bg-emerald-500 animate-pulse z-50" />
