@@ -373,34 +373,44 @@ const FiltersPage = () => {
           const colorClass = ROW_COLORS[index % ROW_COLORS.length].split(" ")[0];
           
           return (
-            <button
+            <div
               key={filter.id}
+              role="button"
+              tabIndex={0}
               onClick={() => selectFilter(filter)}
-              className={`px-4 py-2 rounded-t-lg font-medium text-sm flex items-center gap-2 transition-all border-b-2 ${
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  selectFilter(filter);
+                }
+              }}
+              className={`px-4 py-2 rounded-t-lg font-medium text-sm flex items-center gap-2 transition-all border-b-2 cursor-pointer select-none ${
                 isActive 
                   ? `${colorClass} border-primary text-primary` 
                   : "bg-muted hover:bg-slate-200 border-transparent text-muted-foreground"
               }`}
             >
-              {filter.name}
+              <span className="whitespace-nowrap">{filter.name}</span>
               <Badge variant="secondary" className="h-5 px-1.5 text-[10px]">
                 {filter.conditions?.length || 0}
               </Badge>
               <div className="flex items-center gap-1 ml-1 opacity-60 hover:opacity-100">
                 <button
+                  type="button"
                   onClick={(e) => handleEditFilter(filter, e)}
                   className="p-1 hover:bg-card/50 rounded"
                 >
                   <Settings2 className="w-3 h-3" />
                 </button>
                 <button
+                  type="button"
                   onClick={(e) => handleDeleteFilter(filter.id, e)}
                   className="p-1 hover:bg-card/50 rounded text-red-500"
                 >
                   <Trash2 className="w-3 h-3" />
                 </button>
               </div>
-            </button>
+            </div>
           );
         })}
         {savedFilters.length === 0 && (
