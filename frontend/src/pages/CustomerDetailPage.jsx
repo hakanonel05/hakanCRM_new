@@ -74,11 +74,42 @@ const CALL_STATUSES = [
   { value: "Ulaşılamadı", color: "bg-muted text-foreground" }
 ];
 
+// Masaüstünde (lg ve üstü) her panel kendi içinde bağımsız kayar (HubSpot
+// tarzı 3 sütun). Dar ekranlarda (mobil/tablet, <1024px) bu bağımsız kaydırma
+// alanları kaldırılır — tüm içerik tek, kesintisiz bir akışta üst üste dizilir
+// ve sayfanın/modal'ın kendisi tek kaydırma alanı olur. Böylece "Aramalar"
+// gibi az veri içeren bir sekme, kendi dar kutusuna sıkışıp görünmez olmaz.
+const ResponsiveScroll = ({ isNarrow, className = "", children }) => {
+  if (isNarrow) {
+    // h-full / flex-1 gibi yükseklik sınırlamalarını dar ekranda etkisiz kıl,
+    // içerik doğal yüksekliğinde aksın.
+    const flatClassName = className
+      .split(" ")
+      .filter((c) => c && c !== "h-full" && c !== "flex-1")
+      .join(" ");
+    return <div className={flatClassName}>{children}</div>;
+  }
+  return <ScrollArea className={className}>{children}</ScrollArea>;
+};
+
 const CustomerDetailPage = ({ customerId: propCustomerId, isModal = false, onClose, onNavigateToFull }) => {
   const params = useParams();
   const id = propCustomerId || params.id;
   const navigate = useNavigate();
   const { isAdmin, canDelete } = useAuth();
+
+  // Sütunların bağımsız mı yoksa tek-akış mı kayacağını belirler. Grid'in
+  // kendisi de aynı eşikte (lg = 1024px) tek sütuna yığıldığı için aynı
+  // breakpoint kullanılıyor — ikisi arasında tutarsız bir bölge kalmasın.
+  const [isNarrow, setIsNarrow] = useState(
+    typeof window !== "undefined" ? window.innerWidth < 1024 : false
+  );
+  useEffect(() => {
+    const check = () => setIsNarrow(window.innerWidth < 1024);
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
   
   const [customer, setCustomer] = useState(null);
   const [visits, setVisits] = useState([]);
@@ -702,11 +733,11 @@ const CustomerDetailPage = ({ customerId: propCustomerId, isModal = false, onClo
       </div>
 
       {/* 3 Column Layout - Hubspot Style */}
-      <div className={`grid grid-cols-12 gap-4 overflow-hidden ${isModal ? "h-full" : "h-[calc(100vh-200px)]"}`}>
+      <div className={`grid grid-cols-12 gap-4 ${isNarrow ? "" : `overflow-hidden ${isModal ? "h-full" : "h-[calc(100vh-200px)]"}`}`}>
         
         {/* LEFT COLUMN - All Customer Info */}
-        <div className="col-span-12 lg:col-span-3 overflow-hidden min-w-0">
-          <ScrollArea className="h-full pr-2">
+        <div className={`col-span-12 lg:col-span-3 min-w-0 ${isNarrow ? "" : "overflow-hidden"}`}>
+          <ResponsiveScroll isNarrow={isNarrow} className="h-full pr-2">
             <div className="space-y-4">
               {/* Company Info */}
               <div className="bg-card rounded-xl border border-border p-4">
@@ -881,12 +912,12 @@ const CustomerDetailPage = ({ customerId: propCustomerId, isModal = false, onClo
                 </div>
               </div>
             </div>
-          </ScrollArea>
+          </ResponsiveScroll>
         </div>
 
         {/* MIDDLE COLUMN - Activity & Tabs */}
-        <div className="col-span-12 lg:col-span-6 overflow-hidden min-w-0">
-          <div className="bg-card rounded-xl border border-border h-full flex flex-col">
+        <div className={`col-span-12 lg:col-span-6 min-w-0 ${isNarrow ? "" : "overflow-hidden"}`}>
+          <div className={`bg-card rounded-xl border border-border flex flex-col ${isNarrow ? "" : "h-full"}`}>
             <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
               <div className="overflow-x-auto flex-shrink-0 border-b">
                 <TabsList className="w-max min-w-full justify-start rounded-none bg-muted/30 px-4 h-12 border-b-0">
@@ -915,7 +946,7 @@ const CustomerDetailPage = ({ customerId: propCustomerId, isModal = false, onClo
 
               {/* Activity Tab */}
               <TabsContent value="activity" className="flex-1 overflow-hidden m-0">
-                <ScrollArea className="h-full">
+                <ResponsiveScroll isNarrow={isNarrow} className="h-full">
                   <div className="p-4 space-y-4">
                     {timeline.length > 0 ? timeline.map((item, idx) => (
                       <div key={idx} className="flex gap-3">
@@ -970,12 +1001,12 @@ const CustomerDetailPage = ({ customerId: propCustomerId, isModal = false, onClo
                       </div>
                     )}
                   </div>
-                </ScrollArea>
+                </ResponsiveScroll>
               </TabsContent>
 
               {/* Notes Tab */}
               <TabsContent value="notes" className="flex-1 overflow-hidden m-0">
-                <ScrollArea className="h-full">
+                <ResponsiveScroll isNarrow={isNarrow} className="h-full">
                   <div className="p-4">
                     <div className="flex justify-between items-center mb-4">
                       <h4 className="font-medium text-foreground">Müşteri Notları</h4>
@@ -1026,12 +1057,12 @@ const CustomerDetailPage = ({ customerId: propCustomerId, isModal = false, onClo
                       )) : <p className="text-muted-foreground text-center py-8">Henüz not yok</p>}
                     </div>
                   </div>
-                </ScrollArea>
+                </ResponsiveScroll>
               </TabsContent>
 
               {/* Calls Tab */}
               <TabsContent value="calls" className="flex-1 overflow-hidden m-0">
-                <ScrollArea className="h-full">
+                <ResponsiveScroll isNarrow={isNarrow} className="h-full">
                   <div className="p-4">
                     <div className="flex justify-between items-center mb-4">
                       <h4 className="font-medium text-foreground">Arama Kayıtları</h4>
@@ -1151,12 +1182,12 @@ const CustomerDetailPage = ({ customerId: propCustomerId, isModal = false, onClo
                       )}
                     </div>
                   </div>
-                </ScrollArea>
+                </ResponsiveScroll>
               </TabsContent>
 
               {/* Visits Tab */}
               <TabsContent value="visits" className="flex-1 overflow-hidden m-0">
-                <ScrollArea className="h-full">
+                <ResponsiveScroll isNarrow={isNarrow} className="h-full">
                   <div className="p-4">
                     <div className="flex justify-between items-center mb-4">
                       <h4 className="font-medium text-foreground">Ziyaret Geçmişi</h4>
@@ -1197,12 +1228,12 @@ const CustomerDetailPage = ({ customerId: propCustomerId, isModal = false, onClo
                       )}
                     </div>
                   </div>
-                </ScrollArea>
+                </ResponsiveScroll>
               </TabsContent>
 
               {/* Documents Tab */}
               <TabsContent value="documents" className="flex-1 overflow-hidden m-0">
-                <ScrollArea className="h-full">
+                <ResponsiveScroll isNarrow={isNarrow} className="h-full">
                   <div className="p-4">
                     <div className="flex justify-between items-center mb-4">
                       <h4 className="font-medium text-foreground">Dökümanlar & Dosyalar</h4>
@@ -1282,15 +1313,15 @@ const CustomerDetailPage = ({ customerId: propCustomerId, isModal = false, onClo
                       )}
                     </div>
                   </div>
-                </ScrollArea>
+                </ResponsiveScroll>
               </TabsContent>
             </Tabs>
           </div>
         </div>
 
         {/* RIGHT COLUMN - Contacts */}
-        <div className="col-span-12 lg:col-span-3 overflow-hidden min-w-0">
-          <ScrollArea className="h-full pr-2">
+        <div className={`col-span-12 lg:col-span-3 min-w-0 ${isNarrow ? "" : "overflow-hidden"}`}>
+          <ResponsiveScroll isNarrow={isNarrow} className="h-full pr-2">
             <div className="space-y-4">
               {/* Primary Contact */}
               <div className="bg-card rounded-xl border border-border p-4">
@@ -1363,7 +1394,7 @@ const CustomerDetailPage = ({ customerId: propCustomerId, isModal = false, onClo
                 )}
               </div>
             </div>
-          </ScrollArea>
+          </ResponsiveScroll>
         </div>
       </div>
 
