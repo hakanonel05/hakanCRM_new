@@ -638,33 +638,33 @@ const CustomerDetailPage = ({ customerId: propCustomerId, isModal = false, onClo
   return (
     <div data-testid="customer-detail-page" className="h-full">
       {/* Header - Full Width */}
-      <div className="bg-card border-b border-border px-6 py-4 -mx-6 -mt-6 mb-6">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
+      <div className="bg-card border-b border-border px-4 sm:px-6 py-4 -mx-6 -mt-6 mb-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="flex items-center gap-3 sm:gap-4 min-w-0">
             {!isModal && (
-              <Button variant="ghost" size="icon" onClick={() => {
+              <Button variant="ghost" size="icon" className="flex-shrink-0" onClick={() => {
                 if (window.history.length > 1) navigate(-1);
                 else navigate("/customers");
               }} data-testid="customer-detail-back-btn">
                 <ArrowLeft className="w-5 h-5" />
               </Button>
             )}
-            <div className="flex items-center gap-4">
-              <div className="w-14 h-14 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center text-white font-bold text-xl shadow-lg">
+            <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+              <div className="w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center text-white font-bold text-lg sm:text-xl shadow-lg flex-shrink-0">
                 {customer.company_name?.charAt(0) || "?"}
               </div>
-              <div>
+              <div className="min-w-0">
                 <h1 
-                  className={`text-xl font-bold text-foreground flex items-center gap-2 ${isModal ? "cursor-pointer hover:text-primary transition-colors" : ""}`}
+                  className={`text-lg sm:text-xl font-bold text-foreground flex items-center gap-2 truncate ${isModal ? "cursor-pointer hover:text-primary transition-colors" : ""}`}
                   onClick={isModal ? onNavigateToFull : undefined}
                   title={isModal ? "Tam sayfada aç" : undefined}
                 >
-                  {customer.company_name || "İsimsiz Firma"}
+                  <span className="truncate">{customer.company_name || "İsimsiz Firma"}</span>
                   {customer.is_followup && (
-                    <Bell className="w-5 h-5 text-amber-500 fill-amber-200" />
+                    <Bell className="w-5 h-5 text-amber-500 fill-amber-200 flex-shrink-0" />
                   )}
                 </h1>
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 text-sm text-muted-foreground mt-0.5">
                   {customer.market && <Badge variant="secondary">{customer.market}</Badge>}
                   {customer.city && <span>{customer.city}</span>}
                   {customer.status && (() => {
@@ -682,19 +682,19 @@ const CustomerDetailPage = ({ customerId: propCustomerId, isModal = false, onClo
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Button variant="outline" size="sm" onClick={handleToggleFollowup}>
-              <Bell className={`w-4 h-4 mr-1 ${customer.is_followup ? "text-amber-500 fill-amber-500" : ""}`} />
-              {customer.is_followup ? "Takipten Çıkar" : "Takibe Al"}
+              <Bell className={`w-4 h-4 sm:mr-1 ${customer.is_followup ? "text-amber-500 fill-amber-500" : ""}`} />
+              <span className="hidden sm:inline">{customer.is_followup ? "Takipten Çıkar" : "Takibe Al"}</span>
             </Button>
             <Button size="sm" onClick={() => setEditModalOpen(true)}>
-              <Pencil className="w-4 h-4 mr-1" />
-              Düzenle
+              <Pencil className="w-4 h-4 sm:mr-1" />
+              <span className="hidden sm:inline">Düzenle</span>
             </Button>
             {canDelete && (
               <Button variant="destructive" size="sm" onClick={handleDelete} data-testid="customer-delete-btn">
-                <Trash2 className="w-4 h-4 mr-1" />
-                Sil
+                <Trash2 className="w-4 h-4 sm:mr-1" />
+                <span className="hidden sm:inline">Sil</span>
               </Button>
             )}
           </div>
@@ -702,7 +702,7 @@ const CustomerDetailPage = ({ customerId: propCustomerId, isModal = false, onClo
       </div>
 
       {/* 3 Column Layout - Hubspot Style */}
-      <div className="grid grid-cols-12 gap-4 h-[calc(100vh-200px)] overflow-hidden">
+      <div className={`grid grid-cols-12 gap-4 overflow-hidden ${isModal ? "h-full" : "h-[calc(100vh-200px)]"}`}>
         
         {/* LEFT COLUMN - All Customer Info */}
         <div className="col-span-12 lg:col-span-3 overflow-hidden">
@@ -888,28 +888,30 @@ const CustomerDetailPage = ({ customerId: propCustomerId, isModal = false, onClo
         <div className="col-span-12 lg:col-span-6 overflow-hidden">
           <div className="bg-card rounded-xl border border-border h-full flex flex-col">
             <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
-              <TabsList className="w-full justify-start border-b rounded-none bg-muted/30 px-4 h-12 flex-shrink-0">
-                <TabsTrigger value="activity" className="rounded-none data-[state=active]:bg-card data-[state=active]:border-b-2 data-[state=active]:border-primary">
-                  <Activity className="w-4 h-4 mr-2" />
-                  Akış
-                </TabsTrigger>
-                <TabsTrigger value="notes" className="rounded-none data-[state=active]:bg-card data-[state=active]:border-b-2 data-[state=active]:border-primary">
-                  <FileText className="w-4 h-4 mr-2" />
-                  Notlar ({notes.length})
-                </TabsTrigger>
-                <TabsTrigger value="calls" className="rounded-none data-[state=active]:bg-card data-[state=active]:border-b-2 data-[state=active]:border-primary">
-                  <PhoneCall className="w-4 h-4 mr-2" />
-                  Aramalar ({calls.length})
-                </TabsTrigger>
-                <TabsTrigger value="visits" className="rounded-none data-[state=active]:bg-card data-[state=active]:border-b-2 data-[state=active]:border-primary">
-                  <Calendar className="w-4 h-4 mr-2" />
-                  Ziyaretler ({visits.length})
-                </TabsTrigger>
-                <TabsTrigger value="documents" className="rounded-none data-[state=active]:bg-card data-[state=active]:border-b-2 data-[state=active]:border-primary">
-                  <Paperclip className="w-4 h-4 mr-2" />
-                  Dosyalar ({documents.length})
-                </TabsTrigger>
-              </TabsList>
+              <div className="overflow-x-auto flex-shrink-0 border-b">
+                <TabsList className="w-max min-w-full justify-start rounded-none bg-muted/30 px-4 h-12 border-b-0">
+                  <TabsTrigger value="activity" className="rounded-none whitespace-nowrap data-[state=active]:bg-card data-[state=active]:border-b-2 data-[state=active]:border-primary">
+                    <Activity className="w-4 h-4 mr-2" />
+                    Akış
+                  </TabsTrigger>
+                  <TabsTrigger value="notes" className="rounded-none whitespace-nowrap data-[state=active]:bg-card data-[state=active]:border-b-2 data-[state=active]:border-primary">
+                    <FileText className="w-4 h-4 mr-2" />
+                    Notlar ({notes.length})
+                  </TabsTrigger>
+                  <TabsTrigger value="calls" className="rounded-none whitespace-nowrap data-[state=active]:bg-card data-[state=active]:border-b-2 data-[state=active]:border-primary">
+                    <PhoneCall className="w-4 h-4 mr-2" />
+                    Aramalar ({calls.length})
+                  </TabsTrigger>
+                  <TabsTrigger value="visits" className="rounded-none whitespace-nowrap data-[state=active]:bg-card data-[state=active]:border-b-2 data-[state=active]:border-primary">
+                    <Calendar className="w-4 h-4 mr-2" />
+                    Ziyaretler ({visits.length})
+                  </TabsTrigger>
+                  <TabsTrigger value="documents" className="rounded-none whitespace-nowrap data-[state=active]:bg-card data-[state=active]:border-b-2 data-[state=active]:border-primary">
+                    <Paperclip className="w-4 h-4 mr-2" />
+                    Dosyalar ({documents.length})
+                  </TabsTrigger>
+                </TabsList>
+              </div>
 
               {/* Activity Tab */}
               <TabsContent value="activity" className="flex-1 overflow-hidden m-0">
