@@ -636,7 +636,7 @@ const CustomerDetailPage = ({ customerId: propCustomerId, isModal = false, onClo
   const hasContacts = (customer.contact_info?.contact_person) || (customer.contacts && customer.contacts.length > 0);
 
   return (
-    <div data-testid="customer-detail-page" className="h-full">
+    <div data-testid="customer-detail-page" className="h-full overflow-x-hidden">
       {/* Header - Full Width */}
       <div className="bg-card border-b border-border px-4 sm:px-6 py-4 -mx-6 -mt-6 mb-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
@@ -705,7 +705,7 @@ const CustomerDetailPage = ({ customerId: propCustomerId, isModal = false, onClo
       <div className={`grid grid-cols-12 gap-4 overflow-hidden ${isModal ? "h-full" : "h-[calc(100vh-200px)]"}`}>
         
         {/* LEFT COLUMN - All Customer Info */}
-        <div className="col-span-12 lg:col-span-3 overflow-hidden">
+        <div className="col-span-12 lg:col-span-3 overflow-hidden min-w-0">
           <ScrollArea className="h-full pr-2">
             <div className="space-y-4">
               {/* Company Info */}
@@ -885,7 +885,7 @@ const CustomerDetailPage = ({ customerId: propCustomerId, isModal = false, onClo
         </div>
 
         {/* MIDDLE COLUMN - Activity & Tabs */}
-        <div className="col-span-12 lg:col-span-6 overflow-hidden">
+        <div className="col-span-12 lg:col-span-6 overflow-hidden min-w-0">
           <div className="bg-card rounded-xl border border-border h-full flex flex-col">
             <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
               <div className="overflow-x-auto flex-shrink-0 border-b">
@@ -1289,7 +1289,7 @@ const CustomerDetailPage = ({ customerId: propCustomerId, isModal = false, onClo
         </div>
 
         {/* RIGHT COLUMN - Contacts */}
-        <div className="col-span-12 lg:col-span-3 overflow-hidden">
+        <div className="col-span-12 lg:col-span-3 overflow-hidden min-w-0">
           <ScrollArea className="h-full pr-2">
             <div className="space-y-4">
               {/* Primary Contact */}
