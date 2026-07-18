@@ -415,7 +415,7 @@ const ProcessBoard = () => {
 
       {/* Aktif pano başlığı + stage ekle */}
       {activeBoard && (
-        <div className="px-4 flex items-center justify-between mb-2">
+        <div className="px-4 flex items-center justify-between flex-wrap gap-2 mb-2">
           <p className="text-sm text-muted-foreground">
             {stages.length} stage · {totalCards} müşteri
           </p>
