@@ -29,6 +29,7 @@ jobs:
           SUPABASE_URL: https://dummy.supabase.co
           SUPABASE_SERVICE_KEY: dummy-key-ci
           CORS_ORIGINS: http://localhost
+          ADMIN_EMAIL: dummy@ci.local
         run: |
           python -m py_compile server.py
           python -c "import server; print('server.py hatasiz yüklendi, endpoint sayisi:', len(server.app.routes))"
