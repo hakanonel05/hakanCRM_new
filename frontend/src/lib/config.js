@@ -2,10 +2,19 @@
 // The super-admin address used to be hardcoded in 4 different files; changing
 // it meant editing all of them. Now it lives here and can be overridden at
 // build time with the REACT_APP_ADMIN_EMAIL environment variable on Netlify.
+//
+// SECURITY: no hardcoded personal-email fallback. If the env var is missing,
+// ADMIN_EMAIL is empty — nobody matches it, so the app fails "closed" (no
+// accidental admin) instead of leaking/relying on a fixed address in the
+// bundle. A console warning makes a missing env var impossible to miss.
+if (!process.env.REACT_APP_ADMIN_EMAIL) {
+  // eslint-disable-next-line no-console
+  console.warn(
+    "REACT_APP_ADMIN_EMAIL ayarlanmamış — Netlify Environment variables'a ekleyip yeniden deploy et. Admin paneli bu env var olmadan çalışmaz."
+  );
+}
 
-export const ADMIN_EMAIL = (
-  process.env.REACT_APP_ADMIN_EMAIL || "hakanonel05@gmail.com"
-).toLowerCase();
+export const ADMIN_EMAIL = (process.env.REACT_APP_ADMIN_EMAIL || "").toLowerCase();
 
 // role=admin OR the super-admin address OR backend-provided is_admin flag
 export const isAdminUser = (user) =>
