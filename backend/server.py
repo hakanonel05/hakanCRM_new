@@ -48,7 +48,18 @@ resend.api_key = RESEND_API_KEY
 # the frontend) — changing the admin meant hunting down every copy. Now it can
 # be overridden with the ADMIN_EMAIL environment variable on Render without
 # touching code. Always stored lowercase; compare with .lower() everywhere.
-ADMIN_EMAIL = os.environ.get("ADMIN_EMAIL", "hakanonel05@gmail.com").strip().lower()
+# SECURITY: no hardcoded fallback here — a leaked personal email in source
+# control is itself a security issue (git history keeps it forever). The
+# ADMIN_EMAIL environment variable is REQUIRED; the app refuses to start
+# without it so a missing/forgotten env var fails loudly at deploy time
+# instead of silently falling back to a stale hardcoded address.
+_admin_email_raw = os.environ.get("ADMIN_EMAIL")
+if not _admin_email_raw:
+    raise RuntimeError(
+        "ADMIN_EMAIL ortam değişkeni ayarlanmamış. Render'da Environment "
+        "sekmesinden ADMIN_EMAIL=<senin-e-postan> ekleyip yeniden deploy et."
+    )
+ADMIN_EMAIL = _admin_email_raw.strip().lower()
 
 # Google Gemini API configuration
 GOOGLE_API_KEY = os.environ.get('GOOGLE_API_KEY')
@@ -2348,9 +2359,10 @@ async def apply_saved_filter(filter_id: str):
     conditions = filter_doc.get("conditions", [])
     logic = filter_doc.get("logic", "AND")
     
-    # Get all customers first
-    customers_response = supabase.table("customers").select("*").execute()
-    customers = customers_response.data
+    # Get all customers first. fetch_all_rows: plain .execute() caps at 1000
+    # rows on Supabase — with 3000+ customers, saved filters were silently
+    # only checking the first 1000 and missing the rest.
+    customers = fetch_all_rows("customers", "*")
     
     if not conditions:
         return customers
@@ -3533,79 +3545,6 @@ async def get_current_user(request: Request, session_token: Optional[str] = Cook
     user["is_super_admin"] = check_super_admin(user)
     return user
 
-@api_router.post("/auth/callback")
-async def auth_callback(request: Request, response: Response):
-    data = await request.json()
-    
-    user_id = data.get("user_id", f"user_{uuid.uuid4().hex[:12]}")
-    email = data.get("email", "")
-    name = data.get("name", "")
-    picture = data.get("picture", "")
-    
-    # Check whitelist - only approved emails can login
-    whitelist_response = supabase.table("allowed_users").select("*").eq("email", email.lower()).execute()
-    
-    # Admin email always allowed
-    admin_email = ADMIN_EMAIL
-    is_allowed = email.lower() == admin_email.lower() or (whitelist_response.data and len(whitelist_response.data) > 0)
-    
-    if not is_allowed:
-        raise HTTPException(
-            status_code=403, 
-            detail="Bu e-posta adresi için erişim izni yok. Lütfen yöneticiyle iletişime geçin."
-        )
-    
-    role = get_user_role(email)
-    
-    # Check if user exists in DB
-    existing = supabase.table("users").select("*").eq("email", email).execute()
-    
-    if existing.data:
-        user_doc = existing.data[0]
-        supabase.table("users").update({
-            "name": name,
-            "picture": picture
-        }).eq("email", email).execute()
-    else:
-        user_doc = {
-            "user_id": user_id,
-            "email": email,
-            "name": name,
-            "picture": picture,
-            "role": role,
-            "auth_type": "google",
-            "notification_days": 3,
-            "created_at": datetime.now(timezone.utc).isoformat()
-        }
-        supabase.table("users").insert(user_doc).execute()
-    
-    session_data = SessionData(
-        user_id=user_id,
-        email=email,
-        name=name,
-        picture=picture,
-        role=role
-    )
-    session_token = _issue_session_token(session_data)
-    
-    response.set_cookie(
-        key="session_token",
-        value=session_token,
-        httponly=True,
-        secure=True,
-        samesite="none",
-        max_age=7*24*60*60
-    )
-    
-    return {
-        "user_id": user_id,
-        "email": email,
-        "name": name,
-        "picture": picture,
-        "role": role,
-        "session_token": session_token
-    }
-
 @api_router.post("/auth/logout")
 async def logout(request: Request, response: Response, session_token: Optional[str] = Cookie(None)):
     # Cookie may be blocked cross-site — accept the header fallback too
@@ -3789,6 +3728,24 @@ class LocalRegisterRequest(BaseModel):
 
 @api_router.post("/auth/register")
 async def register(data: LocalRegisterRequest, response: Response):
+    # SECURITY: whitelist check — the comment on this endpoint's public-path
+    # exemption always claimed this existed ("whitelist enforced inside") but
+    # it never actually did; anyone could self-register. Same rule as
+    # /auth/session: admin email OR an approved entry in allowed_users.
+    email_lc = (data.email or "").strip().lower()
+    if not email_lc:
+        raise HTTPException(status_code=400, detail="E-posta adresi gerekli")
+    whitelist_response = supabase.table("allowed_users").select("email").eq("email", email_lc).execute()
+    is_allowed = (
+        email_lc == ADMIN_EMAIL.lower()
+        or (whitelist_response.data and len(whitelist_response.data) > 0)
+    )
+    if not is_allowed:
+        raise HTTPException(
+            status_code=403,
+            detail="Bu e-posta adresi için erişim izni yok. Lütfen yöneticiyle iletişime geçin.",
+        )
+
     existing = supabase.table("users").select("*").eq("email", data.email).execute()
     if existing.data:
         raise HTTPException(status_code=400, detail="Bu e-posta adresi zaten kayıtlı")
@@ -4114,8 +4071,10 @@ async def update_notification_settings(settings: dict, request: Request, session
 
 @api_router.get("/calendar-events")
 async def get_calendar_events():
-    visits = supabase.table("visits").select("*").execute().data
-    customers = supabase.table("customers").select("id, company_name, next_followup_date").execute().data
+    # fetch_all_rows: plain .execute() caps at 1000 rows on Supabase, silently
+    # dropping data past that — a real problem now that there are 3000+ rows.
+    visits = fetch_all_rows("visits", "*")
+    customers = fetch_all_rows("customers", "id, company_name, next_followup_date")
     
     events = []
     
