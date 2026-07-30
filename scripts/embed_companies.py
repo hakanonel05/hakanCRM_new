@@ -2,17 +2,17 @@
 customers tablosundaki her firmanin metnini vektore cevirip
 'embedding' sutununa yazar. GitHub Actions'ta calisir.
 
+Supabase tek istekte en fazla 1000 satir dondurdugu icin
+1000'erlik gruplar halinde, hepsi bitene kadar doner.
+
 Gerekli Secrets:
   SUPABASE_URL          -> https://xxxx.supabase.co  (fazladan yol OLMADAN)
   SUPABASE_SERVICE_KEY  -> service_role anahtari
-  FORCE_ALL (opsiyonel) -> "true" ise hepsini yeniden hesaplar
+  FORCE_ALL (opsiyonel) -> "true" ise embedding dolu olsa bile hepsini yeniden hesaplar
 """
 import os
-from urllib.parse import urlparse
-
 import numpy as np
 from sentence_transformers import SentenceTransformer
-import supabase
 from supabase import create_client
 
 SUPABASE_URL = os.environ["SUPABASE_URL"].strip().rstrip("/")
@@ -20,27 +20,10 @@ SUPABASE_KEY = os.environ["SUPABASE_SERVICE_KEY"].strip()
 FORCE_ALL = os.environ.get("FORCE_ALL", "").strip().lower() in ("1", "true", "yes")
 
 MODEL_NAME = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
-
-# --- TESHIS (secret'i ifsa etmeden URL'nin seklini gosterir) ---
-_p = urlparse(SUPABASE_URL)
-print("=== TESHIS ===")
-print("supabase kutuphane surumu :", getattr(supabase, "__version__", "bilinmiyor"))
-print("URL https mi              :", _p.scheme == "https")
-print("host .supabase.co ile mi biter:", _p.netloc.endswith(".supabase.co"))
-print("URL'de fazladan yol var mi:", _p.path not in ("", "/"), "(bos olmali)")
-print("yol parca sayisi          :", len([s for s in _p.path.split('/') if s]), "(0 olmali)")
-print("==============")
+COLS = "id,company_name,market,application,description,products"
+BATCH = 1000
 
 sb = create_client(SUPABASE_URL, SUPABASE_KEY)
-
-# --- Filtresiz basit sorgu testi: sorun URL'de mi filtrede mi? ---
-try:
-    test = sb.table("customers").select("id").limit(1).execute()
-    print("Basit sorgu OK. Ornek satir sayisi:", len(test.data or []))
-except Exception as e:
-    print("Basit sorgu BASARISIZ ->", repr(e))
-    print("Bu, sorunun SUPABASE_URL veya baglantida oldugunu gosterir.")
-    raise
 
 
 def build_text(c: dict) -> str:
@@ -52,36 +35,48 @@ def build_text(c: dict) -> str:
     return " | ".join(p for p in parts if p) or (c.get("company_name") or "")
 
 
-def fetch_rows():
-    q = sb.table("customers").select(
-        "id,company_name,market,application,description,products"
-    )
-    if not FORCE_ALL:
-        q = q.is_("embedding", "null")
-    res = q.limit(5000).execute()
-    return res.data or []
-
-
-def main():
-    rows = fetch_rows()
-    print(f"{len(rows)} firma islenecek.")
-    if not rows:
-        print("Yapilacak bir sey yok.")
-        return
-
-    print(f"Model yukleniyor: {MODEL_NAME}")
-    model = SentenceTransformer(MODEL_NAME)
-
+def process(rows, model):
+    """Bir grup firmayi vektore cevirip Supabase'e yaz."""
     texts = [build_text(r) for r in rows]
-    embeddings = model.encode(texts, normalize_embeddings=True, show_progress_bar=True)
-
-    ok = 0
+    embeddings = model.encode(texts, normalize_embeddings=True)
     for r, emb in zip(rows, np.asarray(embeddings)):
         vec = "[" + ",".join(f"{x:.6f}" for x in emb) + "]"
         sb.table("customers").update({"embedding": vec}).eq("id", r["id"]).execute()
-        ok += 1
 
-    print(f"Bitti. {ok} firma guncellendi.")
+
+def main():
+    print(f"Model yukleniyor: {MODEL_NAME}")
+    model = SentenceTransformer(MODEL_NAME)
+
+    total = 0
+
+    if FORCE_ALL:
+        # Tum firmalar: created_at'e gore sayfa sayfa ilerle
+        start = 0
+        while True:
+            rows = (sb.table("customers").select(COLS)
+                    .order("created_at").range(start, start + BATCH - 1)
+                    .execute().data or [])
+            if not rows:
+                break
+            process(rows, model)
+            total += len(rows)
+            print(f"  ... {total} firma islendi")
+            start += BATCH
+    else:
+        # Sadece embedding'i bos olanlar: her turda ilk 1000 bosu al,
+        # islenince artik bos olmazlar, bir sonraki tur yeni 1000'i alir
+        while True:
+            rows = (sb.table("customers").select(COLS)
+                    .is_("embedding", "null").limit(BATCH)
+                    .execute().data or [])
+            if not rows:
+                break
+            process(rows, model)
+            total += len(rows)
+            print(f"  ... {total} firma islendi")
+
+    print(f"Bitti. Toplam {total} firma guncellendi.")
 
 
 if __name__ == "__main__":
