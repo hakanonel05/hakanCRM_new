@@ -3,8 +3,8 @@ customers tablosundaki her firmanin metnini vektore cevirip
 'embedding' sutununa yazar. GitHub Actions'ta calisir.
 
 Gerekli ortam degiskenleri (GitHub Secrets):
-  SUPABASE_URL          -> Supabase proje URL'i
-  SUPABASE_SERVICE_KEY  -> service_role anahtari (RLS'i bypass eder, guvenli sekilde Secrets'ta tut)
+  SUPABASE_URL          -> Supabase proje URL'i (ornek: https://xxxx.supabase.co)
+  SUPABASE_SERVICE_KEY  -> service_role anahtari
   FORCE_ALL (opsiyonel) -> "true" ise embedding dolu olsa bile hepsini yeniden hesaplar
 """
 import os
@@ -12,8 +12,9 @@ import numpy as np
 from sentence_transformers import SentenceTransformer
 from supabase import create_client
 
-SUPABASE_URL = os.environ["SUPABASE_URL"]
-SUPABASE_KEY = os.environ["SUPABASE_SERVICE_KEY"]
+# .strip().rstrip("/") -> sonunda bosluk ya da / olsa bile temizler
+SUPABASE_URL = os.environ["SUPABASE_URL"].strip().rstrip("/")
+SUPABASE_KEY = os.environ["SUPABASE_SERVICE_KEY"].strip()
 FORCE_ALL = os.environ.get("FORCE_ALL", "").strip().lower() in ("1", "true", "yes")
 
 MODEL_NAME = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
@@ -32,28 +33,21 @@ def build_text(c: dict) -> str:
 
 
 def fetch_rows():
-    """Islenecek firmalari sayfa sayfa cek."""
-    rows, start, step = [], 0, 1000
-    while True:
-        q = sb.table("customers").select(
-            "id,company_name,market,application,description,products"
-        )
-        if not FORCE_ALL:
-            q = q.is_("embedding", "null")   # sadece embedding'i bos olanlar
-        res = q.range(start, start + step - 1).execute()
-        batch = res.data or []
-        rows.extend(batch)
-        if len(batch) < step:
-            break
-        start += step
-    return rows
+    """Islenecek firmalari cek (sayfalama olmadan, sade)."""
+    q = sb.table("customers").select(
+        "id,company_name,market,application,description,products"
+    )
+    if not FORCE_ALL:
+        q = q.is_("embedding", "null")   # sadece embedding'i bos olanlar
+    res = q.limit(5000).execute()
+    return res.data or []
 
 
 def main():
     rows = fetch_rows()
     print(f"{len(rows)} firma islenecek.")
     if not rows:
-        print("Yapilacak bir sey yok.")
+        print("Yapilacak bir sey yok (tum firmalarin embedding'i dolu olabilir).")
         return
 
     print(f"Model yukleniyor: {MODEL_NAME}")
@@ -75,4 +69,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
