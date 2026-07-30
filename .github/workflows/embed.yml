@@ -1,1 +1,32 @@
+name: Embed companies
+
+on:
+  workflow_dispatch:          # elle "Run workflow" butonuyla calistirmak icin
+    inputs:
+      force_all:
+        description: "Tum firmalari yeniden hesapla (embedding dolu olsa bile)"
+        type: boolean
+        default: false
+  schedule:
+    - cron: "0 */6 * * *"     # her 6 saatte bir yeni/eksik firmalari isler
+
+jobs:
+  embed:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Bagimliliklari kur
+        run: pip install sentence-transformers "supabase>=2.0.0"
+
+      - name: Embedding'leri hesapla
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          FORCE_ALL: ${{ inputs.force_all }}
+        run: python scripts/embed_companies.py
 
