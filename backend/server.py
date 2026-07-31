@@ -5723,7 +5723,36 @@ async def send_test_email():
     except Exception as e:
         logging.error(f"Test email error: {e}")
         raise HTTPException(status_code=500, detail=f"E-posta gönderilemedi: {str(e)}")
-
+# ============ BENZER FIRMA (semantic / pgvector) ============
+@api_router.get("/customers/{customer_id}/similar")
+async def get_similar_customers_semantic(
+    customer_id: str, limit: int = Query(10, ge=1, le=50)
+):
+    """Bir müşteriye anlamsal olarak en benzer diğer müşterileri döndürür.
+    Supabase'deki similar_to_customer() pgvector fonksiyonunu kullanır."""
+    row = supabase.table("customers").select(
+        "id, company_name, embedding"
+    ).eq("id", customer_id).execute()
+    if not row.data:
+        raise HTTPException(status_code=404, detail="Müşteri bulunamadı")
+    if not row.data[0].get("embedding"):
+        return {
+            "customer_id": customer_id, "count": 0, "results": [],
+            "note": "Bu firmanın vektörü henüz hesaplanmadı (6 saatte bir güncellenir).",
+        }
+    try:
+        resp = supabase.rpc("similar_to_customer", {
+            "p_customer_id": customer_id,
+            "match_count": limit,
+        }).execute()
+        rows = resp.data or []
+    except Exception as e:
+        logging.error(f"similar_to_customer RPC error: {e}")
+        raise HTTPException(status_code=500, detail="Benzer firma sorgusu başarısız")
+    for r in rows:
+        if r.get("similarity") is not None:
+            r["similarity"] = round(float(r["similarity"]) * 100, 1)
+    return {"customer_id": customer_id, "count": len(rows), "results": rows}
 # Include router
 app.include_router(api_router)
 
