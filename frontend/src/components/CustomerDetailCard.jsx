@@ -29,7 +29,8 @@ import {
   Tag,
   Trash2,
   Star,
-  ShieldAlert
+  ShieldAlert,
+  Sparkles
 } from "lucide-react";
 import { toast } from "sonner";
 import CustomerEditModal from "./CustomerEditModal";
@@ -45,6 +46,27 @@ const CustomerDetailCard = ({ open, onClose, customer, onUpdate }) => {
   const [visits, setVisits] = useState([]);
   const [loadingVisits, setLoadingVisits] = useState(false);
   const [activeTab, setActiveTab] = useState("details");
+
+  // Benzer firmalar (pgvector / semantic)
+  const [similar, setSimilar] = useState([]);
+  const [loadingSimilar, setLoadingSimilar] = useState(false);
+  const [similarLoaded, setSimilarLoaded] = useState(false);
+
+  const fetchSimilar = async () => {
+    if (!customer) return;
+    setLoadingSimilar(true);
+    try {
+      const response = await axios.get(`${API}/customers/${customer.id}/similar?limit=10`);
+      setSimilar(response.data.results || []);
+      setSimilarLoaded(true);
+      if (response.data.note) toast.info(response.data.note);
+    } catch (error) {
+      console.error("Benzer firmalar yüklenirken hata:", error);
+      toast.error("Benzer firmalar yüklenemedi");
+    } finally {
+      setLoadingSimilar(false);
+    }
+  };
   
   // Contact management
   const [showAddContact, setShowAddContact] = useState(false);
@@ -73,6 +95,9 @@ const CustomerDetailCard = ({ open, onClose, customer, onUpdate }) => {
     setActiveTab(tab);
     if (tab === "visits") {
       fetchVisits();
+    }
+    if (tab === "similar" && !similarLoaded) {
+      fetchSimilar();
     }
   };
 
@@ -321,6 +346,10 @@ const CustomerDetailCard = ({ open, onClose, customer, onUpdate }) => {
                   <TabsTrigger value="visits" className="flex-1">
                     <Calendar className="w-4 h-4 mr-2" />
                     Visits
+                  </TabsTrigger>
+                  <TabsTrigger value="similar" className="flex-1">
+                    <Sparkles className="w-4 h-4 mr-2" />
+                    Benzer
                   </TabsTrigger>
                 </TabsList>
 
@@ -627,6 +656,50 @@ const CustomerDetailCard = ({ open, onClose, customer, onUpdate }) => {
                   ) : (
                     <div className="text-center py-8 text-slate-500">
                       Henüz ziyaret kaydı yok
+                    </div>
+                  )}
+                </TabsContent>
+
+                {/* Benzer Firmalar Tab */}
+                <TabsContent value="similar" className="mt-4">
+                  {loadingSimilar ? (
+                    <div className="text-center py-8 text-slate-500">
+                      Benzer firmalar aranıyor...
+                    </div>
+                  ) : similar.length > 0 ? (
+                    <div className="space-y-2">
+                      <p className="text-xs text-slate-500 mb-3">
+                        Bu firmaya sektör ve faaliyet açısından en yakın müşteriler:
+                      </p>
+                      {similar.map((s) => (
+                        <div
+                          key={s.id}
+                          className="p-3 border border-slate-200 rounded-lg flex items-center justify-between hover:bg-slate-50"
+                        >
+                          <div className="min-w-0">
+                            <p className="font-medium text-slate-900 truncate">
+                              {s.company_name}
+                            </p>
+                            <p className="text-sm text-slate-500 truncate">
+                              {[s.market, s.city].filter(Boolean).join(" · ") || "—"}
+                            </p>
+                          </div>
+                          <Badge className="bg-blue-100 text-blue-800 shrink-0 ml-3">
+                            %{s.similarity}
+                          </Badge>
+                        </div>
+                      ))}
+                    </div>
+                  ) : similarLoaded ? (
+                    <div className="text-center py-8 text-slate-500">
+                      Benzer firma bulunamadı
+                    </div>
+                  ) : (
+                    <div className="text-center py-8">
+                      <Button variant="outline" onClick={fetchSimilar}>
+                        <Sparkles className="w-4 h-4 mr-2" />
+                        Benzer Firmaları Bul
+                      </Button>
                     </div>
                   )}
                 </TabsContent>
