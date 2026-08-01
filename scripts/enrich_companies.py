@@ -30,9 +30,11 @@ SUPABASE_URL = os.environ["SUPABASE_URL"].strip().rstrip("/")
 SUPABASE_KEY = os.environ["SUPABASE_SERVICE_KEY"].strip()
 GROQ_API_KEY = os.environ["GROQ_API_KEY"].strip()
 GROQ_MODEL = os.environ.get("GROQ_MODEL", "groq/compound-mini").strip()
-THRESHOLD = int(os.environ.get("CONFIDENCE_THRESHOLD", "75"))
-BATCH_LIMIT = int(os.environ.get("BATCH_LIMIT", "40"))
-SLEEP_SECONDS = float(os.environ.get("SLEEP_SECONDS", "2"))
+# not: gece otomatik calismada bu env'ler BOS string gelir; "or" ile
+# varsayilana duseriz (int("") hata verir, int("" or "300") = 300).
+THRESHOLD = int(os.environ.get("CONFIDENCE_THRESHOLD") or "75")
+BATCH_LIMIT = int(os.environ.get("BATCH_LIMIT") or "300")
+SLEEP_SECONDS = float(os.environ.get("SLEEP_SECONDS") or "2")
 
 TARGET_FIELDS = ["city", "website", "market", "application"]
 FIELD_LABELS = {
@@ -71,7 +73,7 @@ Bilinen bilgiler: {known_str}
 
 Kurallar:
 - Yalnizca web'de dogruladigin bilgiyi ver. Emin degilsen value'yu bos birak ("").
-- Adi benzeyen FARKLI bir firmayla karistirma.
+- Adi benzeyen FARKLI bir firmayla karistirma.\n- website alanini EKSIKSIZ yaz; uzantiyi (.com, .com.tr) kesme.
 - Her alan icin 0-100 arasi bir confidence ver (ne kadar eminsin).
 - SADECE su JSON'u dondur, baska hicbir sey yazma:
 {{"city":{{"value":"","confidence":0}},"website":{{"value":"","confidence":0}},"market":{{"value":"","confidence":0}},"application":{{"value":"","confidence":0}}}}"""
