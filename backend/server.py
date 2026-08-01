@@ -5753,6 +5753,102 @@ async def get_similar_customers_semantic(
         if r.get("similarity") is not None:
             r["similarity"] = round(float(r["similarity"]) * 100, 1)
     return {"customer_id": customer_id, "count": len(rows), "results": rows}
+    # ============ ZENGINLESTIRME ONERILERI (enrichment) ============
+
+@api_router.get("/enrichment/suggestions")
+async def list_enrichment_suggestions(status: str = "pending", limit: int = 1000):
+    """Onay bekleyen (veya verilen durumdaki) doldurma onerilerini dondur."""
+    try:
+        resp = (supabase.table("enrichment_suggestions")
+                .select("*")
+                .eq("status", status)
+                .order("company_name")
+                .limit(limit)
+                .execute())
+        return {"suggestions": resp.data or [], "count": len(resp.data or [])}
+    except Exception as e:
+        logging.error(f"list suggestions error: {e}")
+        return {"suggestions": [], "count": 0}
+
+
+@api_router.get("/customers/{customer_id}/suggestions")
+async def customer_suggestions(customer_id: str):
+    """Bir firmaya ait onay bekleyen oneriler (detay sayfasi icin)."""
+    resp = (supabase.table("enrichment_suggestions")
+            .select("*")
+            .eq("customer_id", customer_id)
+            .eq("status", "pending")
+            .execute())
+    return {"suggestions": resp.data or []}
+
+
+async def _apply_suggestion(sug: dict) -> bool:
+    """Bir oneriyi customers'a yaz ve oneriyi 'approved' isaretle."""
+    field = sug.get("field")
+    value = sug.get("suggested_value")
+    cid = sug.get("customer_id")
+    allowed = {"city", "website", "market", "application"}
+    if field not in allowed or not value or not cid:
+        return False
+    supabase.table("customers").update({
+        field: value,
+        "updated_at": datetime.now(timezone.utc).isoformat(),
+    }).eq("id", cid).execute()
+    supabase.table("enrichment_suggestions").update(
+        {"status": "approved"}).eq("id", sug["id"]).execute()
+    return True
+
+
+@api_router.post("/enrichment/suggestions/{suggestion_id}/approve")
+async def approve_suggestion(suggestion_id: str):
+    resp = supabase.table("enrichment_suggestions").select("*").eq("id", suggestion_id).execute()
+    if not resp.data:
+        raise HTTPException(status_code=404, detail="Öneri bulunamadı")
+    ok = await _apply_suggestion(resp.data[0])
+    if not ok:
+        raise HTTPException(status_code=400, detail="Öneri uygulanamadı")
+    _filter_options_cache["data"] = None
+    _invalidate_kanban_cache()
+    return {"ok": True}
+
+
+@api_router.post("/enrichment/suggestions/{suggestion_id}/reject")
+async def reject_suggestion(suggestion_id: str):
+    supabase.table("enrichment_suggestions").update(
+        {"status": "rejected"}).eq("id", suggestion_id).execute()
+    return {"ok": True}
+
+
+class BulkSuggestionRequest(BaseModel):
+    ids: List[str]
+
+
+@api_router.post("/enrichment/suggestions/bulk-approve")
+async def bulk_approve_suggestions(payload: BulkSuggestionRequest):
+    if not payload.ids:
+        raise HTTPException(status_code=400, detail="ids zorunlu")
+    resp = supabase.table("enrichment_suggestions").select("*").in_("id", payload.ids).execute()
+    applied = 0
+    for sug in (resp.data or []):
+        try:
+            if await _apply_suggestion(sug):
+                applied += 1
+        except Exception as e:
+            logging.warning(f"bulk approve failed for {sug.get('id')}: {e}")
+    _filter_options_cache["data"] = None
+    _invalidate_kanban_cache()
+    return {"ok": True, "approved": applied}
+
+
+@api_router.post("/enrichment/suggestions/bulk-reject")
+async def bulk_reject_suggestions(payload: BulkSuggestionRequest):
+    if not payload.ids:
+        raise HTTPException(status_code=400, detail="ids zorunlu")
+    supabase.table("enrichment_suggestions").update(
+        {"status": "rejected"}).in_("id", payload.ids).execute()
+    return {"ok": True, "rejected": len(payload.ids)}
+
+
 # Include router
 app.include_router(api_router)
 
