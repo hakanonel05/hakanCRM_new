@@ -38,6 +38,7 @@ const ReportsPage = lazy(() => import("./pages/ReportsPage"));
 const DuplicatesPage = lazy(() => import("./pages/DuplicatesPage"));
 const TeamPage = lazy(() => import("./pages/TeamPage"));
 const TeamMemberDetailPage = lazy(() => import("./pages/TeamMemberDetailPage"));
+const SuggestionsPage = lazy(() => import("./pages/SuggestionsPage"));
 
 // Loading fallback
 const PageLoader = () => (
@@ -190,6 +191,7 @@ function App() {
               <Route path="team/:name" element={<Suspense fallback={<PageLoader />}><TeamMemberDetailPage /></Suspense>} />
               <Route path="reports" element={<Suspense fallback={<PageLoader />}><ReportsPage /></Suspense>} />
               <Route path="duplicates" element={<Suspense fallback={<PageLoader />}><DuplicatesPage /></Suspense>} />
+              <Route path="suggestions" element={<Suspense fallback={<PageLoader />}><SuggestionsPage /></Suspense>} />
               <Route path="users" element={<Suspense fallback={<PageLoader />}><UsersPage /></Suspense>} />
               <Route path="settings" element={<Suspense fallback={<PageLoader />}><SettingsPage /></Suspense>} />
             </Route>
