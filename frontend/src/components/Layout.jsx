@@ -19,6 +19,7 @@ import {
   Search,
   Plus,
   UsersRound,
+  Sparkles,
 } from "lucide-react";
 import { useAuth } from "../App";
 import {
@@ -64,6 +65,7 @@ const PUBLIC_NAV = [
 const ADMIN_NAV = [
   { to: "/reports", icon: FileSpreadsheet, label: "Raporlama" },
   { to: "/duplicates", icon: Copy, label: "Yinelenenler" },
+  { to: "/suggestions", icon: Sparkles, label: "Öneriler" },
   { to: "/users", icon: User, label: "Kullanıcılar" },
   { to: "/settings", icon: Settings, label: "Ayarlar" },
 ];
@@ -79,6 +81,7 @@ const PREFETCH = {
   "/team": () => import("../pages/TeamPage"),
   "/reports": () => import("../pages/ReportsPage"),
   "/duplicates": () => import("../pages/DuplicatesPage"),
+  "/suggestions": () => import("../pages/SuggestionsPage"),
   "/users": () => import("../pages/UsersPage"),
   "/settings": () => import("../pages/SettingsPage"),
 };
