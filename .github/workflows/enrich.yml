@@ -1,0 +1,32 @@
+name: Enrich companies
+
+on:
+  workflow_dispatch:            # elle "Run workflow" ile calistir
+    inputs:
+      batch_limit:
+        description: "Bu calistirmada islenecek firma sayisi"
+        default: "40"
+      confidence_threshold:
+        description: "Otomatik yazma esigi (0-100)"
+        default: "75"
+  schedule:
+    - cron: "30 2 * * *"        # her gece 02:30 UTC, eksik firmalari isler
+
+jobs:
+  enrich:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Bagimliliklari kur
+        run: pip install "supabase>=2.0.0" requests
+      - name: Doldurma islemini calistir
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          BATCH_LIMIT: ${{ inputs.batch_limit }}
+          CONFIDENCE_THRESHOLD: ${{ inputs.confidence_threshold }}
+        run: python scripts/enrich_companies.py
