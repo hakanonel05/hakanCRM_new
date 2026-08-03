@@ -780,40 +780,56 @@ const CustomerDetailPage = ({ customerId: propCustomerId, isModal = false, onClo
                   Firma Bilgileri
                 </h3>
                 <div className="space-y-3">
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <Label className="text-xs text-muted-foreground">Market</Label>
-                      <p className="text-sm font-medium">{customer.market || "-"}</p>
-                    </div>
-                    <div>
-                      <Label className="text-xs text-muted-foreground">Uygulama</Label>
-                      <p className="text-sm font-medium">{customer.application || "-"}</p>
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <Label className="text-xs text-muted-foreground">Şehir</Label>
-                      <p className="text-sm font-medium">{customer.city || "-"}</p>
-                    </div>
-                    <div>
-                      <Label className="text-xs text-muted-foreground">İlçe</Label>
-                      <p className="text-sm font-medium">{customer.district || "-"}</p>
-                    </div>
-                  </div>
-                  {customer.website && (
-                    <div>
-                      <Label className="text-xs text-muted-foreground">Web</Label>
-                      <a 
-                        href={customer.website.startsWith("http") ? customer.website : `https://${customer.website}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-sm text-primary hover:underline flex items-center gap-1"
-                      >
-                        <Globe className="w-3 h-3" />
-                        {customer.website}
-                      </a>
-                    </div>
-                  )}
+                  {/* --- AI ile otomatik doldurulan alanlar pembe/gul renk + "AI" rozeti ile vurgulanir --- */}
+                  {(() => {
+                    const ai = customer.ai_filled || {};
+                    const AiBadge = ({ field }) => ai[field] ? (
+                      <span
+                        title={`Sistem (AI) otomatik doldurdu · güven %${ai[field].confidence} · ${ai[field].source}`}
+                        className="ml-1 text-[9px] font-bold leading-none px-1 py-0.5 rounded bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300 align-middle"
+                      >AI</span>
+                    ) : null;
+                    const valClass = (field) =>
+                      `text-sm font-medium ${ai[field] ? "text-rose-600 dark:text-rose-400" : ""}`;
+                    return (
+                      <>
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <Label className="text-xs text-muted-foreground">Market<AiBadge field="market" /></Label>
+                            <p className={valClass("market")}>{customer.market || "-"}</p>
+                          </div>
+                          <div>
+                            <Label className="text-xs text-muted-foreground">Uygulama<AiBadge field="application" /></Label>
+                            <p className={valClass("application")}>{customer.application || "-"}</p>
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <Label className="text-xs text-muted-foreground">Şehir<AiBadge field="city" /></Label>
+                            <p className={valClass("city")}>{customer.city || "-"}</p>
+                          </div>
+                          <div>
+                            <Label className="text-xs text-muted-foreground">İlçe</Label>
+                            <p className="text-sm font-medium">{customer.district || "-"}</p>
+                          </div>
+                        </div>
+                        {customer.website && (
+                          <div>
+                            <Label className="text-xs text-muted-foreground">Web<AiBadge field="website" /></Label>
+                            <a
+                              href={customer.website.startsWith("http") ? customer.website : `https://${customer.website}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className={`text-sm hover:underline flex items-center gap-1 ${ai.website ? "text-rose-600 dark:text-rose-400" : "text-primary"}`}
+                            >
+                              <Globe className="w-3 h-3" />
+                              {customer.website}
+                            </a>
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()}
                   <div className="grid grid-cols-2 gap-2">
                     <div>
                       <Label className="text-xs text-muted-foreground">Rakip</Label>
