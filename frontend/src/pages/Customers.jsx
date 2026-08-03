@@ -1152,8 +1152,9 @@ const Customers = () => {
   // Render select cell (for dropdowns)
   const renderSelectCell = (customer, field, currentValue) => {
     const fieldOptions = options[field] || [];
-    
-    return (
+    // Sistem (AI) bu alani otomatik doldurduysa hucreyi pembe cerceve/zemin ile vurgula
+    const ai = customer.ai_filled ? customer.ai_filled[field] : null;
+    const cell = (
       <InlineCreatableSelect
         value={currentValue || ""}
         options={fieldOptions}
@@ -1161,6 +1162,15 @@ const Customers = () => {
         onChange={(value) => saveSelectEdit(customer.id, field, value)}
         onOptionAdded={refreshOptionsCache}
       />
+    );
+    if (!ai) return cell;
+    return (
+      <div
+        className="rounded-md ring-1 ring-rose-400 bg-rose-50/70 dark:bg-rose-950/30 dark:ring-rose-700"
+        title={`Sistem (AI) doldurdu · güven %${ai.confidence} · ${ai.source}`}
+      >
+        {cell}
+      </div>
     );
   };
 
@@ -1220,8 +1230,8 @@ const Customers = () => {
   // Render clickable website link
   const renderWebsiteCell = (customer) => {
     const website = customer.website;
-    
-    return (
+    const ai = customer.ai_filled ? customer.ai_filled.website : null;
+    const cell = (
       <InlineTextEdit
         value={website}
         customerId={customer.id}
@@ -1250,6 +1260,15 @@ const Customers = () => {
           setCustomers(prev => prev.map(c => c.id === customer.id ? { ...c, website: newVal } : c));
         }}
       />
+    );
+    if (!ai) return cell;
+    return (
+      <div
+        className="rounded-md ring-1 ring-rose-400 bg-rose-50/70 dark:bg-rose-950/30 dark:ring-rose-700"
+        title={`Sistem (AI) doldurdu · güven %${ai.confidence} · ${ai.source}`}
+      >
+        {cell}
+      </div>
     );
   };
 
