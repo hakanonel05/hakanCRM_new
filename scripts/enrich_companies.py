@@ -1,9 +1,13 @@
 """
-Arka plan bilgi doldurma (dengeli mod).
+Arka plan bilgi doldurma (dengeli mod) + otomatik doldurulan alanlarin kaydi.
 
 Eksik alani olan firmalari gezer; Groq Compound (yerlesik web aramasi) ile
 sehir/website/market/application onerir. Guven yuksekse dogrudan customers'a
 yazar (yalnizca BOS alani), dusukse enrichment_suggestions'a onay icin koyar.
+
+YENI: Sistemin otomatik yazdigi her alan, o firmanin `ai_filled` (jsonb) sutununa
+kaydedilir -> hangi firmanin hangi alanini sistem doldurdu, guven/kaynak/tarih ile
+birlikte tutulur. Arayuz bu sutunu okuyup alani ayri renkle vurgular.
 
 GitHub Actions'ta calisir. Gerekli Secrets:
   SUPABASE_URL          -> https://xxxx.supabase.co
@@ -73,7 +77,8 @@ Bilinen bilgiler: {known_str}
 
 Kurallar:
 - Yalnizca web'de dogruladigin bilgiyi ver. Emin degilsen value'yu bos birak ("").
-- Adi benzeyen FARKLI bir firmayla karistirma.\n- website alanini EKSIKSIZ yaz; uzantiyi (.com, .com.tr) kesme.
+- Adi benzeyen FARKLI bir firmayla karistirma.
+- website alanini EKSIKSIZ yaz; uzantiyi (.com, .com.tr) kesme.
 - Her alan icin 0-100 arasi bir confidence ver (ne kadar eminsin).
 - SADECE su JSON'u dondur, baska hicbir sey yazma:
 {{"city":{{"value":"","confidence":0}},"website":{{"value":"","confidence":0}},"market":{{"value":"","confidence":0}},"application":{{"value":"","confidence":0}}}}"""
@@ -114,8 +119,10 @@ def process_company(company: dict) -> str:
         logging.warning(f"  ! {name}: Groq hatasi -> {e}")
         return "error"
 
+    now_iso = datetime.now(timezone.utc).isoformat()
     update_data = {}
     suggestions = []
+    ai_filled_new = {}   # bu turda otomatik yazilan alanlarin denetim kaydi
     for field in empties:
         item = result.get(field) or {}
         value = (item.get("value") or "").strip() if isinstance(item, dict) else ""
@@ -124,6 +131,12 @@ def process_company(company: dict) -> str:
             continue
         if conf >= THRESHOLD:
             update_data[field] = value          # otomatik yaz (yuksek guven)
+            ai_filled_new[field] = {             # hangi alani sistem doldurdu (kayit)
+                "value": value,
+                "confidence": conf,
+                "source": f"Groq {GROQ_MODEL}",
+                "at": now_iso,
+            }
         else:
             suggestions.append({                 # onaya gonder (dusuk guven)
                 "customer_id": cid,
@@ -135,9 +148,16 @@ def process_company(company: dict) -> str:
                 "status": "pending",
             })
 
+    # ai_filled sutununu mevcut kayitla birlestir (eski otomatik alanlari koru)
+    if ai_filled_new:
+        existing = company.get("ai_filled")
+        if not isinstance(existing, dict):
+            existing = {}
+        update_data["ai_filled"] = {**existing, **ai_filled_new}
+
     # Otomatik yaz + damgala
-    update_data["enriched_at"] = datetime.now(timezone.utc).isoformat()
-    update_data["updated_at"] = datetime.now(timezone.utc).isoformat()
+    update_data["enriched_at"] = now_iso
+    update_data["updated_at"] = now_iso
     sb.table("customers").update(update_data).eq("id", cid).execute()
 
     # Onerileri ekle (ayni firma+alan icin pending varsa unique index engeller)
@@ -147,7 +167,7 @@ def process_company(company: dict) -> str:
         except Exception:
             pass  # zaten bekleyen oneri var
 
-    wrote = [k for k in update_data if k in TARGET_FIELDS]
+    wrote = list(ai_filled_new.keys())
     logging.info(f"  + {name}: yazildi={wrote or '-'}  oneri={len(suggestions)}")
     return "done"
 
@@ -157,7 +177,7 @@ def fetch_candidates(need: int):
     rows, start, step = [], 0, 1000
     while len(rows) < need * 5:  # eksik alani olmayanlari eleyecegiz, fazla cek
         res = (sb.table("customers")
-               .select("id,company_name,market,application,city,website")
+               .select("id,company_name,market,application,city,website,ai_filled")
                .is_("enriched_at", "null")
                .order("created_at")
                .range(start, start + step - 1)
