@@ -82,7 +82,7 @@ const webpackConfig = {
               radix: {
                 name: 'vendor-radix',
                 test: /[\\/]node_modules[\\/]@radix-ui[\\/]/,
-                chunks: 'all',
+                chunks: 'initial',
                 priority: 35,
                 enforce: true,
               },
@@ -118,11 +118,22 @@ const webpackConfig = {
                 priority: 30,
                 enforce: true,
               },
-              // Everything else from node_modules
+              // Geri kalan node_modules.
+              //
+              // 'all' DEĞİL 'initial'. 'all' iken yalnızca lazy sayfalarda
+              // kullanılan satıcı kodu da bu ortak parçaya toplanıyor ve o
+              // parça ilk açılışta indiği için hepsi eager oluyordu.
+              //
+              // Ölçüldü — ilk 407 KB'ın içinde şunlar vardı ve hiçbiri ilk
+              // boyamada gerekli değil: react-grid-layout (yalnızca Dashboard),
+              // react-day-picker + date-fns (yalnızca tarih seçici),
+              // preact (FullCalendar'ın iç bağımlılığı) ve react-redux
+              // (@hello-pangea/dnd'nin iç bağımlılığı). Üst paketleri zaten
+              // async gruplardaydı ama BAĞIMLILIKLARI buraya düşüyordu.
               vendors: {
                 name: 'vendor-misc',
                 test: /[\\/]node_modules[\\/]/,
-                chunks: 'all',
+                chunks: 'initial',
                 priority: 10,
                 reuseExistingChunk: true,
               },
