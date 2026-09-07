@@ -207,18 +207,37 @@ http.createServer((req, res) => {
   const sorgu = new URLSearchParams((req.url || '').split('?')[1] || '');
   res.setHeader('Access-Control-Allow-Origin', req.headers.origin || '*');
   res.setHeader('Access-Control-Allow-Credentials', 'true');
-  res.setHeader('Access-Control-Allow-Headers', '*');
+  /* JOKER DEĞİL. Allow-Credentials: true ile birlikte '*' geçersiz;
+     tarayıcı kimlik bilgili isteklerde başlık adlarının tek tek
+     yazılmasını istiyor ve content-type'ı reddediyor. Bu yüzden JSON
+     gövdeli her POST ön kontrolde takılıyordu. İstenen başlıklar aynen
+     geri yansıtılıyor. */
+  res.setHeader('Access-Control-Allow-Headers',
+    req.headers['access-control-request-headers'] || 'Content-Type, Authorization, X-Session-Token');
   res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,PATCH,DELETE,OPTIONS');
   if (req.method === 'OPTIONS') { res.writeHead(204); return res.end(); }
 
-  let govde = null;
-  for (const [y, kalip, uret] of YOLLAR) {
-    if (req.method !== y) continue;
-    const m = kalip.exec(yol);
-    if (m) { govde = uret(m, sorgu); break; }
-  }
-  if (govde === null) govde = /\/(customers|visits|calls|users|options|filters|boards|notifications|suggestions|duplicates)/.test(yol) ? [] : {};
+  /* İSTEK GÖVDESİNİ OKU. Okumadan yanıt verip bağlantıyı kapatınca Node
+     gönderilmemiş gövde kalan bağlantıyı sıfırlıyor; tarayıcı bunu
+     "Network Error" olarak görüyor. */
+  const govdeOku = () => new Promise((coz) => {
+    if (req.method === 'GET' || req.method === 'HEAD') return coz(null);
+    let ham = '';
+    req.on('data', (p) => { ham += p; });
+    req.on('end', () => { try { coz(ham ? JSON.parse(ham) : null); } catch { coz(null); } });
+    req.on('error', () => coz(null));
+  });
 
-  res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
-  res.end(JSON.stringify(govde));
+  govdeOku().then((istekGovdesi) => {
+    let govde = null;
+    for (const [y, kalip, uret] of YOLLAR) {
+      if (req.method !== y) continue;
+      const m = kalip.exec(yol);
+      if (m) { govde = uret(m, sorgu, istekGovdesi); break; }
+    }
+    if (govde === null) govde = /\/(customers|visits|calls|users|options|filters|boards|notifications|suggestions|duplicates)/.test(yol) ? [] : {};
+
+    res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+    res.end(JSON.stringify(govde));
+  });
 }).listen(PORT, () => console.log('hacim testi API: http://localhost:' + PORT + '  (' + ADET + ' musteri)'));

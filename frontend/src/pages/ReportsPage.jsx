@@ -586,7 +586,7 @@ const ReportsPage = () => {
             <Button 
               onClick={generateReport}
               disabled={generating || selectedCustomerCols.length === 0}
-              className="w-full bg-status-success-fg hover:bg-primary"
+              className="w-full"
             >
               {generating ? (
                 <>

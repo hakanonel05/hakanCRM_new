@@ -699,7 +699,12 @@ const Dashboard = () => {
     const cachedStats = swrCache.get("dash:stats");
     const cachedActivities = swrCache.get("dash:activities");
     if (cachedStats) setStats(cachedStats);
-    if (cachedActivities) setActivities(cachedActivities);
+    /* Aktivite akışı doğrudan .map()'leniyor; dizi değilse ekran çöküyor
+       ("activities.map is not a function"). swrCache sessionStorage
+       tabanlı olduğu için bozuk bir değer beş dakika saklanıp her
+       gezinmede yeniden çökertiyor — bu yüzden hem önbellekten
+       okurken hem ağdan alırken kontrol ediliyor. */
+    if (Array.isArray(cachedActivities)) setActivities(cachedActivities);
     if (cachedStats || cachedActivities) setLoading(false);
 
     const fetchData = async () => {
@@ -709,9 +714,9 @@ const Dashboard = () => {
           axios.get(`${API}/activity-feed?limit=40`),
         ]);
         setStats(statsRes.data);
-        setActivities(actRes.data || []);
+        setActivities(Array.isArray(actRes.data) ? actRes.data : []);
         swrCache.set("dash:stats", statsRes.data);
-        swrCache.set("dash:activities", actRes.data || []);
+        swrCache.set("dash:activities", Array.isArray(actRes.data) ? actRes.data : []);
       } catch (e) {
         // console.error left intentionally suppressed
       } finally {

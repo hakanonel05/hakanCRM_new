@@ -334,7 +334,6 @@ const VisitModal = ({ open, onClose, visit, customers, preselectedCustomerId = n
             <Button 
               onClick={handleSave} 
               disabled={saving}
-              className="bg-status-success-fg hover:bg-status-success-fg"
               data-testid="btn-save-visit"
             >
               {saving ? "Kaydediliyor..." : (visit ? "Güncelle" : "Ekle")}

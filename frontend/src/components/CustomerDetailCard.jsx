@@ -605,7 +605,7 @@ const CustomerDetailCard = ({ open, onClose, customer, onUpdate }) => {
                           <Button variant="outline" size="sm" onClick={() => setShowAddContact(false)}>
                             İptal
                           </Button>
-                          <Button size="sm" onClick={handleAddContact} className="bg-status-success-fg hover:bg-status-success-fg">
+                          <Button size="sm" onClick={handleAddContact}>
                             Kişi Ekle
                           </Button>
                         </div>

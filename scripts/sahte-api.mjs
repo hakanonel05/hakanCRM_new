@@ -135,6 +135,36 @@ const suz = (q) => {
   return r;
 };
 
+/* Ekran seçenekleri {id, field_name, value, color} NESNESİ olarak okuyor
+   (CustomerEditModal.jsx:101, gerçek arka uçta DynamicOption). Düz metin
+   dizisi dönerken o.value undefined kalıyor ve müşteri düzenleme pop-up'ı
+   "Cannot read properties of undefined (reading 'toLowerCase')" ile
+   çöküyordu.
+
+   Listeler ayrıca benzersizleştiriliyor: PAZAR/DURUM/SEHIR, dağılımı
+   dengesizleştirmek için açılmış ağırlıklı diziler ("Otomotiv" 22 kez);
+   seçenek listesinde her değer bir kez görünmeli. */
+const secenekler = (alan, liste) =>
+  [...new Set(liste)].filter(Boolean).map((v, i) => ({
+    id: alan + '-' + i,
+    field_name: alan,
+    value: v,
+    /* Renk alanı arka uçta var ama arayüz artık göz ardı ediyor
+       (bkz. CreatableSelect.jsx). Şekil bozulmasın diye duruyor. */
+    color: null,
+  }));
+
+const SECENEKLER = {
+  market: secenekler('market', PAZAR),
+  application: secenekler('application', UYGULAMA),
+  status: secenekler('status', DURUM),
+  potential_level: secenekler('potential_level', SEVIYE),
+  products: secenekler('products', URUN),
+  city: secenekler('city', SEHIR),
+  competitor: secenekler('competitor', RAKIP),
+  partner: secenekler('partner', ORTAK),
+};
+
 const say = (alan) => {
   const m = {};
   for (const x of MUSTERILER) { const k = x[alan] || '—'; m[k] = (m[k] || 0) + 1; }
@@ -291,11 +321,10 @@ const YOLLAR = [
     won: MUSTERILER.filter((m) => m.status === 'Kazanıldı').length,
     pending: MUSTERILER.filter((m) => m.status === 'Beklemede').length,
   })],
-  ['GET', /^\/api\/options\/grouped$/, () => ({
-    market: PAZAR, application: UYGULAMA, status: DURUM,
-    potential_level: SEVIYE, products: URUN, city: SEHIR,
-  })],
-  ['GET', /^\/api\/options$/, () => PAZAR.map((v, i) => ({ id: 'o' + i, category: 'market', value: v }))],
+  /* Şekli SECENEKLER'de, dizinin dışında kuruluyor. */
+  ['GET', /^\/api\/options\/grouped$/, () => SECENEKLER],
+  ['GET', /^\/api\/options\/([^/]+)$/, (m) => SECENEKLER[m[1]] || []],
+  ['GET', /^\/api\/options$/, () => Object.values(SECENEKLER).flat()],
   ['GET', /^\/api\/kanban\/views$/, () => [{ id: 'k1', name: 'Satış Süreci', group_by: 'status', is_default: true }]],
   /* Kanban bunu bir DIZI bekliyor ve .find() cagiriyor; bilinmeyen yol {}
      donduren yedege dusuyordu, ekran da o yuzden cokuyordu. */
@@ -319,7 +348,46 @@ const YOLLAR = [
     return sutun;
   }],
   ['GET', /^\/api\/process\/boards$/, () => [{ id: 'p1', name: 'Teklif Süreci', columns: DURUM.map((d, i) => ({ id: 'c' + i, name: d })) }]],
-  ['GET', /^\/api\/filters$/, () => [{ id: 'f1', name: 'Yüksek potansiyel', criteria: { potential_level: 'Yüksek' } }]],
+  /* Gerçek model SavedFilter: {conditions: [{field, operator, value}], logic}.
+     Taklit {criteria: {...}} döndürdüğü için Filtreler ekranı filtreyi
+     uygulamaya çalışınca "filter.conditions is not iterable" veriyordu. */
+  ['GET', /^\/api\/filters$/, () => [
+    {
+      id: 'f1', name: 'Yüksek potansiyel', logic: 'AND', created_by: 'Hakan Önel',
+      conditions: [{ field: 'potential_level', operator: 'equals', value: 'Yüksek' }],
+    },
+    {
+      id: 'f2', name: 'İstanbul · teklif aşamasında', logic: 'AND', created_by: 'Hakan Önel',
+      conditions: [
+        { field: 'city', operator: 'equals', value: 'İstanbul' },
+        { field: 'status', operator: 'equals', value: 'Teklif Verildi' },
+      ],
+    },
+    {
+      id: 'f3', name: 'Rakibi Siemens olanlar', logic: 'AND', created_by: 'Hakan Önel',
+      conditions: [{ field: 'competitor', operator: 'equals', value: 'Siemens' }],
+    },
+  ]],
+
+  /* Müşteri düzenleme pop-up'ı yazdıkça bunu çağırıyor: aynı firmadan
+     ikinci kayıt açılmasın diye. Yanıt SimilarityResult listesi. */
+  ['POST', /^\/api\/customers\/check-similar$/, (m, q, govde) => {
+    const ad = String(govde?.company_name || '').toLocaleLowerCase('tr').trim();
+    if (ad.length < 3) return [];
+    const haric = q.get('exclude_id');
+    return MUSTERILER
+      .filter((x) => x.id !== haric && x.company_name.toLocaleLowerCase('tr').includes(ad.slice(0, 6)))
+      .slice(0, 3)
+      .map((x) => ({
+        customer_id: x.id,
+        company_name: x.company_name,
+        similarity_score: 0.82,
+        match_type: 'company_name',
+      }));
+  }],
+  ['POST', /^\/api\/customers\/check-similarity$/, () => ({
+    items: [], total_new: 0, total_similar: 0, total_duplicate: 0,
+  })],
   ['GET', /^\/api\/users\/me\/notifications$/, () => ZIYARETLER.slice(0, 5).map((z, i) => ({
     id: 'n' + i, title: z.company_name, message: 'Takip tarihi yaklaşıyor', is_read: i > 2, created_at: z.created_at,
   }))],
@@ -333,21 +401,41 @@ const sunucu = http.createServer((req, res) => {
   const yol = decodeURIComponent((req.url || '').split('?')[0]);
   res.setHeader('Access-Control-Allow-Origin', req.headers.origin || '*');
   res.setHeader('Access-Control-Allow-Credentials', 'true');
-  res.setHeader('Access-Control-Allow-Headers', '*');
+  /* JOKER DEĞİL. Allow-Credentials: true ile birlikte '*' geçersiz;
+     tarayıcı kimlik bilgili isteklerde başlık adlarının tek tek
+     yazılmasını istiyor ve content-type'ı reddediyor. Bu yüzden JSON
+     gövdeli her POST ön kontrolde takılıyordu. İstenen başlıklar aynen
+     geri yansıtılıyor. */
+  res.setHeader('Access-Control-Allow-Headers',
+    req.headers['access-control-request-headers'] || 'Content-Type, Authorization, X-Session-Token');
   res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,PATCH,DELETE,OPTIONS');
   if (req.method === 'OPTIONS') { res.writeHead(204); return res.end(); }
 
+  /* İSTEK GÖVDESİNİ OKU. Okumadan yanıt verip bağlantıyı kapatınca Node
+     gönderilmemiş gövde kalan bağlantıyı sıfırlıyor; tarayıcı bunu
+     "Network Error" olarak görüyor ve POST çağrısı yapan her ekran
+     (ör. müşteri düzenlemede benzerlik kontrolü) konsola hata basıyor. */
+  const govdeOku = () => new Promise((coz) => {
+    if (req.method === 'GET' || req.method === 'HEAD') return coz(null);
+    let ham = '';
+    req.on('data', (p) => { ham += p; });
+    req.on('end', () => { try { coz(ham ? JSON.parse(ham) : null); } catch { coz(null); } });
+    req.on('error', () => coz(null));
+  });
+
+  govdeOku().then((istekGovdesi) => {
   let govde = null;
   for (const [yontem, kalip, uret] of YOLLAR) {
     if (req.method !== yontem) continue;
     const m = kalip.exec(yol);
-    if (m) { govde = uret(m, new URLSearchParams((req.url || '').split('?')[1] || '')); break; }
+    if (m) { govde = uret(m, new URLSearchParams((req.url || '').split('?')[1] || ''), istekGovdesi); break; }
   }
   /* Bilinmeyen: bos. Ekran bos durumunu gosterir, cokmez. */
   if (govde === null) govde = /\/(customers|visits|calls|users|options|filters|boards|notifications|suggestions|duplicates)/.test(yol) ? [] : {};
 
   res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
   res.end(JSON.stringify(govde));
+  });
 });
 
 sunucu.listen(PORT, () => console.log('sahte CRM API: http://localhost:' + PORT));

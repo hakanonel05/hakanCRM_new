@@ -660,7 +660,6 @@ const CustomerEditModal = ({ open, onClose, customer }) => {
             <Button 
               onClick={handleSave} 
               disabled={saving}
-              className="bg-status-success-fg hover:bg-status-success-fg"
             >
               {saving ? "Kaydediliyor..." : (customer ? "Güncelle" : "Ekle")}
             </Button>

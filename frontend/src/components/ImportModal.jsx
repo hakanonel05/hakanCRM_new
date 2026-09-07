@@ -871,7 +871,7 @@ const ImportModal = ({ open, onClose, onImportComplete }) => {
       {selectedCustomerId && (
         <>
           <div className="text-center">
-            <Button onClick={downloadVisitTemplate} className="bg-status-success-fg hover:bg-status-success-fg">
+            <Button onClick={downloadVisitTemplate}>
               <Download className="w-4 h-4 mr-2" />
               Ziyaret Şablonu İndir
             </Button>
@@ -898,7 +898,7 @@ const ImportModal = ({ open, onClose, onImportComplete }) => {
             />
             <Button 
               variant="default" 
-              className="mt-4 bg-status-success-fg hover:bg-status-success-fg"
+              className="mt-4"
               onClick={() => document.getElementById('visit-file-input').click()}
             >
               Dosya Seç
@@ -1166,7 +1166,7 @@ const ImportModal = ({ open, onClose, onImportComplete }) => {
                           <Button
                             size="sm"
                             variant={!skipItems.has(warning.rowNum) && !updateItems.has(warning.rowNum) ? "default" : "outline"}
-                            className={`text-xs h-7 ${!skipItems.has(warning.rowNum) && !updateItems.has(warning.rowNum) ? "bg-status-success-fg hover:bg-status-success-fg" : ""}`}
+                            className="text-xs h-7"
                             onClick={() => {
                               const newSkip = new Set(skipItems);
                               const newUpdate = new Map(updateItems);
@@ -1308,7 +1308,6 @@ const ImportModal = ({ open, onClose, onImportComplete }) => {
               <Button 
                 onClick={handleImport} 
                 disabled={importing || checkingSimilarity || previewData.length === skipItems.size}
-                className="bg-status-success-fg hover:bg-status-success-fg"
                 data-testid="btn-confirm-import"
               >
                 {importing ? (

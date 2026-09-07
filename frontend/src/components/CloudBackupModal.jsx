@@ -100,7 +100,7 @@ const CloudBackupModal = ({ open, onClose }) => {
           <Button
             onClick={handleDownloadBackup}
             disabled={downloading}
-            className="w-full h-14 bg-status-success-fg hover:bg-status-success-fg text-white"
+            className="w-full h-14"
             data-testid="btn-download-backup"
           >
             <Download className="w-5 h-5 mr-3" />

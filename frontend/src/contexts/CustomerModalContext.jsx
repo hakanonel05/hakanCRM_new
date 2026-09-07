@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useCallback, lazy, Suspense } from "react";
 import { useNavigate } from "react-router-dom";
-import { Dialog, DialogContent } from "../components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle } from "../components/ui/dialog";
 import { Button } from "../components/ui/button";
 import { X, ExternalLink } from "lucide-react";
 
@@ -70,7 +70,9 @@ export const CustomerModalProvider = ({ children }) => {
         >
           {/* Top bar with Full Page + Close */}
           <div className="flex items-center justify-between px-4 py-2 border-b border-border bg-muted/40  z-10">
-            <div className="text-xs text-muted-foreground font-medium">Müşteri Detayı</div>
+            {/* DialogTitle, div değil: Radix pop-up'ın başlığını buradan
+                okuyor. Sınıflar aynı kaldığı için görünüm değişmiyor. */}
+            <DialogTitle className="text-xs text-muted-foreground font-medium">Müşteri Detayı</DialogTitle>
             <div className="flex items-center gap-1">
               <Button
                 variant="ghost"
