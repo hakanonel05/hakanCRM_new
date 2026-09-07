@@ -89,6 +89,38 @@ hepsi kağıtta 3.56–3.63 kontrast bandında. Sabit HSL açıklığı eşit bi
 vermiyor: göz yeşili maviden çok daha parlak görüyor, aynı %42'de biri 5.2
 öteki 2.8 ölçüyor. Her tonun açıklığı ayrı çözüldü.
 
+## Hız
+
+Gerçek hacimde ölçüldü — 3150 müşteri, 1200 ziyaret. 48 kayıtla yapılan
+ölçüm hiçbir şey söylemiyor; hacim sunucusu bunun için var:
+
+```
+npm run sahte-api-hacim          # 5000 kayıt (varsayılan)
+MUSTERI_SAYISI=3150 npm run sahte-api-hacim
+```
+
+**Paket.** İlk açılışta inen JS 774 → 553 KB. Sebep `craco.config.js`
+içindeki `vendors` grubuydu: `chunks: 'all'` iken yalnızca tembel
+sayfalarda kullanılan satıcı kodu (react-grid-layout, react-day-picker +
+date-fns, preact, react-redux) ortak parçaya toplanıp ilk açılışta
+iniyordu. `'initial'` bunu kesiyor.
+
+**Ziyaretler.** 6756 ms → 1426 ms, 26.979 → 3.632 DOM düğümü, 324 → 100 MB.
+Üç sebep: süzgeç 3150 `<SelectItem>` çiziyordu, tablo bütün kayıtları tek
+seferde çiziyordu, `getCustomerName` her çağrıda dizide `.find()`
+yapıyordu. Ayrıntısı `f41932c` numaralı işlemenin mesajında.
+
+> **Yayına alırken:** bu iş arka uca `GET /customers/lookup` ekliyor
+> (`backend/server.py`). Ön yüz dağıtılıp arka uç dağıtılmazsa Ziyaretler
+> ekranı bütün firma adlarını "Bilinmiyor" gösterir. İkisi birlikte gitmeli.
+
+**Kanban ve Müşteriler'e dokunulmadı, çünkü gerek yoktu.** Kanban sütun
+başına kart sayfalıyor (`Kanban.jsx:474`), Müşteriler sunucu tarafında
+sayfalıyor. Ölçümde Kanban'ın 5 MB indirdiği görünüyordu; o **benim taklit
+sunucumun** hatasıydı — gerçek arka uç yalnızca kart alanlarını seçiyor
+(`server.py:4248`) ve 30 sn önbellekliyor. Taklit gerçeğine uyduruldu.
+Yine aynı ders: sayı inanılmaz görünüyorsa önce ölçüm aletinden şüphelen.
+
 ## Bilinen açık konular
 
 - Dashboard'daki "Son Aktiviteler" ve iki dağılım grafiği boş görünüyor —
