@@ -165,6 +165,65 @@ const SECENEKLER = {
   partner: secenekler('partner', ORTAK),
 };
 
+/* SÜREÇ PANOLARI DEPOSU
+   Bu ekran yazma yapıyor: pano/stage/kart ekleniyor, siliniyor, sürükleniyor.
+   Sabit yanıt yetmediği için bellekte durum tutuluyor. Sunucu yeniden
+   başlayınca sıfırlanır. */
+let _no = 0;
+/* 'y' eki: hazir kayitlar 'stage-0..4' seklinde numaralaniyor; sayac
+   ayni bicimi uretirse yeni stage hazir bir stage'in kimligini kapiyor ve
+   baskasinin kartlarini gosteriyor. Bir kez basima geldi. */
+const kimlik = (on) => on + '-y' + (++_no);
+
+/* Kart üstünde gösterilen müşteri alanları — arka uçtaki
+   _PROCESS_CARD_CUSTOMER_FIELDS ile aynı. */
+const kartMusterisi = (m) => m && {
+  id: m.id, company_name: m.company_name, market: m.market, application: m.application,
+  city: m.city, status: m.status, potential_level: m.potential_level,
+  assigned_to: m.assigned_to, contact_info: m.contact_info, is_followup: m.is_followup,
+  partner: m.partner,
+};
+
+const SUREC = {
+  panolar: [{ id: 'pano-0', name: 'Teklif Süreci', position: 0, created_at: new Date().toISOString() }],
+  stageler: [],
+  kartlar: [],
+};
+
+/* Açılışta bir pano dolu gelsin ki ekran boş görünmesin. */
+DURUM.filter((d, i, a) => a.indexOf(d) === i).forEach((ad, i) => {
+  SUREC.stageler.push({ id: 'stage-' + i, board_id: 'pano-0', name: ad, color: '', position: i, created_at: new Date().toISOString() });
+});
+MUSTERILER.slice(0, 12).forEach((m, i) => {
+  const st = SUREC.stageler[i % SUREC.stageler.length];
+  SUREC.kartlar.push({
+    id: 'kart-' + i, board_id: 'pano-0', stage_id: st.id, customer_id: m.id,
+    note: '', position: SUREC.kartlar.filter((k) => k.stage_id === st.id).length,
+    created_at: new Date().toISOString(),
+  });
+});
+
+const surecTamPano = (panoId) => {
+  const pano = SUREC.panolar.find((p) => p.id === panoId);
+  if (!pano) return { board: null, stages: [] };
+  const stageler = SUREC.stageler.filter((x) => x.board_id === panoId).sort((a, b) => a.position - b.position);
+  return {
+    board: { id: pano.id, name: pano.name, position: pano.position },
+    stages: stageler.map((st) => ({
+      id: st.id, name: st.name, color: st.color, position: st.position,
+      cards: SUREC.kartlar
+        .filter((k) => k.stage_id === st.id)
+        .sort((a, b) => a.position - b.position)
+        .map((k) => ({
+          id: k.id, note: k.note, position: k.position,
+          customer: kartMusterisi(MUSTERILER.find((m) => m.id === k.customer_id)),
+        }))
+        /* Müşterisi bulunamayan kartı atla — arka uç da öyle yapıyor. */
+        .filter((k) => k.customer),
+    })),
+  };
+};
+
 const say = (alan) => {
   const m = {};
   for (const x of MUSTERILER) { const k = x[alan] || '—'; m[k] = (m[k] || 0) + 1; }
@@ -347,7 +406,102 @@ const YOLLAR = [
     }
     return sutun;
   }],
-  ['GET', /^\/api\/process\/boards$/, () => [{ id: 'p1', name: 'Teklif Süreci', columns: DURUM.map((d, i) => ({ id: 'c' + i, name: d })) }]],
+  /* SÜREÇ PANOLARI. Sıra önemli: /full ve /stages, /{id} kalıbından
+     ÖNCE gelmeli, yoksa "full" bir pano kimliği sanılır. */
+  ['GET', /^\/api\/process\/boards$/, () => [...SUREC.panolar].sort((a, b) => a.position - b.position)],
+  ['POST', /^\/api\/process\/boards$/, (m, q, govde) => {
+    const ad = String(govde?.name || '').trim();
+    if (!ad) return { detail: 'Pano adı gerekli' };
+    const pano = {
+      id: kimlik('pano'), name: ad,
+      position: SUREC.panolar.length ? Math.max(...SUREC.panolar.map((p) => p.position)) + 1 : 0,
+      created_at: new Date().toISOString(),
+    };
+    SUREC.panolar.push(pano);
+    return pano;
+  }],
+  ['GET', /^\/api\/process\/boards\/([^/]+)\/full$/, (m) => surecTamPano(m[1])],
+  ['PATCH', /^\/api\/process\/boards\/([^/]+)\/stages\/reorder$/, (m, q, govde) => {
+    (govde?.stage_ids || []).forEach((sid, i) => {
+      const st = SUREC.stageler.find((x) => x.id === sid && x.board_id === m[1]);
+      if (st) st.position = i;
+    });
+    return { message: 'Stage sırası güncellendi' };
+  }],
+  ['POST', /^\/api\/process\/boards\/([^/]+)\/stages$/, (m, q, govde) => {
+    const ad = String(govde?.name || '').trim();
+    if (!ad) return { detail: 'Stage adı gerekli' };
+    const kardesler = SUREC.stageler.filter((x) => x.board_id === m[1]);
+    const st = {
+      id: kimlik('stage'), board_id: m[1], name: ad, color: govde?.color || '',
+      position: kardesler.length ? Math.max(...kardesler.map((x) => x.position)) + 1 : 0,
+      created_at: new Date().toISOString(),
+    };
+    SUREC.stageler.push(st);
+    return { ...st, cards: [] };
+  }],
+  ['PUT', /^\/api\/process\/boards\/([^/]+)$/, (m, q, govde) => {
+    const pano = SUREC.panolar.find((p) => p.id === m[1]);
+    if (pano) pano.name = String(govde?.name || '').trim() || pano.name;
+    return { id: m[1], name: pano?.name };
+  }],
+  ['DELETE', /^\/api\/process\/boards\/([^/]+)$/, (m) => {
+    SUREC.kartlar = SUREC.kartlar.filter((k) => k.board_id !== m[1]);
+    SUREC.stageler = SUREC.stageler.filter((x) => x.board_id !== m[1]);
+    SUREC.panolar = SUREC.panolar.filter((p) => p.id !== m[1]);
+    return { message: 'Pano silindi' };
+  }],
+
+  ['PUT', /^\/api\/process\/stages\/([^/]+)$/, (m, q, govde) => {
+    const st = SUREC.stageler.find((x) => x.id === m[1]);
+    if (st) {
+      st.name = String(govde?.name || '').trim() || st.name;
+      if (govde?.color != null) st.color = govde.color;
+    }
+    return { id: m[1], name: st?.name, color: st?.color };
+  }],
+  ['DELETE', /^\/api\/process\/stages\/([^/]+)$/, (m) => {
+    SUREC.kartlar = SUREC.kartlar.filter((k) => k.stage_id !== m[1]);
+    SUREC.stageler = SUREC.stageler.filter((x) => x.id !== m[1]);
+    return { message: 'Stage silindi' };
+  }],
+  ['POST', /^\/api\/process\/stages\/([^/]+)\/cards$/, (m, q, govde) => {
+    const st = SUREC.stageler.find((x) => x.id === m[1]);
+    if (!st) return { detail: 'Stage bulunamadı' };
+    /* Aynı müşteri aynı panoda iki kez olamaz — arka uçtaki kural. */
+    if (SUREC.kartlar.some((k) => k.board_id === st.board_id && k.customer_id === govde?.customer_id)) {
+      return { detail: 'Bu müşteri zaten bu panoda mevcut' };
+    }
+    const kart = {
+      id: kimlik('kart'), board_id: st.board_id, stage_id: st.id,
+      customer_id: govde?.customer_id, note: govde?.note || '',
+      position: SUREC.kartlar.filter((k) => k.stage_id === st.id).length,
+      created_at: new Date().toISOString(),
+    };
+    SUREC.kartlar.push(kart);
+    return {
+      id: kart.id, note: kart.note, position: kart.position, stage_id: st.id,
+      customer: kartMusterisi(MUSTERILER.find((x) => x.id === kart.customer_id)) || null,
+    };
+  }],
+  ['DELETE', /^\/api\/process\/cards\/([^/]+)$/, (m) => {
+    SUREC.kartlar = SUREC.kartlar.filter((k) => k.id !== m[1]);
+    return { message: 'Kart kaldırıldı' };
+  }],
+  ['PATCH', /^\/api\/process\/cards\/([^/]+)\/move$/, (m, q, govde) => {
+    const kart = SUREC.kartlar.find((k) => k.id === m[1]);
+    const hedef = SUREC.stageler.find((x) => x.id === govde?.stage_id);
+    if (!kart || !hedef) return { detail: 'Kart ya da stage bulunamadı' };
+    kart.stage_id = hedef.id;
+    kart.board_id = hedef.board_id;
+    /* Hedef stage'i baştan numarala, taşınan kart istenen sıraya girsin. */
+    const kardesler = SUREC.kartlar.filter((k) => k.stage_id === hedef.id && k.id !== kart.id)
+      .sort((a, b) => a.position - b.position);
+    const yer = Math.max(0, Math.min(Number(govde?.position ?? 0), kardesler.length));
+    kardesler.splice(yer, 0, kart);
+    kardesler.forEach((k, i) => { k.position = i; });
+    return { message: 'Kart taşındı' };
+  }],
   /* Gerçek model SavedFilter: {conditions: [{field, operator, value}], logic}.
      Taklit {criteria: {...}} döndürdüğü için Filtreler ekranı filtreyi
      uygulamaya çalışınca "filter.conditions is not iterable" veriyordu. */
