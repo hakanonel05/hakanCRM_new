@@ -97,6 +97,12 @@ const say = (alan) => {
 /* Bilinen uc noktalar. Sirasi onemli: en uzun yol once denenmeli. */
 const YOLLAR = [
   ['GET', /^\/api\/auth\/me$/, () => ({ id: 'u1', email: 'hakan@crmaster.net', name: 'Hakan Önel', role: 'admin', picture: '' })],
+  /* Gerçek arka uçtaki /customers/lookup ile aynı: yalnızca id + ad.
+     /customers/{id} rotasından ÖNCE gelmeli. */
+  ['GET', /^\/api\/customers\/lookup$/, () => ({
+    data: MUSTERILER.map((m) => ({ id: m.id, company_name: m.company_name })),
+    total: MUSTERILER.length,
+  })],
   ['GET', /^\/api\/customers\/filter-options$/, () => ({
     cities: [...new Set(MUSTERILER.map((m) => m.city))],
     markets: [...new Set(MUSTERILER.map((m) => m.market))],
