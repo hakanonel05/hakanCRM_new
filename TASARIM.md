@@ -121,6 +121,76 @@ sunucumun** hatasıydı — gerçek arka uç yalnızca kart alanlarını seçiyo
 (`server.py:4248`) ve 30 sn önbellekliyor. Taklit gerçeğine uyduruldu.
 Yine aynı ders: sayı inanılmaz görünüyorsa önce ölçüm aletinden şüphelen.
 
+## Yayına alma
+
+Bu değişiklik ekibin günlük kullandığı bir sistemi etkiliyor. Aşağıdakiler
+tahmin değil, ölçüldü.
+
+### Veri davranışı değişmedi — nasıl doğrulandı
+
+`main` ayrı bir worktree'ye çıkarılıp 3200 portunda, tasarım dalı 3100'de
+çalıştırıldı. İkisinin önüne, gelen her isteği (yöntem + yol + gövde) diske
+yazan bir kayıt sunucusu kondu. Aynı betik ikisinde de aynı işlemleri
+yaptı: müşteri oluştur, müşteri düzenle, ziyaret ekle, süreç panosu + stage
+kur, ayarlarda anahtar çevir.
+
+```
+YAZMA İSTEKLERİ      dal 4  /  main 4   → BİREBİR AYNI
+OKUMA UÇLARI         dal 23 /  main 22  → tek fark: /api/customers/lookup
+```
+
+Gövdeler bayt bayt aynı. Kodda da doğrulandı: `main..HEAD` farkında
+`axios.post/put/patch/delete` içeren **tek bir değişmiş satır yok**;
+`formData`, `payload`, `JSON.stringify` satırlarında da değişiklik yok.
+Değişen tek çağrı bir OKUMA: `/customers?limit=5000` → `/customers/lookup`.
+
+### Arka uç ön yüzle BİRLİKTE gitmeli
+
+`backend/server.py`'a bir uç eklendi: `GET /customers/lookup`. Tamamen
+ekleme ve salt okunur (yalnızca `select`), var olan hiçbir uca dokunmuyor.
+Ama Ziyaretler ekranı artık onu kullanıyor:
+
+> Ön yüz dağıtılıp arka uç dağıtılmazsa Ziyaretler ekranı bütün firma
+> adlarını "Bilinmiyor" gösterir. Veri kaybı değil, ama panik yaratır.
+
+Rota `/customers/{customer_id}`'den ÖNCE tanımlı; yer değiştirirse FastAPI
+"lookup" kelimesini müşteri kimliği sanar.
+
+### En büyük tuzak: localhost'lu derleme
+
+CRA, `REACT_APP_*` değişkenlerini pakete **gömer**. Localde deneme için
+`frontend/.env.local` içinde `REACT_APP_BACKEND_URL=http://localhost:8787`
+duruyor. O dosya yerindeyken `npm run build` çalıştırılıp klasör elle
+yayına atılırsa canlı site localhost'a sorar ve **hiç veri göstermez** —
+ekranda bu "bütün veriler gitti" gibi görünür, oysa veri yerinde durur.
+
+Bu artık imkânsız: `craco.config.js` üretim derlemesini bu durumda
+durduruyor. Denendi, duruyor. Netlify kendi ortam değişkeniyle derlediği
+için oradaki akış etkilenmiyor; `.env.local` zaten git tarafından takip
+edilmiyor.
+
+### Yayın sırası
+
+1. Arka ucu dağıt (Render). `/customers/lookup` canlıya çıksın.
+2. Canlı arka uçta uç noktayı bir kez kontrol et:
+   `curl https://<arka-uc>/api/customers/lookup | head -c 200`
+3. Ön yüzü dağıt (Netlify — kendi `REACT_APP_BACKEND_URL`'iyle derler).
+4. Ziyaretler ekranını aç: firma adları görünüyorsa iki taraf da uyumlu.
+
+Geri alma: ön yüz için Netlify'da önceki dağıtıma dön. Arka uçtaki ek uç
+noktanın geri alınmasına gerek yok — kimseye zararı yok, yalnızca kullanan
+kalmaz.
+
+### Son tarama
+
+14 ekran, her ekranda tıklanabilir ne varsa tıklandı, pop-up'ların içine
+girilip form alanları dolduruldu: **hata yok**. Kalıcı etki bırakacak
+düğmeler (kaydet/sil/onayla) tarayıcıda bilerek atlanıyor; onlar yukarıdaki
+karşılaştırmalı testte ayrıca yürütüldü.
+
+Üretim derlemesi: `Compiled successfully`, ilk açılışta 4 dosya / 552 KB,
+pakette localhost sızıntısı yok.
+
 ## Bilinen açık konular
 
 - Dashboard'daki "Son Aktiviteler" ve iki dağılım grafiği boş görünüyor —

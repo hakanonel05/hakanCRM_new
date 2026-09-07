@@ -12,7 +12,9 @@
  */
 import http from 'node:http';
 
-const PORT = 8787;
+/* Port ortam degiskeniyle degistirilebilir: karsilastirma testi ayni
+   taklidi iki ayri portta calistiriyor. */
+const PORT = Number(process.env.SAHTE_API_PORT || 8787);
 
 /* İl başına ağırlık. Sayılar Türkiye'nin sanayi yoğunluğunu kabaca izliyor:
    haritanın ısı rampası ancak dağılım dengesizken bir şey anlatır. */

@@ -1,5 +1,6 @@
 // craco.config.js
 const path = require("path");
+const fs = require("fs");
 require("dotenv").config();
 
 // Check if we're in development/preview mode (not production build)
@@ -30,6 +31,57 @@ if (config.enableHealthCheck) {
   WebpackHealthPlugin = require("./plugins/health-check/webpack-health-plugin");
   setupHealthEndpoints = require("./plugins/health-check/health-endpoints");
   healthPluginInstance = new WebpackHealthPlugin();
+}
+
+// KORUMA: localhost adresli bir üretim derlemesi çıkmasın.
+//
+// CRA, REACT_APP_* değişkenlerini pakete GÖMER. Localde deneme yaparken
+// .env.local içinde REACT_APP_BACKEND_URL=http://localhost:8787 duruyor;
+// o dosya yerindeyken `npm run build` çalıştırılıp klasör elle yayına
+// atılırsa canlı site localhost'a sorar ve hiç veri göstermez. Ekranda bu
+// "bütün veriler gitti" gibi görünür — oysa veri yerinde durur, uygulama
+// yanlış adrese sorar. Derleme burada duruyor.
+//
+// Netlify kendi ortam değişkeniyle derlediği için oradaki akış etkilenmez;
+// .env.local zaten git tarafından takip edilmiyor.
+//
+// DEĞERİ KENDİMİZ ÇÖZÜYORUZ: bu dosya çalıştığında CRA henüz .env
+// dosyalarını yüklememiş oluyor, yukarıdaki dotenv çağrısı da yalnızca
+// `.env`i okuyor. İlk sürüm bu yüzden değişkeni hep "boş" görüyordu ve
+// korumanın var olma sebebi olan durumu yakalamıyordu.
+function _arkaUcAdresi() {
+  if (process.env.REACT_APP_BACKEND_URL) return process.env.REACT_APP_BACKEND_URL;
+  // CRA'nın okuma sırası (öncelikli olan önce).
+  const dosyalar = [".env.production.local", ".env.local", ".env.production", ".env"];
+  for (const ad of dosyalar) {
+    const p = path.resolve(__dirname, ad);
+    if (!fs.existsSync(p)) continue;
+    for (const satir of fs.readFileSync(p, "utf8").split(/\r?\n/)) {
+      const m = satir.match(/^\s*REACT_APP_BACKEND_URL\s*=\s*(.*)\s*$/);
+      if (m) return m[1].trim().replace(/^["']|["']$/g, "");
+    }
+  }
+  return "";
+}
+
+if (process.env.NODE_ENV === "production") {
+  const arkaUc = _arkaUcAdresi();
+  if (/localhost|127\.0\.0\.1/.test(arkaUc)) {
+    throw new Error(
+      "\n\nÜRETİM DERLEMESİ DURDURULDU\n" +
+      "REACT_APP_BACKEND_URL yerel bir adrese bakıyor: " + arkaUc + "\n" +
+      "Bu paket yayına alınırsa site hiç veri gösteremez.\n\n" +
+      "Yayın derlemesi için frontend/.env.local dosyasını geçici olarak\n" +
+      "kaldırın ya da gerçek adresi verin:\n" +
+      "  REACT_APP_BACKEND_URL=https://<arka-uc-adresiniz> npm run build\n"
+    );
+  }
+  if (!arkaUc) {
+    console.warn(
+      "\nUYARI: REACT_APP_BACKEND_URL boş. Paket 'undefined/api' adresine\n" +
+      "istek atar ve site çalışmaz. Yayın ortamında bu değişkeni tanımlayın.\n"
+    );
+  }
 }
 
 const webpackConfig = {
