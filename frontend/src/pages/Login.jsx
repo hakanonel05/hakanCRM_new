@@ -155,48 +155,43 @@ const Login = () => {
   if (checking) {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ background: "hsl(var(--background))" }}>
-        <div className="w-10 h-10 border-[3px] border-border border-t-white/70 rounded-full animate-spin" />
+        <div className="w-10 h-10 border-[3px] border-border border-t-foreground rounded-full animate-spin" />
       </div>
     );
   }
 
   return (
     <div className="min-h-screen flex">
-      {/* ── Left brand panel — Lumina navy ── */}
-      <div className="hidden lg:flex lg:w-[55%] xl:w-[60%] relative flex-col overflow-hidden" style={{ background: "hsl(var(--background))" }}>
-        {/* Ambient blobs */}
-        <div className="absolute inset-0 pointer-events-none">
-          <div
-            className="absolute inset-0 opacity-[0.06]"
-            style={{
-              backgroundImage: "none",
-              backgroundSize: "28px 28px",
-            }}
-          />
-        </div>
+      {/* ── Sol tanıtım paneli ──
+           Zemin nötr gri, sağdaki form paneli beyaz: bölünme gölgeyle değil
+           iki tonun farkıyla kuruluyor. Önce ikisi de aynı renkti ve ekranın
+           yarısı boş görünüyordu. */}
+      <div className="hidden lg:flex lg:w-[55%] xl:w-[60%] relative flex-col overflow-hidden bg-muted border-r border-border">
 
         {/* Content */}
         <div className="relative flex flex-col h-full px-12 xl:px-16 py-12">
           {/* Logo */}
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-card border border-border flex items-center justify-center">
-              <span className="text-white font-bold text-sm tracking-tight">CR</span>
+            {/* Dolu mürekkep kare + açık harf. Önce beyaz kare üstünde beyaz
+                harf vardı, yani boş bir kutu görünüyordu. */}
+            <div className="w-10 h-10 rounded-xl bg-foreground flex items-center justify-center">
+              <span className="text-background font-bold text-sm tracking-tight">CR</span>
             </div>
-            <span className="text-white font-bold text-xl tracking-tight">CRMaster</span>
+            <span className="text-foreground font-bold text-xl tracking-tight">CRMaster</span>
           </div>
 
           {/* Headline */}
           <div className="mt-auto mb-10">
             <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-card border border-border mb-6">
-              <span className="w-1.5 h-1.5 rounded-full bg-[#a7caeb]" />
+              <span className="w-1.5 h-1.5 rounded-full bg-brand" />
               <span className="text-muted-foreground text-xs font-medium tracking-wide">CRM Suite v2</span>
             </div>
-            <h1 className="text-4xl xl:text-5xl font-bold text-white leading-[1.15] tracking-tight">
+            <h1 className="text-4xl xl:text-5xl font-bold text-foreground leading-[1.15] tracking-tight">
               Müşteri ilişkilerini
               <br />
               <span className="text-muted-foreground">bir adım öne taşı.</span>
             </h1>
-            <p className="mt-5 text-white/60 text-base xl:text-lg leading-relaxed max-w-md">
+            <p className="mt-5 text-muted-foreground text-base xl:text-lg leading-relaxed max-w-md">
               Müşterilerinizi takip edin, ziyaretleri planlayın ve satış sürecinizi
               kolayca yönetin — her yerden.
             </p>
@@ -205,10 +200,10 @@ const Login = () => {
             <ul className="mt-8 space-y-3">
               {FEATURES.map(({ icon: Icon, text }) => (
                 <li key={text} className="flex items-center gap-3">
-                  <span className="w-7 h-7 rounded-lg bg-card flex items-center justify-center flex-shrink-0">
+                  <span className="w-7 h-7 rounded-lg bg-card border border-border flex items-center justify-center flex-shrink-0">
                     <Icon className="w-3.5 h-3.5 text-muted-foreground" strokeWidth={2} />
                   </span>
-                  <span className="text-white/70 text-sm">{text}</span>
+                  <span className="text-foreground text-sm">{text}</span>
                 </li>
               ))}
             </ul>
@@ -223,26 +218,24 @@ const Login = () => {
             ].map(({ val, label }) => (
               <div
                 key={label}
-                className="rounded-xl bg-white/[0.05] border border-white/[0.08] p-4 text-center"
+                className="rounded-xl bg-card border border-border p-4 text-center"
               >
-                <div className="text-2xl font-bold" className="text-muted-foreground">{val}</div>
-                <div className="text-white/40 text-xs mt-1">{label}</div>
+                {/* TEK className. Önce iki tane vardı ve ikincisi birincisini
+                    sessizce siliyordu: sayı ne büyük ne kalın çiziliyordu. */}
+                <div className="text-2xl font-bold text-foreground">{val}</div>
+                <div className="text-muted-foreground text-xs mt-1">{label}</div>
               </div>
             ))}
           </div>
         </div>
       </div>
 
-      {/* ── Right form panel — glass light ── */}
-      <div className="flex-1 flex flex-col items-center justify-center px-6 py-10 sm:px-10"
-        style={{
-          background: "hsl(var(--background))"
-        }}
-      >
+      {/* ── Sağ form paneli ── */}
+      <div className="flex-1 flex flex-col items-center justify-center px-6 py-10 sm:px-10 bg-card">
         {/* Mobile logo */}
         <div className="lg:hidden flex items-center gap-2 mb-8">
           <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center">
-            <span className="text-white font-bold text-sm">CR</span>
+            <span className="text-primary-foreground font-bold text-sm">CR</span>
           </div>
           <span className="font-bold text-xl text-primary">CRMaster</span>
         </div>
@@ -265,7 +258,7 @@ const Login = () => {
             type="button"
             onClick={handleGoogleLogin}
             data-testid="btn-google-login"
-            className="w-full h-11 flex items-center justify-center gap-3 rounded-xl border border-border bg-white dark:bg-foreground hover:bg-background dark:hover:bg-foreground text-foreground text-sm font-medium shadow-none transition-colors"
+            className="w-full h-11 flex items-center justify-center gap-3 rounded-xl border border-border bg-card hover:bg-muted text-foreground text-sm font-medium shadow-none transition-colors"
           >
             <svg className="w-4.5 h-4.5 flex-shrink-0" style={{width:"18px",height:"18px"}} viewBox="0 0 24 24">
               <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
@@ -282,7 +275,7 @@ const Login = () => {
               <div className="w-full border-t border-border" />
             </div>
             <div className="relative flex justify-center">
-              <span className="px-3 bg-white dark:bg-foreground text-muted-foreground text-xs font-medium">
+              <span className="px-3 bg-card text-muted-foreground text-xs font-medium">
                 veya e-posta ile devam et
               </span>
             </div>
@@ -357,12 +350,12 @@ const Login = () => {
               disabled={loading}
               className={`w-full h-11 flex items-center justify-center gap-2 rounded-xl font-semibold text-sm transition-all
                 ${loading
-                  ? "bg-primary/60 text-white cursor-not-allowed"
-                  : "bg-primary hover:opacity-90 text-white hover: hover:-translate-y-px active:translate-y-0"
+                  ? "bg-primary/60 text-primary-foreground cursor-not-allowed"
+                  : "bg-primary hover:opacity-90 text-primary-foreground hover:-translate-y-px active:translate-y-0"
                 }`}
             >
               {loading ? (
-                <span className="w-4 h-4 border-2 border-border border-t-white rounded-full animate-spin" />
+                <span className="w-4 h-4 border-2 border-border border-t-primary-foreground rounded-full animate-spin" />
               ) : (
                 <>
                   {mode === "login" ? "Giriş Yap" : "Hesap Oluştur"}
@@ -396,9 +389,11 @@ const Login = () => {
           </p>
 
           {/* Trust badge */}
-          <div className="mt-8 flex items-start gap-2.5 rounded-xl px-4 py-3" style={{ background: "hsl(var(--muted))", border: "1px solid rgba(211,231,223,0.8)" }}>
-            <CheckCircle2 className="w-4 h-4 text-secondary-md flex-shrink-0 mt-0.5" />
-            <p className="text-xs leading-relaxed" className="text-muted-foreground">
+          {/* Kenarlık eskiden naneli bir yeşildi (rgba(211,231,223)) — eski
+              temadan kalmış, palette karşılığı yok. */}
+          <div className="mt-8 flex items-start gap-2.5 rounded-xl px-4 py-3 bg-muted border border-border">
+            <CheckCircle2 className="w-4 h-4 text-muted-foreground flex-shrink-0 mt-0.5" />
+            <p className="text-xs leading-relaxed text-muted-foreground">
               Verileriniz şifreli bulut veritabanında güvenle saklanır ve
               yalnızca sizin hesabınızdan erişilebilir.
             </p>
