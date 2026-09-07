@@ -113,7 +113,10 @@ function normKey(s) {
 }
 
 function colorFor(count, max) {
-  if (!count) return "#eef2f0";
+  /* Veri yoksa nötr yüzey; varsa marka tonunun açıklık merdiveni.
+     Yoğunluğu TEK tonun koyuluğu anlatır — çok renkli bir ısı ölçeği
+     "daha çok"un hangisi olduğunu söylemez. */
+  if (!count) return "hsl(var(--muted))";
   const t = Math.min(1, Math.log(count + 1) / Math.log(max + 1));
   const c1 = [167, 243, 208];
   const c2 = [15, 118, 110];
@@ -143,7 +146,15 @@ const toTitleCaseTR = (name) => {
     .join(" ");
 };
 
-const MARKET_COLORS = ["#0d9488", "#3b82f6", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899", "#14b8a6", "#64748b"];
+/* Market kategorileri bir DURUM değil; sekiz canlı renge dağıtmak bilgi
+   taşımıyordu. Paletin seri merdiveni kullanılıyor. */
+const MARKET_COLORS = [
+  "hsl(var(--chart-1))",
+  "hsl(var(--chart-2))",
+  "hsl(var(--chart-3))",
+  "hsl(var(--chart-4))",
+  "hsl(var(--chart-5))",
+];
 
 // Sistemdeki sabit durum değerleri (içe aktarma şablonuyla birebir aynı).
 const STATUS_OPTIONS = ["Beklemede", "İletişimde", "Çalışılıyor", "Takip Ediliyor", "Olumsuz", "Kapandı"];
@@ -393,7 +404,7 @@ export default function TurkeyMap() {
                 key={p.c}
                 d={p.d}
                 fill={colorFor(cnt, max)}
-                stroke={active ? "#0f766e" : "#ffffff"}
+                stroke={active ? "hsl(var(--brand))" : "hsl(var(--card))"}
                 strokeWidth={active ? 1.4 : 0.6}
                 style={{ cursor: "pointer", transition: "fill .15s" }}
                 onMouseEnter={(e) => {
@@ -432,7 +443,7 @@ export default function TurkeyMap() {
         </div>
         <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
           <span>Az</span>
-          <span className="inline-block w-16 h-2 rounded-full" style={{ background: "linear-gradient(90deg,#a7f3d0,#0f766e)" }} />
+          <span className="inline-block w-16 h-2 rounded-full" style={{ background: "linear-gradient(90deg, hsl(var(--brand-soft)), hsl(var(--brand)))" }} />
           <span>Çok</span>
         </div>
       </div>

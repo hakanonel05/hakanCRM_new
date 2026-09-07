@@ -66,15 +66,24 @@ const GridLayout = RGLWidthProvider(ResponsiveGrid);
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 const STORAGE_KEY = "crm_dashboard_v8";
 
-// Lumina MD3 palette — navy/teal design system
+/* Seri renkleri palete bağlı: index.css'teki --chart-1..5. Gökkuşağı
+   değil, mürekkepten kağıda inen bir merdiven + marka turuncusu; sıra
+   anlam taşıyor (ilk seri en koyu, yani en okunaklı). Değerler çalışma
+   anında okunuyor ki tema tek yerden değişsin. */
+const token = (ad, yedek) => {
+  try {
+    const v = getComputedStyle(document.documentElement).getPropertyValue(ad).trim();
+    return v ? `hsl(${v})` : yedek;
+  } catch {
+    return yedek;
+  }
+};
 const palette = [
-  "#002a43", // navy (primary)
-  "#50625c", // teal-green (secondary)
-  "#3f627e", // steel blue
-  "#0e9488", // teal
-  "#1b405b", // dark navy (primary-container)
-  "#a7caeb", // light blue (primary-fixed-dim)
-  "#72777e", // outline gray
+  token("--chart-1", "#1C1917"),
+  token("--chart-2", "#C2410C"),
+  token("--chart-3", "#57534E"),
+  token("--chart-4", "#6B6560"),
+  token("--chart-5", "#D6D3D1"),
 ];
 
 const formatTimeAgo = (timestamp) => {
@@ -392,7 +401,7 @@ const buildDonutData = (entries) => ({
       data: entries.map((e) => e.count),
       backgroundColor: palette,
       borderWidth: 3,
-      borderColor: "#ffffff",
+      borderColor: token("--card", "#FFFFFF"),
       borderRadius: 8,
       hoverOffset: 8,
       spacing: 2,
@@ -413,13 +422,13 @@ const donutOptions = {
         pointStyle: "circle",
         boxWidth: 8,
         font: { size: 11, family: "Inter", weight: "500" },
-        color: "#42474d",
+        color: token("--muted-foreground", "#6B6560"),
       },
     },
     tooltip: {
       backgroundColor: "hsl(var(--foreground))",
-      titleColor: "#fff",
-      bodyColor: "#fff",
+      titleColor: token("--primary-foreground", "#FFFFFF"),
+      bodyColor: token("--primary-foreground", "#FFFFFF"),
       padding: 10,
       cornerRadius: 8,
       boxPadding: 4,
@@ -500,8 +509,8 @@ const barOptions = {
     legend: { display: false },
     tooltip: {
       backgroundColor: "hsl(var(--foreground))",
-      titleColor: "#fff",
-      bodyColor: "#fff",
+      titleColor: token("--primary-foreground", "#FFFFFF"),
+      bodyColor: token("--primary-foreground", "#FFFFFF"),
       padding: 10,
       cornerRadius: 8,
       boxPadding: 4,
@@ -513,7 +522,7 @@ const barOptions = {
       grid: { display: false },
       ticks: {
         font: { size: 10, family: "Inter" },
-        color: "#72777e",
+        color: token("--muted-foreground", "#6B6560"),
         maxRotation: 0,
         autoSkip: true,
       },
@@ -524,7 +533,7 @@ const barOptions = {
       grid: { color: "hsl(var(--border))", drawBorder: false },
       ticks: {
         font: { size: 10, family: "Inter" },
-        color: "#72777e",
+        color: token("--muted-foreground", "#6B6560"),
         padding: 8,
       },
       border: { display: false },

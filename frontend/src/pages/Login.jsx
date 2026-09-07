@@ -154,7 +154,7 @@ const Login = () => {
 
   if (checking) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: "#002a43" }}>
+      <div className="min-h-screen flex items-center justify-center" style={{ background: "hsl(var(--background))" }}>
         <div className="w-10 h-10 border-[3px] border-border border-t-white/70 rounded-full animate-spin" />
       </div>
     );
@@ -163,7 +163,7 @@ const Login = () => {
   return (
     <div className="min-h-screen flex">
       {/* ── Left brand panel — Lumina navy ── */}
-      <div className="hidden lg:flex lg:w-[55%] xl:w-[60%] relative flex-col overflow-hidden" style={{ background: "#002a43" }}>
+      <div className="hidden lg:flex lg:w-[55%] xl:w-[60%] relative flex-col overflow-hidden" style={{ background: "hsl(var(--background))" }}>
         {/* Ambient blobs */}
         <div className="absolute inset-0 pointer-events-none">
           <div
@@ -194,7 +194,7 @@ const Login = () => {
             <h1 className="text-4xl xl:text-5xl font-bold text-white leading-[1.15] tracking-tight">
               Müşteri ilişkilerini
               <br />
-              <span style={{ color: "#a7caeb" }}>bir adım öne taşı.</span>
+              <span className="text-muted-foreground">bir adım öne taşı.</span>
             </h1>
             <p className="mt-5 text-white/60 text-base xl:text-lg leading-relaxed max-w-md">
               Müşterilerinizi takip edin, ziyaretleri planlayın ve satış sürecinizi
@@ -225,7 +225,7 @@ const Login = () => {
                 key={label}
                 className="rounded-xl bg-white/[0.05] border border-white/[0.08] p-4 text-center"
               >
-                <div className="text-2xl font-bold" style={{ color: "#a7caeb" }}>{val}</div>
+                <div className="text-2xl font-bold" className="text-muted-foreground">{val}</div>
                 <div className="text-white/40 text-xs mt-1">{label}</div>
               </div>
             ))}
@@ -398,7 +398,7 @@ const Login = () => {
           {/* Trust badge */}
           <div className="mt-8 flex items-start gap-2.5 rounded-xl px-4 py-3" style={{ background: "hsl(var(--muted))", border: "1px solid rgba(211,231,223,0.8)" }}>
             <CheckCircle2 className="w-4 h-4 text-secondary-md flex-shrink-0 mt-0.5" />
-            <p className="text-xs leading-relaxed" style={{ color: "#50625c" }}>
+            <p className="text-xs leading-relaxed" className="text-muted-foreground">
               Verileriniz şifreli bulut veritabanında güvenle saklanır ve
               yalnızca sizin hesabınızdan erişilebilir.
             </p>
