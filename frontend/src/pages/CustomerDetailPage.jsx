@@ -715,7 +715,7 @@ const CustomerDetailPage = ({ customerId: propCustomerId, isModal = false, onClo
               </Button>
             )}
             <div className="flex items-center gap-3 sm:gap-4 min-w-0">
-              <div className="w-12 h-12 sm:w-14 sm:h-14 bg-muted from-muted to-muted rounded-xl flex items-center justify-center text-white font-bold text-lg sm:text-xl shadow-none flex-shrink-0">
+              <div className="w-12 h-12 sm:w-14 sm:h-14 bg-foreground rounded-xl flex items-center justify-center text-white font-bold text-lg sm:text-xl shadow-none flex-shrink-0">
                 {customer.company_name?.charAt(0) || "?"}
               </div>
               <div className="min-w-0">

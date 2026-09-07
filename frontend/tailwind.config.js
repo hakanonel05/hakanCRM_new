@@ -69,6 +69,14 @@ module.exports = {
                     DEFAULT: 'hsl(var(--destructive))',
                     foreground: 'hsl(var(--destructive-foreground))'
                 },
+                /* Kenar çubuğu ikonları — bkz. index.css'teki not. */
+                icon: {
+                    analiz: 'hsl(var(--icon-analiz))',
+                    kayit: 'hsl(var(--icon-kayit))',
+                    akis: 'hsl(var(--icon-akis))',
+                    kisi: 'hsl(var(--icon-kisi))',
+                    sistem: 'hsl(var(--icon-sistem))',
+                },
                 border: 'hsl(var(--border))',
                 input: 'hsl(var(--input))',
                 ring: 'hsl(var(--ring))',

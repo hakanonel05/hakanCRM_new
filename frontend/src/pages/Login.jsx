@@ -361,7 +361,7 @@ const Login = () => {
               className={`w-full h-11 flex items-center justify-center gap-2 rounded-xl font-semibold text-sm transition-all
                 ${loading
                   ? "bg-primary/60 text-white cursor-not-allowed"
-                  : "bg-primary hover:opacity-90 text-white shadow-[0_4px_16px_-4px_rgba(0,42,67,0.5)] hover:shadow-[0_6px_20px_-4px_rgba(0,42,67,0.6)] hover:-translate-y-px active:translate-y-0"
+                  : "bg-primary hover:opacity-90 text-white hover: hover:-translate-y-px active:translate-y-0"
                 }`}
             >
               {loading ? (

@@ -454,7 +454,7 @@ const Kanban = () => {
               return (
                 <div 
                   key={columnId} 
-                  className={`flex-shrink-0 w-64 rounded-2xl ${colors.bg} ${colors.border} border  shadow-[0_8px_32px_rgba(0,0,0,0.04)] flex flex-col max-h-[calc(100vh-220px)]`}
+                  className={`flex-shrink-0 w-64 rounded-2xl ${colors.bg} ${colors.border} border flex flex-col max-h-[calc(100vh-220px)]`}
                   data-testid={`kanban-column-${columnId}`}
                 >
                   {/* Column Header */}

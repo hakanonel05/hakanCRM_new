@@ -295,7 +295,7 @@ const KpiCard = memo(function KpiCard({ label, value, accent, icon: Icon, onClic
       type="button"
       className={`group relative h-full w-full text-left rounded-2xl px-4 py-3.5 transition-all overflow-hidden
         ${isHero
-          ? "bg-primary text-white shadow-[0_4px_20px_-6px_rgba(0,42,67,0.5)] hover:shadow-[0_8px_24px_-4px_rgba(0,42,67,0.55)] hover:-translate-y-0.5"
+          ? "bg-primary text-white hover: hover:-translate-y-0.5"
           : "glass-card hover:shadow-glass hover:-translate-y-0.5"
         }`}
       data-testid={`kpi-${label.toLowerCase().replace(/\s/g, "-")}`}
@@ -417,7 +417,7 @@ const donutOptions = {
       },
     },
     tooltip: {
-      backgroundColor: "rgba(0, 42, 67, 0.92)",
+      backgroundColor: "hsl(var(--foreground))",
       titleColor: "#fff",
       bodyColor: "#fff",
       padding: 10,
@@ -499,7 +499,7 @@ const barOptions = {
   plugins: {
     legend: { display: false },
     tooltip: {
-      backgroundColor: "rgba(0, 42, 67, 0.92)",
+      backgroundColor: "hsl(var(--foreground))",
       titleColor: "#fff",
       bodyColor: "#fff",
       padding: 10,

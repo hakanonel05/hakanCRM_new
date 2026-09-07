@@ -41,7 +41,6 @@ function LogoMark({ size = 36 }) {
       style={{
         width: size,
         height: size,
-        boxShadow: "0 4px 14px -4px rgba(0,42,67,0.45)",
       }}
       aria-hidden="true"
     >
@@ -55,22 +54,22 @@ const PUBLIC_NAV = [
   /* İkon seçiminin ölçütü: 16 pikselde hiçbir iki satır aynı silueti
      paylaşmasın. Eskiden üç insan ikonu (Users/UsersRound/User) ve iki
      takvim vardı; küçük boyutta ayırt edilmiyorlardı. */
-  { to: "/", icon: LayoutDashboard, label: "Dashboard", end: true },
-  { to: "/customers", icon: Building2, label: "Müşteriler" },
-  { to: "/filters", icon: ListFilter, label: "Filtreler" },
-  { to: "/kanban", icon: Columns3, label: "Kanban" },
-  { to: "/calendar", icon: CalendarDays, label: "Takvim" },
-  { to: "/visits", icon: MapPin, label: "Ziyaretler" },
-  { to: "/followups", icon: BellRing, label: "Follow-up" },
-  { to: "/team", icon: Users, label: "Ekip" },
+  { to: "/", icon: LayoutDashboard, label: "Dashboard", end: true, tint: "text-icon-analiz" },
+  { to: "/customers", icon: Building2, label: "Müşteriler", tint: "text-icon-kayit" },
+  { to: "/filters", icon: ListFilter, label: "Filtreler", tint: "text-icon-kayit" },
+  { to: "/kanban", icon: Columns3, label: "Kanban", tint: "text-icon-akis" },
+  { to: "/calendar", icon: CalendarDays, label: "Takvim", tint: "text-icon-akis" },
+  { to: "/visits", icon: MapPin, label: "Ziyaretler", tint: "text-icon-akis" },
+  { to: "/followups", icon: BellRing, label: "Follow-up", tint: "text-icon-akis" },
+  { to: "/team", icon: Users, label: "Ekip", tint: "text-icon-kisi" },
 ];
 
 const ADMIN_NAV = [
-  { to: "/reports", icon: BarChart3, label: "Raporlama" },
-  { to: "/duplicates", icon: Files, label: "Yinelenenler" },
-  { to: "/suggestions", icon: Lightbulb, label: "Öneriler" },
-  { to: "/users", icon: UserCog, label: "Kullanıcılar" },
-  { to: "/settings", icon: Settings, label: "Ayarlar" },
+  { to: "/reports", icon: BarChart3, label: "Raporlama", tint: "text-icon-analiz" },
+  { to: "/duplicates", icon: Files, label: "Yinelenenler", tint: "text-icon-kayit" },
+  { to: "/suggestions", icon: Lightbulb, label: "Öneriler", tint: "text-icon-analiz" },
+  { to: "/users", icon: UserCog, label: "Kullanıcılar", tint: "text-icon-kisi" },
+  { to: "/settings", icon: Settings, label: "Ayarlar", tint: "text-icon-sistem" },
 ];
 
 const PREFETCH = {
@@ -98,7 +97,7 @@ const prefetch = (to) => {
   }
 };
 
-const SidebarItem = memo(function SidebarItem({ to, icon: Icon, label, collapsed, end, isActive }) {
+const SidebarItem = memo(function SidebarItem({ to, icon: Icon, label, collapsed, end, isActive, tint }) {
   return (
     <NavLink
       to={to}
@@ -116,8 +115,11 @@ const SidebarItem = memo(function SidebarItem({ to, icon: Icon, label, collapsed
       ].join(" ")}
       title={collapsed ? label : undefined}
     >
+      {/* Seçili satırda ikon mürekkebe döner: seçili olmak zaten bir
+          vurgu, üstüne bir de renk binince hangi satırda olduğun
+          belirsizleşiyor. Renk yalnızca seçili OLMAYAN satırlarda. */}
       <Icon
-        className={`w-[18px] h-[18px] shrink-0 ${isActive ? "text-primary" : ""}`}
+        className={`w-[18px] h-[18px] shrink-0 ${isActive ? "text-primary" : tint || ""}`}
         strokeWidth={isActive ? 2.2 : 1.9}
       />
       {!collapsed && <span className="truncate">{label}</span>}
@@ -295,7 +297,6 @@ export default function Layout() {
             background: "rgba(246,250,253,0.75)",
             backdropFilter: "blur(20px)",
             borderBottom: "1px solid rgba(255,255,255,0.4)",
-            boxShadow: "0 1px 16px rgba(0,42,67,0.04)",
           }}
           data-testid="mobile-topbar"
         >
@@ -327,7 +328,6 @@ export default function Layout() {
                 background: "rgba(246,250,253,0.88)",
                 backdropFilter: "blur(24px)",
                 borderRight: "1px solid rgba(255,255,255,0.5)",
-                boxShadow: "8px 0 40px rgba(0,42,67,0.12)",
               }}
               onClick={(e) => e.stopPropagation()}
             >
@@ -412,7 +412,6 @@ export default function Layout() {
           backdropFilter: "blur(24px) saturate(160%)",
           WebkitBackdropFilter: "blur(24px) saturate(160%)",
           borderRight: "1px solid rgba(255,255,255,0.45)",
-          boxShadow: "4px 0 32px rgba(0,42,67,0.06)",
         }}
         data-testid="sidebar"
       >

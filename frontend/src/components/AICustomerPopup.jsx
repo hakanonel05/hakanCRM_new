@@ -57,7 +57,7 @@ const AICustomerPopup = ({ customer, isOpen, onClose }) => {
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-muted from-muted to-muted rounded-lg flex items-center justify-center">
+            <div className="w-8 h-8 bg-foreground rounded-lg flex items-center justify-center">
               <Sparkles className="w-4 h-4 text-white" />
             </div>
             <div>
@@ -90,7 +90,7 @@ const AICustomerPopup = ({ customer, isOpen, onClose }) => {
             </div>
           ) : summary ? (
             <div className="space-y-4">
-              <div className="bg-muted from-muted to-muted rounded-xl p-4 border border-status-info-line">
+              <div className="bg-foreground rounded-xl p-4 border border-status-info-line">
                 <div className="prose prose-sm prose-slate max-w-none">
                   {summary.split('\n').map((line, idx) => (
                     <p key={idx} className="text-foreground text-sm leading-relaxed mb-2 last:mb-0">

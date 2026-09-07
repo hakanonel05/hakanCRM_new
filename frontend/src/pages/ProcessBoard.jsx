@@ -468,7 +468,7 @@ const ProcessBoard = () => {
                           <div
                             ref={stageProv.innerRef}
                             {...stageProv.draggableProps}
-                            className={`flex-shrink-0 w-64 rounded-2xl bg-white/60 border border-white/40 shadow-[0_8px_32px_rgba(0,0,0,0.04)] flex flex-col max-h-[calc(100vh-260px)] ${
+                            className={`flex-shrink-0 w-64 rounded-2xl bg-white/60 border border-white/40 flex flex-col max-h-[calc(100vh-260px)] ${
                               stageSnap.isDragging ? "ring-2 ring-primary/40 shadow-glass" : ""
                             }`}
                           >

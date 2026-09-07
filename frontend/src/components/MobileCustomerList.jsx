@@ -65,7 +65,7 @@ export default function MobileCustomerList({
             key={c.id}
             className={`bg-card rounded-xl border ${
               isSelected ? "border-status-success-line" : "border-border"
-            } px-3 py-2.5 shadow-[0_1px_2px_rgba(0,0,0,0.03)] active:bg-muted/30 transition-colors`}
+            } px-3 py-2.5 active:bg-muted/30 transition-colors`}
             data-testid={`mobile-cust-card-${c.id}`}
           >
             <div className="flex items-start gap-2.5">
