@@ -111,7 +111,7 @@ const SidebarItem = memo(function SidebarItem({ to, icon: Icon, label, collapsed
         collapsed ? "justify-center" : "",
         isActive
           ? "bg-primary/10 text-primary font-semibold"
-          : "text-on-surface-variant hover:text-primary hover:bg-white/40 dark:text-muted-foreground dark:hover:text-primary dark:hover:bg-white/10",
+          : "text-on-surface-variant hover:text-primary hover:bg-muted dark:text-muted-foreground dark:hover:text-primary dark:hover:bg-muted",
       ].join(" ")}
       title={collapsed ? label : undefined}
     >
@@ -134,8 +134,8 @@ const UserCard = memo(function UserCard({ user, isAdmin, collapsed, onLogout, on
       <DropdownMenuTrigger asChild>
         <button
           className={`w-full group flex items-center gap-3 p-2 rounded-xl
-            hover:bg-white/40 dark:hover:bg-white/10 transition-colors duration-150
-            border border-transparent hover:border-white/40 ${collapsed ? "justify-center" : ""}`}
+            hover:bg-muted dark:hover:bg-muted transition-colors duration-150
+            border border-transparent hover:border-border ${collapsed ? "justify-center" : ""}`}
           data-testid="user-profile-trigger"
         >
           <div className="relative shrink-0">
@@ -286,9 +286,6 @@ export default function Layout() {
   if (isMobile) {
     return (
       <div className="min-h-screen text-foreground">
-        {/* Ambient blobs */}
-        <div className="fixed top-[-10%] left-[-10%] w-80 h-80 bg-[#d3e7df]/50 rounded-full blur-[90px] pointer-events-none z-0" />
-        <div className="fixed bottom-[-10%] right-[-10%] w-96 h-96 bg-[#cce5ff]/45 rounded-full blur-[110px] pointer-events-none z-0" />
 
         {/* Mobile Topbar */}
         <header
@@ -296,13 +293,13 @@ export default function Layout() {
           style={{
             background: "rgba(246,250,253,0.75)",
             backdropFilter: "blur(20px)",
-            borderBottom: "1px solid rgba(255,255,255,0.4)",
+            borderBottom: "1px solid hsl(var(--border))",
           }}
           data-testid="mobile-topbar"
         >
           <button
             onClick={() => setMobileMenuOpen(true)}
-            className="p-2 -ml-2 rounded-xl hover:bg-white/40 transition-colors"
+            className="p-2 -ml-2 rounded-xl hover:bg-muted transition-colors"
             aria-label="Menü aç"
           >
             <Menu className="w-5 h-5 text-primary" />
@@ -325,15 +322,15 @@ export default function Layout() {
             <aside
               className="w-72 h-full flex flex-col animate-slide-in-right"
               style={{
-                background: "rgba(246,250,253,0.88)",
+                background: "hsl(var(--background))",
                 backdropFilter: "blur(24px)",
-                borderRight: "1px solid rgba(255,255,255,0.5)",
+                borderRight: "1px solid hsl(var(--border))",
               }}
               onClick={(e) => e.stopPropagation()}
             >
               <div
                 className="flex items-center justify-between p-4"
-                style={{ borderBottom: "1px solid rgba(255,255,255,0.4)" }}
+                style={{ borderBottom: "1px solid hsl(var(--border))" }}
               >
                 <div className="flex items-center gap-2.5">
                   <LogoMark size={32} />
@@ -344,7 +341,7 @@ export default function Layout() {
                 </div>
                 <button
                   onClick={() => setMobileMenuOpen(false)}
-                  className="p-1.5 rounded-xl hover:bg-white/40"
+                  className="p-1.5 rounded-xl hover:bg-muted"
                 >
                   <X className="w-5 h-5 text-on-surface-variant" />
                 </button>
@@ -372,7 +369,7 @@ export default function Layout() {
 
               <div
                 className="p-3 safe-area-bottom"
-                style={{ borderTop: "1px solid rgba(255,255,255,0.4)" }}
+                style={{ borderTop: "1px solid hsl(var(--border))" }}
               >
                 <UserCard
                   user={user}
@@ -401,24 +398,21 @@ export default function Layout() {
   return (
     <div className="min-h-screen flex text-foreground relative">
       {/* Ambient background blobs — behind everything */}
-      <div className="fixed top-[-8%] left-[-6%] w-[420px] h-[420px] bg-[#d3e7df]/50 rounded-full blur-[110px] pointer-events-none z-0" />
-      <div className="fixed bottom-[-8%] right-[-6%] w-[520px] h-[520px] bg-[#cce5ff]/45 rounded-full blur-[130px] pointer-events-none z-0" />
 
       {/* Sidebar */}
       <aside
         className={`${sidebarWidth} shrink-0 h-screen sticky top-0 z-30 flex flex-col transition-[width] duration-200 ease-out`}
         style={{
-          background: "rgba(246,250,253,0.72)",
-          backdropFilter: "blur(24px) saturate(160%)",
+          background: "hsl(var(--background))",
           WebkitBackdropFilter: "blur(24px) saturate(160%)",
-          borderRight: "1px solid rgba(255,255,255,0.45)",
+          borderRight: "1px solid hsl(var(--border))",
         }}
         data-testid="sidebar"
       >
         {/* Logo + Notifications + Collapse */}
         <div
           className={`flex items-center ${collapsed ? "justify-center" : "justify-between"} h-16 px-4`}
-          style={{ borderBottom: "1px solid rgba(255,255,255,0.4)" }}
+          style={{ borderBottom: "1px solid hsl(var(--border))" }}
         >
           <div className="flex items-center gap-2.5 min-w-0">
             <LogoMark size={34} />
@@ -436,7 +430,7 @@ export default function Layout() {
               <FollowupNotifications />
               <button
                 onClick={() => setCollapsed(true)}
-                className="p-1.5 rounded-xl hover:bg-white/40 transition-colors text-on-surface-variant hover:text-primary"
+                className="p-1.5 rounded-xl hover:bg-muted transition-colors text-on-surface-variant hover:text-primary"
                 aria-label="Daralt"
                 data-testid="sidebar-collapse-btn"
               >
@@ -450,7 +444,7 @@ export default function Layout() {
         {collapsed && (
           <button
             onClick={() => setCollapsed(false)}
-            className="absolute -right-3 top-20 w-6 h-6 rounded-full bg-white border border-white/60 shadow-glass flex items-center justify-center hover:bg-primary hover:text-white hover:border-primary transition-colors duration-150"
+            className="absolute -right-3 top-20 w-6 h-6 rounded-full bg-white border border-border shadow-glass flex items-center justify-center hover:bg-primary hover:text-white hover:border-primary transition-colors duration-150"
             aria-label="Genişlet"
             data-testid="sidebar-expand-btn"
           >
@@ -465,13 +459,13 @@ export default function Layout() {
             <button
               type="button"
               onClick={() => setCmdkOpen(true)}
-              className="w-full flex items-center gap-2 px-3 py-2 mb-2 rounded-xl border border-white/40 bg-white/30 hover:bg-white/50 transition-colors duration-150 text-sm text-on-surface-variant hover:text-primary"
+              className="w-full flex items-center gap-2 px-3 py-2 mb-2 rounded-xl border border-border bg-muted hover:bg-muted transition-colors duration-150 text-sm text-on-surface-variant hover:text-primary"
               data-testid="cmdk-trigger"
               title="Hızlı arama (⌘K)"
             >
               <Search className="w-4 h-4" />
               <span>Hızlı ara…</span>
-              <kbd className="ml-auto text-[10px] font-mono px-1.5 py-0.5 rounded border border-outline-variant/40 bg-white/50">
+              <kbd className="ml-auto text-[10px] font-mono px-1.5 py-0.5 rounded border border-outline-variant/40 bg-muted">
                 ⌘K
               </kbd>
             </button>
@@ -479,7 +473,7 @@ export default function Layout() {
             <button
               type="button"
               onClick={() => setCmdkOpen(true)}
-              className="w-full flex items-center justify-center px-3 py-2.5 mb-2 rounded-xl hover:bg-white/40 transition-colors duration-150 text-on-surface-variant hover:text-primary"
+              className="w-full flex items-center justify-center px-3 py-2.5 mb-2 rounded-xl hover:bg-muted transition-colors duration-150 text-on-surface-variant hover:text-primary"
               title="Hızlı arama (⌘K)"
             >
               <Search className="w-[18px] h-[18px]" />
@@ -512,7 +506,7 @@ export default function Layout() {
         {/* Footer: User card */}
         <div
           className={collapsed ? "p-2" : "p-3"}
-          style={{ borderTop: "1px solid rgba(255,255,255,0.4)" }}
+          style={{ borderTop: "1px solid hsl(var(--border))" }}
         >
           <UserCard
             user={user}

@@ -347,7 +347,7 @@ const WidgetShell = memo(function WidgetShell({
 }) {
   return (
     <div className="h-full w-full glass-card overflow-hidden flex flex-col">
-      <div className="flex items-center justify-between px-4 py-2.5 flex-shrink-0" style={{ borderBottom: "1px solid rgba(255,255,255,0.5)" }}>
+      <div className="flex items-center justify-between px-4 py-2.5 flex-shrink-0" style={{ borderBottom: "1px solid hsl(var(--border))" }}>
         <div className="flex items-center gap-2 min-w-0">
           {editing && (
             <GripVertical className="w-3.5 h-3.5 text-muted-foreground drag-handle cursor-grab active:cursor-grabbing" />
@@ -521,7 +521,7 @@ const barOptions = {
     },
     y: {
       beginAtZero: true,
-      grid: { color: "rgba(194, 199, 206, 0.25)", drawBorder: false },
+      grid: { color: "hsl(var(--border))", drawBorder: false },
       ticks: {
         font: { size: 10, family: "Inter" },
         color: "#72777e",
@@ -1183,7 +1183,7 @@ const Dashboard = () => {
   return (
     <div className="h-full overflow-y-auto" data-testid="dashboard-page">
       {/* Header */}
-      <div className="sticky top-0 z-20 px-4 sm:px-6 py-3 flex items-center justify-between gap-2" style={{ background: "rgba(246,250,253,0.80)", backdropFilter: "blur(16px)", borderBottom: "1px solid rgba(255,255,255,0.45)" }}>
+      <div className="sticky top-0 z-20 px-4 sm:px-6 py-3 flex items-center justify-between gap-2" style={{ background: "hsl(var(--background))", borderBottom: "1px solid hsl(var(--border))" }}>
         <div className="min-w-0 flex-1">
           <Breadcrumb className="mb-1" />
           <h1 className="text-lg sm:text-xl font-bold text-primary tracking-tight">

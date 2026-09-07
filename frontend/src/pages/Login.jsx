@@ -155,7 +155,7 @@ const Login = () => {
   if (checking) {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ background: "#002a43" }}>
-        <div className="w-10 h-10 border-[3px] border-white/20 border-t-white/70 rounded-full animate-spin" />
+        <div className="w-10 h-10 border-[3px] border-border border-t-white/70 rounded-full animate-spin" />
       </div>
     );
   }
@@ -166,13 +166,10 @@ const Login = () => {
       <div className="hidden lg:flex lg:w-[55%] xl:w-[60%] relative flex-col overflow-hidden" style={{ background: "#002a43" }}>
         {/* Ambient blobs */}
         <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute -top-40 -left-40 w-[500px] h-[500px] rounded-full bg-[#1b405b]/60 blur-[120px]" />
-          <div className="absolute top-1/2 -right-20 w-[400px] h-[400px] rounded-full bg-[#0e2a3d]/50 blur-[100px]" />
-          <div className="absolute -bottom-20 left-1/3 w-[350px] h-[350px] rounded-full bg-[#264054]/40 blur-[90px]" />
           <div
             className="absolute inset-0 opacity-[0.06]"
             style={{
-              backgroundImage: "radial-gradient(rgba(255,255,255,0.9) 1px, transparent 1px)",
+              backgroundImage: "none",
               backgroundSize: "28px 28px",
             }}
           />
@@ -182,7 +179,7 @@ const Login = () => {
         <div className="relative flex flex-col h-full px-12 xl:px-16 py-12">
           {/* Logo */}
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-white/15 border border-white/20 flex items-center justify-center">
+            <div className="w-10 h-10 rounded-xl bg-card border border-border flex items-center justify-center">
               <span className="text-white font-bold text-sm tracking-tight">CR</span>
             </div>
             <span className="text-white font-bold text-xl tracking-tight">CRMaster</span>
@@ -190,9 +187,9 @@ const Login = () => {
 
           {/* Headline */}
           <div className="mt-auto mb-10">
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 border border-white/15 mb-6">
-              <span className="w-1.5 h-1.5 rounded-full bg-[#a7caeb] animate-pulse" />
-              <span className="text-[#a7caeb] text-xs font-medium tracking-wide">CRM Suite v2</span>
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-card border border-border mb-6">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#a7caeb]" />
+              <span className="text-muted-foreground text-xs font-medium tracking-wide">CRM Suite v2</span>
             </div>
             <h1 className="text-4xl xl:text-5xl font-bold text-white leading-[1.15] tracking-tight">
               Müşteri ilişkilerini
@@ -208,8 +205,8 @@ const Login = () => {
             <ul className="mt-8 space-y-3">
               {FEATURES.map(({ icon: Icon, text }) => (
                 <li key={text} className="flex items-center gap-3">
-                  <span className="w-7 h-7 rounded-lg bg-white/10 flex items-center justify-center flex-shrink-0">
-                    <Icon className="w-3.5 h-3.5 text-[#a7caeb]" strokeWidth={2} />
+                  <span className="w-7 h-7 rounded-lg bg-card flex items-center justify-center flex-shrink-0">
+                    <Icon className="w-3.5 h-3.5 text-muted-foreground" strokeWidth={2} />
                   </span>
                   <span className="text-white/70 text-sm">{text}</span>
                 </li>
@@ -239,7 +236,7 @@ const Login = () => {
       {/* ── Right form panel — glass light ── */}
       <div className="flex-1 flex flex-col items-center justify-center px-6 py-10 sm:px-10"
         style={{
-          background: "radial-gradient(circle at 30% 30%, rgba(211,231,223,0.5) 0%, #f6fafd 50%, rgba(204,229,255,0.4) 100%)"
+          background: "hsl(var(--background))"
         }}
       >
         {/* Mobile logo */}
@@ -365,7 +362,7 @@ const Login = () => {
                 }`}
             >
               {loading ? (
-                <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                <span className="w-4 h-4 border-2 border-border border-t-white rounded-full animate-spin" />
               ) : (
                 <>
                   {mode === "login" ? "Giriş Yap" : "Hesap Oluştur"}
@@ -375,7 +372,7 @@ const Login = () => {
             </button>
 
             {slowServer && (
-              <p className="text-xs text-muted-foreground text-center animate-pulse">
+              <p className="text-xs text-muted-foreground text-center">
                 Sunucu uyandırılıyor, lütfen bekleyin... (ücretsiz sunucu planında ilk açılış 30-60 sn sürebilir)
               </p>
             )}
@@ -399,7 +396,7 @@ const Login = () => {
           </p>
 
           {/* Trust badge */}
-          <div className="mt-8 flex items-start gap-2.5 rounded-xl px-4 py-3" style={{ background: "rgba(211,231,223,0.5)", border: "1px solid rgba(211,231,223,0.8)" }}>
+          <div className="mt-8 flex items-start gap-2.5 rounded-xl px-4 py-3" style={{ background: "hsl(var(--muted))", border: "1px solid rgba(211,231,223,0.8)" }}>
             <CheckCircle2 className="w-4 h-4 text-secondary-md flex-shrink-0 mt-0.5" />
             <p className="text-xs leading-relaxed" style={{ color: "#50625c" }}>
               Verileriniz şifreli bulut veritabanında güvenle saklanır ve
