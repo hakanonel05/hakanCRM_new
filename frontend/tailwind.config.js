@@ -1,21 +1,31 @@
 /** @type {import('tailwindcss').Config} */
+
+/* ============================================================================
+   Renk sözlüğü src/index.css'teki :root bloğunda. Buradaki iş yalnızca o
+   değişkenlere Tailwind adı vermek — hex YAZILMAZ, hepsi hsl(var(--x)).
+   Palet ingilizcemerkez.netlify.app'ten birebir alındı.
+   ============================================================================ */
+
 module.exports = {
-    darkMode: ["class"],
+    /* darkMode kaldırıldı: tek tema. Kaynakta zaten tek bir "dark:" sınıfı
+       yoktu, karanlık tema yalnızca CSS değişkenleriyle yapılıyordu. */
     content: [
         "./src/**/*.{js,jsx,ts,tsx}",
         "./public/index.html"
     ],
     theme: {
         extend: {
+            /* Tek aile: Inter. Ayrım yazı tipiyle değil ağırlık ve harf
+               aralığıyla. Mono yalnızca sayılarda — tutar ve tarih veridir. */
             fontFamily: {
-                sans: ['Urbanist', 'system-ui', '-apple-system', 'sans-serif'],
-                heading: ['Urbanist', 'system-ui', 'sans-serif'],
-                mono: ['JetBrains Mono', 'monospace'],
+                sans: ['Inter', 'ui-sans-serif', 'system-ui', '-apple-system', 'sans-serif'],
+                heading: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+                mono: ['JetBrains Mono', 'ui-monospace', 'monospace'],
             },
             borderRadius: {
                 lg: 'var(--radius)',
-                md: 'calc(var(--radius) - 2px)',
-                sm: 'calc(var(--radius) - 4px)'
+                md: 'calc(var(--radius) - 4px)',
+                sm: 'calc(var(--radius) - 7px)'
             },
             colors: {
                 background: 'hsl(var(--background))',
@@ -42,10 +52,18 @@ module.exports = {
                     DEFAULT: 'hsl(var(--muted))',
                     foreground: 'hsl(var(--muted-foreground))'
                 },
+                /* shadcn'de "accent" hover/seçili ZEMİNİ demek. Vurgu rengi
+                   değil — o "brand". */
                 accent: {
                     DEFAULT: 'hsl(var(--accent))',
                     foreground: 'hsl(var(--accent-foreground))',
                     hover: 'hsl(var(--primary-hover))',
+                },
+                /* MARKA: turuncu. Vurgu ve kimlik için; düğme zemini DEĞİL. */
+                brand: {
+                    DEFAULT: 'hsl(var(--brand))',
+                    strong: 'hsl(var(--brand-strong))',
+                    soft: 'hsl(var(--brand-soft))',
                 },
                 destructive: {
                     DEFAULT: 'hsl(var(--destructive))',
@@ -54,6 +72,8 @@ module.exports = {
                 border: 'hsl(var(--border))',
                 input: 'hsl(var(--input))',
                 ring: 'hsl(var(--ring))',
+                /* Grafik serileri: gökkuşağı değil, mürekkepten kağıda inen
+                   bir merdiven + marka turuncusu. Sıra anlam taşıyor. */
                 chart: {
                     '1': 'hsl(var(--chart-1))',
                     '2': 'hsl(var(--chart-2))',
@@ -61,72 +81,79 @@ module.exports = {
                     '4': 'hsl(var(--chart-4))',
                     '5': 'hsl(var(--chart-5))'
                 },
+                /* Durum renkleri. "purple" ve "pink" KALDIRILDI: kaynakta hiç
+                   kullanılmıyorlardı (0 eşleşme) ve mor yasak listesinin ilk
+                   maddesi. "info" ayrı bir renk değil, nötr gri yüzey. */
                 status: {
                     'success-bg': 'hsl(var(--status-success-bg))',
                     'success-fg': 'hsl(var(--status-success-fg))',
-                    'info-bg': 'hsl(var(--status-info-bg))',
-                    'info-fg': 'hsl(var(--status-info-fg))',
-                    'warning-bg': 'hsl(var(--status-warning-bg))',
-                    'warning-fg': 'hsl(var(--status-warning-fg))',
-                    'purple-bg': 'hsl(var(--status-purple-bg))',
-                    'purple-fg': 'hsl(var(--status-purple-fg))',
+                    'success-line': 'hsl(var(--status-success-line))',
                     'danger-bg': 'hsl(var(--status-danger-bg))',
                     'danger-fg': 'hsl(var(--status-danger-fg))',
-                    'pink-bg': 'hsl(var(--status-pink-bg))',
-                    'pink-fg': 'hsl(var(--status-pink-fg))',
+                    'danger-line': 'hsl(var(--status-danger-line))',
+                    'warning-bg': 'hsl(var(--status-warning-bg))',
+                    'warning-fg': 'hsl(var(--status-warning-fg))',
+                    'warning-line': 'hsl(var(--status-warning-line))',
+                    'info-bg': 'hsl(var(--status-info-bg))',
+                    'info-fg': 'hsl(var(--status-info-fg))',
+                    'info-line': 'hsl(var(--status-info-line))',
+                    'neutral-bg': 'hsl(var(--status-neutral-bg))',
+                    'neutral-fg': 'hsl(var(--status-neutral-fg))',
                 },
-                // === Lumina MD3 Design Tokens ===
-                'primary-container': '#1b405b',
-                'on-primary': '#ffffff',
-                'on-primary-container': '#89accb',
-                'primary-fixed': '#cce5ff',
-                'primary-fixed-dim': '#a7caeb',
-                'secondary-md': '#50625c',
-                'secondary-container': '#d3e7df',
-                'on-secondary-container': '#566862',
-                'secondary-fixed': '#d3e7df',
-                'tertiary-md': '#0e2a3d',
-                'tertiary-fixed': '#cbe6ff',
-                'tertiary-fixed-dim': '#afcae2',
-                'tertiary-container': '#264054',
-                'on-tertiary-container': '#91abc3',
-                'surface-lm': '#f6fafd',
-                'surface-dim': '#d6dbdd',
-                'surface-bright': '#f6fafd',
-                'surface-container': '#eaeef1',
-                'surface-container-low': '#f0f4f7',
-                'surface-container-high': '#e5e9ec',
-                'surface-container-highest': '#dfe3e6',
-                'surface-container-lowest': '#ffffff',
-                'on-surface': '#171c1f',
-                'on-surface-variant': '#42474d',
-                'outline-md': '#72777e',
-                'outline-variant': '#c2c7ce',
-                'inverse-surface': '#2c3134',
-                'inverse-on-surface': '#edf1f4',
-                'error-container': '#ffdad6',
-                'on-error-container': '#93000a',
+
+                /* === ESKİ "Lumina MD3" ADLARI ===============================
+                   Bunlar lacivert/teal sabit hex'lerdi ve 93 yerde yazılı.
+                   Sınıfları silmek o 93 yeri kırardı; bunun yerine hepsi yeni
+                   paletteki karşılığına BAĞLANDI. Yeni kodda kullanma —
+                   adları artık gösterdikleri şeyi anlatmıyor. */
+                'primary-container': 'hsl(var(--foreground))',
+                'on-primary': 'hsl(var(--primary-foreground))',
+                'on-primary-container': 'hsl(var(--muted-foreground))',
+                'primary-fixed': 'hsl(var(--muted))',
+                'primary-fixed-dim': 'hsl(var(--input))',
+                'secondary-md': 'hsl(var(--muted-foreground))',
+                'secondary-container': 'hsl(var(--muted))',
+                'on-secondary-container': 'hsl(var(--muted-foreground))',
+                'secondary-fixed': 'hsl(var(--muted))',
+                'tertiary-md': 'hsl(var(--foreground))',
+                'tertiary-fixed': 'hsl(var(--muted))',
+                'tertiary-fixed-dim': 'hsl(var(--input))',
+                'tertiary-container': 'hsl(var(--muted))',
+                'on-tertiary-container': 'hsl(var(--muted-foreground))',
+                'surface-lm': 'hsl(var(--background))',
+                'surface-dim': 'hsl(var(--input))',
+                'surface-bright': 'hsl(var(--card))',
+                'surface-container': 'hsl(var(--muted))',
+                'surface-container-low': 'hsl(var(--muted))',
+                'surface-container-high': 'hsl(var(--muted))',
+                'surface-container-highest': 'hsl(var(--input))',
+                'surface-container-lowest': 'hsl(var(--card))',
+                'on-surface': 'hsl(var(--foreground))',
+                'on-surface-variant': 'hsl(var(--muted-foreground))',
+                'outline-md': 'hsl(var(--muted-foreground))',
+                'outline-variant': 'hsl(var(--input))',
+                'inverse-surface': 'hsl(var(--foreground))',
+                'inverse-on-surface': 'hsl(var(--background))',
+                'error-container': 'hsl(var(--status-danger-bg))',
+                'on-error-container': 'hsl(var(--status-danger-fg))',
             },
+            /* Gölge yok. Kart ile zemin arasındaki fark tonda ve 1px çizgide.
+               shadow-glass 6 yerde yazılı olduğu için adı duruyor ama artık
+               hiçbir şey çizmiyor; glow'lar hiç kullanılmıyordu, silindi. */
             boxShadow: {
-                'soft': '0 2px 8px -2px rgba(0,0,0,0.04), 0 4px 16px -4px rgba(0,0,0,0.04)',
-                'soft-lg': '0 8px 24px -8px rgba(0,0,0,0.08), 0 4px 8px -4px rgba(0,0,0,0.04)',
-                'glow': '0 0 24px -4px hsl(var(--accent) / 0.35)',
-                'glow-lg': '0 0 32px -2px hsl(var(--accent) / 0.45)',
-                'glass': '0 8px 32px 0 rgba(31, 38, 135, 0.07)',
-                'glass-dark': '0 8px 32px 0 rgba(0, 0, 0, 0.4)',
+                'soft': 'none',
+                'soft-lg': 'none',
+                'glass': 'none',
             },
             keyframes: {
                 'accordion-down': { from: { height: '0' }, to: { height: 'var(--radix-accordion-content-height)' } },
                 'accordion-up': { from: { height: 'var(--radix-accordion-content-height)' }, to: { height: '0' } },
-                'fade-in-up': { from: { opacity: '0', transform: 'translateY(8px)' }, to: { opacity: '1', transform: 'translateY(0)' } },
+                'fade-in-up': { from: { opacity: '0' }, to: { opacity: '1' } },
             },
             animation: {
                 'accordion-down': 'accordion-down 0.2s ease-out',
                 'accordion-up': 'accordion-up 0.2s ease-out',
-                'fade-in-up': 'fade-in-up 0.4s cubic-bezier(0.16, 1, 0.3, 1) both',
-            },
-            backdropBlur: {
-                xs: '2px',
+                'fade-in-up': 'fade-in-up 0.18s ease both',
             },
         }
     },

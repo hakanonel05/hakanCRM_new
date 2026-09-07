@@ -81,22 +81,22 @@ const Notifications = () => {
   const getUrgencyStyle = (urgency) => {
     switch (urgency) {
       case "overdue":
-        return "bg-red-50 border-red-200 hover:bg-red-100";
+        return "bg-status-danger-bg border-status-danger-line hover:bg-status-danger-bg";
       case "urgent":
-        return "bg-amber-50 border-amber-200 hover:bg-amber-100";
+        return "bg-status-warning-bg border-status-warning-line hover:bg-status-warning-bg";
       default:
-        return "bg-blue-50 border-blue-200 hover:bg-blue-100";
+        return "bg-status-info-bg border-status-info-line hover:bg-status-info-bg";
     }
   };
 
   const getUrgencyBadge = (urgency, days) => {
     switch (urgency) {
       case "overdue":
-        return <Badge className="bg-red-100 text-red-700">Gecikmiş ({Math.abs(days)} gün)</Badge>;
+        return <Badge className="bg-status-danger-bg text-status-danger-fg">Gecikmiş ({Math.abs(days)} gün)</Badge>;
       case "urgent":
-        return <Badge className="bg-amber-100 text-amber-700">{days === 0 ? "Bugün" : `${days} gün kaldı`}</Badge>;
+        return <Badge className="bg-status-warning-bg text-status-warning-fg">{days === 0 ? "Bugün" : `${days} gün kaldı`}</Badge>;
       default:
-        return <Badge className="bg-blue-100 text-primary">{days} gün kaldı</Badge>;
+        return <Badge className="bg-status-info-bg text-primary">{days} gün kaldı</Badge>;
     }
   };
 
@@ -139,7 +139,7 @@ const Notifications = () => {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
         <div className="bg-card rounded-xl border border-border p-5">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+            <div className="w-10 h-10 bg-status-info-bg rounded-lg flex items-center justify-center">
               <Bell className="w-5 h-5 text-primary" />
             </div>
             <div>
@@ -151,11 +151,11 @@ const Notifications = () => {
 
         <div className="bg-card rounded-xl border border-border p-5">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center">
-              <AlertTriangle className="w-5 h-5 text-red-600" />
+            <div className="w-10 h-10 bg-status-danger-bg rounded-lg flex items-center justify-center">
+              <AlertTriangle className="w-5 h-5 text-status-danger-fg" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-red-600">{stats.overdue_count}</p>
+              <p className="text-2xl font-bold text-status-danger-fg">{stats.overdue_count}</p>
               <p className="text-sm text-muted-foreground">Gecikmiş</p>
             </div>
           </div>
@@ -163,11 +163,11 @@ const Notifications = () => {
 
         <div className="bg-card rounded-xl border border-border p-5">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-amber-100 rounded-lg flex items-center justify-center">
-              <Clock className="w-5 h-5 text-amber-600" />
+            <div className="w-10 h-10 bg-status-warning-bg rounded-lg flex items-center justify-center">
+              <Clock className="w-5 h-5 text-status-warning-fg" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-amber-600">{stats.urgent_count}</p>
+              <p className="text-2xl font-bold text-status-warning-fg">{stats.urgent_count}</p>
               <p className="text-sm text-muted-foreground">Acil (1 gün içinde)</p>
             </div>
           </div>
@@ -189,7 +189,7 @@ const Notifications = () => {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                      notification.type === "followup" ? "bg-amber-500" : "bg-blue-500"
+                      notification.type === "followup" ? "bg-status-warning-bg" : "bg-primary"
                     } text-white`}>
                       {notification.type === "followup" ? (
                         <Bell className="w-5 h-5" />
@@ -209,7 +209,7 @@ const Notifications = () => {
           </div>
         ) : (
           <div className="text-center py-12">
-            <CheckCircle className="w-12 h-12 text-emerald-500 mx-auto mb-3" />
+            <CheckCircle className="w-12 h-12 text-status-success-fg mx-auto mb-3" />
             <p className="text-lg font-medium text-foreground">Tüm takipler güncel!</p>
             <p className="text-sm text-muted-foreground mt-1">
               Önümüzdeki {notificationDays} gün içinde herhangi bir takip veya ziyaret yok.

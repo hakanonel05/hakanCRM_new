@@ -100,7 +100,7 @@ export const highlightMatch = (text, needle) => {
     parts.push(
       <mark
         key={`m${key++}`}
-        className="bg-amber-100 text-amber-900 rounded px-0.5"
+        className="bg-status-warning-bg text-status-warning-fg rounded px-0.5"
         style={{ padding: "1px 2px" }}
       >
         {str.slice(idx, idx + needle.length)}

@@ -180,21 +180,21 @@ const CustomerDetailCard = ({ open, onClose, customer, onUpdate }) => {
 
   const getStatusColor = (status) => {
     const colors = {
-      "Çalışılıyor": "bg-emerald-100 text-emerald-800 border-emerald-200",
-      "Beklemede": "bg-amber-100 text-amber-800 border-amber-200",
-      "Takip Ediliyor": "bg-blue-100 text-blue-800 border-blue-200",
-      "Olumsuz": "bg-rose-100 text-rose-800 border-rose-200"
+      "Çalışılıyor": "bg-status-success-bg text-status-success-fg border-status-success-line",
+      "Beklemede": "bg-status-warning-bg text-status-warning-fg border-status-warning-line",
+      "Takip Ediliyor": "bg-status-info-bg text-status-info-fg border-status-info-line",
+      "Olumsuz": "bg-status-danger-bg text-status-danger-fg border-status-danger-line"
     };
-    return colors[status] || "bg-slate-100 text-slate-800 border-slate-200";
+    return colors[status] || "bg-muted text-foreground border-border";
   };
 
   const getPotentialColor = (level) => {
     const colors = {
-      "Yüksek": "bg-emerald-100 text-emerald-800",
-      "Orta": "bg-amber-100 text-amber-800",
-      "Düşük": "bg-slate-100 text-slate-800"
+      "Yüksek": "bg-status-success-bg text-status-success-fg",
+      "Orta": "bg-status-warning-bg text-status-warning-fg",
+      "Düşük": "bg-muted text-foreground"
     };
-    return colors[level] || "bg-slate-100 text-slate-800";
+    return colors[level] || "bg-muted text-foreground";
   };
 
   if (!customer) return null;
@@ -205,19 +205,19 @@ const CustomerDetailCard = ({ open, onClose, customer, onUpdate }) => {
     <>
       <Dialog open={open} onOpenChange={onClose}>
         <DialogContent className="max-w-2xl max-h-[90vh] p-0" data-testid="customer-detail-card">
-          <DialogHeader className="px-6 py-4 border-b border-slate-200 bg-slate-50">
+          <DialogHeader className="px-6 py-4 border-b border-border bg-background">
             <div className="flex items-start gap-4">
-              <div className="w-14 h-14 bg-blue-500 rounded-xl flex items-center justify-center text-white font-bold text-xl">
+              <div className="w-14 h-14 bg-primary rounded-xl flex items-center justify-center text-white font-bold text-xl">
                 {customer.company_name?.charAt(0) || "?"}
               </div>
               <div className="flex-1">
                 <DialogTitle className="text-xl font-semibold flex items-center gap-2">
                   {customer.company_name}
                   {customer.is_followup && (
-                    <Bell className="w-4 h-4 text-amber-500" />
+                    <Bell className="w-4 h-4 text-status-warning-fg" />
                   )}
                 </DialogTitle>
-                <p className="text-sm text-slate-500 mt-0.5">{customer.market || "—"}</p>
+                <p className="text-sm text-muted-foreground mt-0.5">{customer.market || "—"}</p>
               </div>
             </div>
           </DialogHeader>
@@ -228,28 +228,28 @@ const CustomerDetailCard = ({ open, onClose, customer, onUpdate }) => {
               <div className="space-y-3 mb-6">
                 {customer.contact_info?.email && (
                   <div className="flex items-center gap-3 text-sm">
-                    <Mail className="w-4 h-4 text-slate-400" />
-                    <a href={`mailto:${customer.contact_info.email}`} className="text-blue-600 hover:underline">
+                    <Mail className="w-4 h-4 text-muted-foreground" />
+                    <a href={`mailto:${customer.contact_info.email}`} className="text-status-info-fg hover:underline">
                       {customer.contact_info.email}
                     </a>
                   </div>
                 )}
                 {customer.contact_info?.phone && (
                   <div className="flex items-center gap-3 text-sm">
-                    <Phone className="w-4 h-4 text-slate-400" />
-                    <a href={`tel:${customer.contact_info.phone}`} className="text-slate-700">
+                    <Phone className="w-4 h-4 text-muted-foreground" />
+                    <a href={`tel:${customer.contact_info.phone}`} className="text-foreground">
                       {customer.contact_info.phone}
                     </a>
                   </div>
                 )}
                 {customer.website && (
                   <div className="flex items-center gap-3 text-sm">
-                    <Globe className="w-4 h-4 text-slate-400" />
+                    <Globe className="w-4 h-4 text-muted-foreground" />
                     <a 
                       href={customer.website.startsWith('http') ? customer.website : `https://${customer.website}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-blue-600 hover:underline"
+                      className="text-status-info-fg hover:underline"
                     >
                       {customer.website}
                     </a>
@@ -257,8 +257,8 @@ const CustomerDetailCard = ({ open, onClose, customer, onUpdate }) => {
                 )}
                 {(customer.city || customer.district) && (
                   <div className="flex items-center gap-3 text-sm">
-                    <MapPin className="w-4 h-4 text-slate-400" />
-                    <span className="text-slate-700">
+                    <MapPin className="w-4 h-4 text-muted-foreground" />
+                    <span className="text-foreground">
                       {[customer.district, customer.city].filter(Boolean).join(", ")}
                     </span>
                   </div>
@@ -276,7 +276,7 @@ const CustomerDetailCard = ({ open, onClose, customer, onUpdate }) => {
                   {customer.status}
                 </Badge>
                 {customer.partner && (
-                  <Badge className="bg-slate-100 text-slate-800">
+                  <Badge className="bg-muted text-foreground">
                     {customer.partner}
                   </Badge>
                 )}
@@ -285,8 +285,8 @@ const CustomerDetailCard = ({ open, onClose, customer, onUpdate }) => {
               {/* Application */}
               {customer.application && (
                 <div className="mb-6">
-                  <p className="text-sm font-medium text-slate-700 mb-2">Applications:</p>
-                  <Badge className="bg-emerald-50 text-emerald-700 border border-emerald-200">
+                  <p className="text-sm font-medium text-foreground mb-2">Applications:</p>
+                  <Badge className="bg-status-success-bg text-status-success-fg border border-status-success-line">
                     {customer.application}
                   </Badge>
                 </div>
@@ -358,9 +358,9 @@ const CustomerDetailCard = ({ open, onClose, customer, onUpdate }) => {
                   <div className="space-y-4">
                     {customer.contact_info?.contact_person && (
                       <div className="flex items-start gap-3">
-                        <User className="w-4 h-4 text-slate-400 mt-0.5" />
+                        <User className="w-4 h-4 text-muted-foreground mt-0.5" />
                         <div>
-                          <p className="text-xs text-slate-500">İletişim Kişisi</p>
+                          <p className="text-xs text-muted-foreground">İletişim Kişisi</p>
                           <p className="text-sm font-medium">{customer.contact_info.contact_person}</p>
                         </div>
                       </div>
@@ -370,18 +370,18 @@ const CustomerDetailCard = ({ open, onClose, customer, onUpdate }) => {
                       <div className="grid grid-cols-2 gap-4">
                         {customer.competitor && (
                           <div className="flex items-start gap-3">
-                            <Briefcase className="w-4 h-4 text-slate-400 mt-0.5" />
+                            <Briefcase className="w-4 h-4 text-muted-foreground mt-0.5" />
                             <div>
-                              <p className="text-xs text-slate-500">Rakip</p>
+                              <p className="text-xs text-muted-foreground">Rakip</p>
                               <p className="text-sm font-medium">{customer.competitor}</p>
                             </div>
                           </div>
                         )}
                         {customer.partner && (
                           <div className="flex items-start gap-3">
-                            <Users className="w-4 h-4 text-slate-400 mt-0.5" />
+                            <Users className="w-4 h-4 text-muted-foreground mt-0.5" />
                             <div>
-                              <p className="text-xs text-slate-500">Partner</p>
+                              <p className="text-xs text-muted-foreground">Partner</p>
                               <p className="text-sm font-medium">{customer.partner}</p>
                             </div>
                           </div>
@@ -391,9 +391,9 @@ const CustomerDetailCard = ({ open, onClose, customer, onUpdate }) => {
 
                     {customer.potential_value > 0 && (
                       <div className="flex items-start gap-3">
-                        <Tag className="w-4 h-4 text-slate-400 mt-0.5" />
+                        <Tag className="w-4 h-4 text-muted-foreground mt-0.5" />
                         <div>
-                          <p className="text-xs text-slate-500">Potansiyel Değer</p>
+                          <p className="text-xs text-muted-foreground">Potansiyel Değer</p>
                           <p className="text-sm font-medium">{customer.potential_value.toLocaleString('tr-TR')} ₺</p>
                         </div>
                       </div>
@@ -401,9 +401,9 @@ const CustomerDetailCard = ({ open, onClose, customer, onUpdate }) => {
 
                     {customer.next_followup_date && (
                       <div className="flex items-start gap-3">
-                        <Calendar className="w-4 h-4 text-slate-400 mt-0.5" />
+                        <Calendar className="w-4 h-4 text-muted-foreground mt-0.5" />
                         <div>
-                          <p className="text-xs text-slate-500">Sonraki Takip</p>
+                          <p className="text-xs text-muted-foreground">Sonraki Takip</p>
                           <p className="text-sm font-medium">
                             {new Date(customer.next_followup_date).toLocaleDateString('tr-TR')}
                           </p>
@@ -413,7 +413,7 @@ const CustomerDetailCard = ({ open, onClose, customer, onUpdate }) => {
 
                     {customer.products?.length > 0 && (
                       <div>
-                        <p className="text-xs text-slate-500 mb-2">ABB Products</p>
+                        <p className="text-xs text-muted-foreground mb-2">ABB Products</p>
                         <div className="flex flex-wrap gap-1">
                           {customer.products.map(p => (
                             <Badge key={p} variant="secondary" className="text-xs">{p}</Badge>
@@ -424,26 +424,26 @@ const CustomerDetailCard = ({ open, onClose, customer, onUpdate }) => {
 
                     {customer.tags?.length > 0 && (
                       <div>
-                        <p className="text-xs text-slate-500 mb-2">Etiketler</p>
+                        <p className="text-xs text-muted-foreground mb-2">Etiketler</p>
                         <div className="flex flex-wrap gap-1">
                           {customer.tags.map(t => (
-                            <Badge key={t} className="bg-purple-100 text-purple-800 text-xs">{t}</Badge>
+                            <Badge key={t} className="bg-status-info-bg text-status-info-fg text-xs">{t}</Badge>
                           ))}
                         </div>
                       </div>
                     )}
 
                     {customer.notes && (
-                      <div className="p-3 bg-slate-50 rounded-lg">
-                        <p className="text-xs text-slate-500 mb-1">Notlar</p>
-                        <p className="text-sm text-slate-700">{customer.notes}</p>
+                      <div className="p-3 bg-background rounded-lg">
+                        <p className="text-xs text-muted-foreground mb-1">Notlar</p>
+                        <p className="text-sm text-foreground">{customer.notes}</p>
                       </div>
                     )}
 
                     {customer.description && (
-                      <div className="p-3 bg-slate-50 rounded-lg">
-                        <p className="text-xs text-slate-500 mb-1">Açıklama</p>
-                        <p className="text-sm text-slate-700">{customer.description}</p>
+                      <div className="p-3 bg-background rounded-lg">
+                        <p className="text-xs text-muted-foreground mb-1">Açıklama</p>
+                        <p className="text-sm text-foreground">{customer.description}</p>
                       </div>
                     )}
                   </div>
@@ -454,31 +454,31 @@ const CustomerDetailCard = ({ open, onClose, customer, onUpdate }) => {
                   <div className="space-y-3">
                     {/* Legacy contact */}
                     {customer.contact_info?.contact_person && (
-                      <div className="p-3 border border-slate-200 rounded-lg">
+                      <div className="p-3 border border-border rounded-lg">
                         <div className="flex items-start justify-between">
                           <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                              <User className="w-5 h-5 text-blue-600" />
+                            <div className="w-10 h-10 bg-status-info-bg rounded-full flex items-center justify-center">
+                              <User className="w-5 h-5 text-status-info-fg" />
                             </div>
                             <div>
-                              <p className="font-medium text-slate-900">{customer.contact_info.contact_person}</p>
-                              <p className="text-sm text-slate-500">Ana İletişim</p>
+                              <p className="font-medium text-foreground">{customer.contact_info.contact_person}</p>
+                              <p className="text-sm text-muted-foreground">Ana İletişim</p>
                             </div>
                           </div>
-                          <Badge className="bg-amber-100 text-amber-800">
+                          <Badge className="bg-status-warning-bg text-status-warning-fg">
                             <Star className="w-3 h-3 mr-1" />
                             Birincil
                           </Badge>
                         </div>
                         <div className="mt-3 space-y-1">
                           {customer.contact_info.email && (
-                            <p className="text-sm text-slate-600 flex items-center gap-2">
+                            <p className="text-sm text-muted-foreground flex items-center gap-2">
                               <Mail className="w-3.5 h-3.5" />
                               {customer.contact_info.email}
                             </p>
                           )}
                           {customer.contact_info.phone && (
-                            <p className="text-sm text-slate-600 flex items-center gap-2">
+                            <p className="text-sm text-muted-foreground flex items-center gap-2">
                               <Phone className="w-3.5 h-3.5" />
                               {customer.contact_info.phone}
                             </p>
@@ -489,20 +489,20 @@ const CustomerDetailCard = ({ open, onClose, customer, onUpdate }) => {
 
                     {/* Additional contacts */}
                     {customer.contacts?.map((contact) => (
-                      <div key={contact.id} className="p-3 border border-slate-200 rounded-lg">
+                      <div key={contact.id} className="p-3 border border-border rounded-lg">
                         <div className="flex items-start justify-between">
                           <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center">
-                              <User className="w-5 h-5 text-purple-600" />
+                            <div className="w-10 h-10 bg-status-info-bg rounded-full flex items-center justify-center">
+                              <User className="w-5 h-5 text-status-info-fg" />
                             </div>
                             <div>
-                              <p className="font-medium text-slate-900">{contact.name}</p>
-                              {contact.role && <p className="text-sm text-slate-500">{contact.role}</p>}
+                              <p className="font-medium text-foreground">{contact.name}</p>
+                              {contact.role && <p className="text-sm text-muted-foreground">{contact.role}</p>}
                             </div>
                           </div>
                           <div className="flex items-center gap-2">
                             {contact.is_primary && (
-                              <Badge className="bg-amber-100 text-amber-800">
+                              <Badge className="bg-status-warning-bg text-status-warning-fg">
                                 <Star className="w-3 h-3 mr-1" />
                                 Birincil
                               </Badge>
@@ -514,13 +514,13 @@ const CustomerDetailCard = ({ open, onClose, customer, onUpdate }) => {
                               onClick={() => handleSetPrimary(contact.id)}
                               title="Birincil yap"
                             >
-                              <Star className={`w-4 h-4 ${contact.is_primary ? 'text-amber-500 fill-amber-500' : 'text-slate-400'}`} />
+                              <Star className={`w-4 h-4 ${contact.is_primary ? 'text-status-warning-fg fill-status-warning-line' : 'text-muted-foreground'}`} />
                             </Button>
                             {isAdmin ? (
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                className="h-8 w-8 text-red-500 hover:text-red-600"
+                                className="h-8 w-8 text-status-danger-fg hover:text-status-danger-fg"
                                 onClick={() => handleDeleteContact(contact.id)}
                               >
                                 <Trash2 className="w-4 h-4" />
@@ -529,7 +529,7 @@ const CustomerDetailCard = ({ open, onClose, customer, onUpdate }) => {
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                className="h-8 w-8 text-slate-300 cursor-not-allowed"
+                                className="h-8 w-8 text-primary-foreground cursor-not-allowed"
                                 disabled
                                 title="Silme yetkisi yok"
                               >
@@ -540,13 +540,13 @@ const CustomerDetailCard = ({ open, onClose, customer, onUpdate }) => {
                         </div>
                         <div className="mt-3 space-y-1">
                           {contact.email && (
-                            <p className="text-sm text-slate-600 flex items-center gap-2">
+                            <p className="text-sm text-muted-foreground flex items-center gap-2">
                               <Mail className="w-3.5 h-3.5" />
                               {contact.email}
                             </p>
                           )}
                           {contact.phone && (
-                            <p className="text-sm text-slate-600 flex items-center gap-2">
+                            <p className="text-sm text-muted-foreground flex items-center gap-2">
                               <Phone className="w-3.5 h-3.5" />
                               {contact.phone}
                             </p>
@@ -557,7 +557,7 @@ const CustomerDetailCard = ({ open, onClose, customer, onUpdate }) => {
 
                     {/* Add Contact Form */}
                     {showAddContact ? (
-                      <div className="p-4 border-2 border-dashed border-slate-300 rounded-lg space-y-3">
+                      <div className="p-4 border-2 border-dashed border-input rounded-lg space-y-3">
                         <div className="grid grid-cols-2 gap-3">
                           <div>
                             <Label htmlFor="contact-name">İsim *</Label>
@@ -605,7 +605,7 @@ const CustomerDetailCard = ({ open, onClose, customer, onUpdate }) => {
                           <Button variant="outline" size="sm" onClick={() => setShowAddContact(false)}>
                             İptal
                           </Button>
-                          <Button size="sm" onClick={handleAddContact} className="bg-emerald-600 hover:bg-emerald-700">
+                          <Button size="sm" onClick={handleAddContact} className="bg-status-success-fg hover:bg-status-success-fg">
                             Kişi Ekle
                           </Button>
                         </div>
@@ -627,20 +627,20 @@ const CustomerDetailCard = ({ open, onClose, customer, onUpdate }) => {
                 {/* Visits Tab */}
                 <TabsContent value="visits" className="mt-4">
                   {loadingVisits ? (
-                    <div className="text-center py-8 text-slate-500">Yükleniyor...</div>
+                    <div className="text-center py-8 text-muted-foreground">Yükleniyor...</div>
                   ) : visits.length > 0 ? (
                     <div className="space-y-3">
                       {visits.map((visit) => (
-                        <div key={visit.id} className="p-3 border border-slate-200 rounded-lg">
+                        <div key={visit.id} className="p-3 border border-border rounded-lg">
                           <div className="flex items-center justify-between mb-2">
                             <Badge className={
-                              visit.visit_type === "Yüz Yüze" ? "bg-emerald-100 text-emerald-800" :
-                              visit.visit_type === "Online" ? "bg-blue-100 text-blue-800" :
-                              "bg-purple-100 text-purple-800"
+                              visit.visit_type === "Yüz Yüze" ? "bg-status-success-bg text-status-success-fg" :
+                              visit.visit_type === "Online" ? "bg-status-info-bg text-status-info-fg" :
+                              "bg-status-info-bg text-status-info-fg"
                             }>
                               {visit.visit_type}
                             </Badge>
-                            <span className="text-sm text-slate-500">
+                            <span className="text-sm text-muted-foreground">
                               {new Date(visit.visit_date).toLocaleDateString('tr-TR')}
                             </span>
                           </div>
@@ -648,13 +648,13 @@ const CustomerDetailCard = ({ open, onClose, customer, onUpdate }) => {
                             <p className="text-sm font-medium mb-1">Sonuç: {visit.outcome}</p>
                           )}
                           {visit.notes && (
-                            <p className="text-sm text-slate-600">{visit.notes}</p>
+                            <p className="text-sm text-muted-foreground">{visit.notes}</p>
                           )}
                         </div>
                       ))}
                     </div>
                   ) : (
-                    <div className="text-center py-8 text-slate-500">
+                    <div className="text-center py-8 text-muted-foreground">
                       Henüz ziyaret kaydı yok
                     </div>
                   )}
@@ -663,35 +663,35 @@ const CustomerDetailCard = ({ open, onClose, customer, onUpdate }) => {
                 {/* Benzer Firmalar Tab */}
                 <TabsContent value="similar" className="mt-4">
                   {loadingSimilar ? (
-                    <div className="text-center py-8 text-slate-500">
+                    <div className="text-center py-8 text-muted-foreground">
                       Benzer firmalar aranıyor...
                     </div>
                   ) : similar.length > 0 ? (
                     <div className="space-y-2">
-                      <p className="text-xs text-slate-500 mb-3">
+                      <p className="text-xs text-muted-foreground mb-3">
                         Bu firmaya sektör ve faaliyet açısından en yakın müşteriler:
                       </p>
                       {similar.map((s) => (
                         <div
                           key={s.id}
-                          className="p-3 border border-slate-200 rounded-lg flex items-center justify-between hover:bg-slate-50"
+                          className="p-3 border border-border rounded-lg flex items-center justify-between hover:bg-background"
                         >
                           <div className="min-w-0">
-                            <p className="font-medium text-slate-900 truncate">
+                            <p className="font-medium text-foreground truncate">
                               {s.company_name}
                             </p>
-                            <p className="text-sm text-slate-500 truncate">
+                            <p className="text-sm text-muted-foreground truncate">
                               {[s.market, s.city].filter(Boolean).join(" · ") || "—"}
                             </p>
                           </div>
-                          <Badge className="bg-blue-100 text-blue-800 shrink-0 ml-3">
+                          <Badge className="bg-status-info-bg text-status-info-fg shrink-0 ml-3">
                             %{s.similarity}
                           </Badge>
                         </div>
                       ))}
                     </div>
                   ) : similarLoaded ? (
-                    <div className="text-center py-8 text-slate-500">
+                    <div className="text-center py-8 text-muted-foreground">
                       Benzer firma bulunamadı
                     </div>
                   ) : (
@@ -708,7 +708,7 @@ const CustomerDetailCard = ({ open, onClose, customer, onUpdate }) => {
           </ScrollArea>
 
           {/* Footer */}
-          <div className="px-6 py-4 border-t border-slate-200 flex justify-between">
+          <div className="px-6 py-4 border-t border-border flex justify-between">
             <Button 
               variant={customer.is_followup ? "destructive" : "outline"}
               onClick={handleToggleFollowup}

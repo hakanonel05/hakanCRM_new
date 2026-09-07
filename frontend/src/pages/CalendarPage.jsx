@@ -61,15 +61,15 @@ const CalendarPage = () => {
       {/* Legend */}
       <div className="flex flex-wrap gap-3 sm:gap-4 px-4 sm:px-0 my-3">
         <div className="flex items-center gap-1.5">
-          <div className="w-3 h-3 rounded-full bg-emerald-500"></div>
+          <div className="w-3 h-3 rounded-full bg-status-success-fg"></div>
           <span className="text-xs sm:text-sm text-muted-foreground">Yapılan Ziyaret</span>
         </div>
         <div className="flex items-center gap-1.5">
-          <div className="w-3 h-3 rounded-full bg-blue-500"></div>
+          <div className="w-3 h-3 rounded-full bg-primary"></div>
           <span className="text-xs sm:text-sm text-muted-foreground">Planlanan Ziyaret</span>
         </div>
         <div className="flex items-center gap-1.5">
-          <div className="w-3 h-3 rounded-full bg-amber-500"></div>
+          <div className="w-3 h-3 rounded-full bg-status-warning-bg"></div>
           <span className="text-xs sm:text-sm text-muted-foreground">Takip</span>
         </div>
       </div>

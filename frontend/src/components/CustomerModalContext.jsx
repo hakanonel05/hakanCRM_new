@@ -69,7 +69,7 @@ export const CustomerModalProvider = ({ children }) => {
           aria-describedby={undefined}
         >
           {/* Top bar with Full Page + Close */}
-          <div className="flex items-center justify-between px-4 py-2 border-b border-border bg-muted/40 backdrop-blur z-10">
+          <div className="flex items-center justify-between px-4 py-2 border-b border-border bg-muted/40  z-10">
             <div className="text-xs text-muted-foreground font-medium">Müşteri Detayı</div>
             <div className="flex items-center gap-1">
               <Button

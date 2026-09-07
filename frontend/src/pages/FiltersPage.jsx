@@ -63,12 +63,12 @@ const OPERATORS = [
 
 // Row colors for table
 const ROW_COLORS = [
-  "bg-blue-50 hover:bg-blue-100",
-  "bg-emerald-50 hover:bg-emerald-100",
-  "bg-amber-50 hover:bg-amber-100",
-  "bg-purple-50 hover:bg-purple-100",
-  "bg-rose-50 hover:bg-rose-100",
-  "bg-cyan-50 hover:bg-cyan-100",
+  "bg-status-info-bg hover:bg-status-info-bg",
+  "bg-status-success-bg hover:bg-status-success-bg",
+  "bg-status-warning-bg hover:bg-status-warning-bg",
+  "bg-status-info-bg hover:bg-status-info-bg",
+  "bg-status-danger-bg hover:bg-status-danger-bg",
+  "bg-status-info-bg hover:bg-status-info-bg",
 ];
 
 const FiltersPage = () => {
@@ -387,7 +387,7 @@ const FiltersPage = () => {
               className={`px-4 py-2 rounded-t-lg font-medium text-sm flex items-center gap-2 transition-all border-b-2 cursor-pointer select-none ${
                 isActive 
                   ? `${colorClass} border-primary text-primary` 
-                  : "bg-muted hover:bg-slate-200 border-transparent text-muted-foreground"
+                  : "bg-muted hover:bg-muted border-transparent text-muted-foreground"
               }`}
             >
               <span className="whitespace-nowrap">{filter.name}</span>
@@ -405,7 +405,7 @@ const FiltersPage = () => {
                 <button
                   type="button"
                   onClick={(e) => handleDeleteFilter(filter.id, e)}
-                  className="p-1 hover:bg-card/50 rounded text-red-500"
+                  className="p-1 hover:bg-card/50 rounded text-status-danger-fg"
                 >
                   <Trash2 className="w-3 h-3" />
                 </button>
@@ -414,7 +414,7 @@ const FiltersPage = () => {
           );
         })}
         {savedFilters.length === 0 && (
-          <p className="text-muted-foreground/70 text-sm py-2">Henüz filtre yok. Yeni bir filtre oluşturun.</p>
+          <p className="text-muted-foreground text-sm py-2">Henüz filtre yok. Yeni bir filtre oluşturun.</p>
         )}
       </div>
 
@@ -424,7 +424,7 @@ const FiltersPage = () => {
           <div className="flex items-center justify-between mb-3 flex-shrink-0">
             <div className="flex items-center gap-2">
               <h3 className="font-semibold text-foreground">{activeFilter.name}</h3>
-              <Badge className="bg-blue-100 text-primary">
+              <Badge className="bg-status-info-bg text-primary">
                 {filteredCustomers.length} sonuç
               </Badge>
             </div>
@@ -471,26 +471,26 @@ const FiltersPage = () => {
                         className={`border-b border-border cursor-pointer transition-colors ${rowColor}`}
                         onClick={() => openCustomerModal(customer.id)}
                       >
-                        <td className="px-3 py-2 text-xs text-muted-foreground/70">{index + 1}</td>
+                        <td className="px-3 py-2 text-xs text-muted-foreground">{index + 1}</td>
                         <td className="px-3 py-2">
                           <div className="flex items-center gap-2">
-                            <div className="w-7 h-7 bg-blue-500 rounded flex items-center justify-center text-white font-semibold text-xs">
+                            <div className="w-7 h-7 bg-primary rounded flex items-center justify-center text-white font-semibold text-xs">
                               {customer.company_name?.charAt(0) || "?"}
                             </div>
                             <span className="font-medium text-sm">{customer.company_name || "-"}</span>
                             {customer.is_followup && (
-                              <Bell className="w-3.5 h-3.5 text-amber-500" />
+                              <Bell className="w-3.5 h-3.5 text-status-warning-fg" />
                             )}
                           </div>
                         </td>
                         <td className="px-3 py-2">
                           {customer.market ? (
-                            <Badge className="bg-purple-100 text-purple-700 text-xs">{customer.market}</Badge>
+                            <Badge className="bg-status-info-bg text-status-info-fg text-xs">{customer.market}</Badge>
                           ) : "-"}
                         </td>
                         <td className="px-3 py-2">
                           {customer.application ? (
-                            <Badge className="bg-blue-100 text-primary text-xs">{customer.application}</Badge>
+                            <Badge className="bg-status-info-bg text-primary text-xs">{customer.application}</Badge>
                           ) : "-"}
                         </td>
                         <td className="px-3 py-2 text-sm">{customer.city || "-"}</td>
@@ -510,12 +510,12 @@ const FiltersPage = () => {
                         </td>
                         <td className="px-3 py-2">
                           {customer.competitor ? (
-                            <Badge className="bg-rose-100 text-rose-700 text-xs">{customer.competitor}</Badge>
+                            <Badge className="bg-status-danger-bg text-status-danger-fg text-xs">{customer.competitor}</Badge>
                           ) : "-"}
                         </td>
                         <td className="px-3 py-2">
                           {customer.partner ? (
-                            <Badge className="bg-emerald-100 text-emerald-700 text-xs">{customer.partner}</Badge>
+                            <Badge className="bg-status-success-bg text-status-success-fg text-xs">{customer.partner}</Badge>
                           ) : "-"}
                         </td>
                         <td className="px-3 py-2">
@@ -531,15 +531,15 @@ const FiltersPage = () => {
                         <td className="px-3 py-2">
                           {customer.potential_level ? (
                             <Badge className={
-                              customer.potential_level === "Yüksek" ? "bg-emerald-100 text-emerald-700 text-xs" :
-                              customer.potential_level === "Orta" ? "bg-amber-100 text-amber-700 text-xs" :
+                              customer.potential_level === "Yüksek" ? "bg-status-success-bg text-status-success-fg text-xs" :
+                              customer.potential_level === "Orta" ? "bg-status-warning-bg text-status-warning-fg text-xs" :
                               "bg-muted text-foreground text-xs"
                             }>{customer.potential_level}</Badge>
                           ) : "-"}
                         </td>
                         <td className="px-3 py-2">
                           {customer.status ? (
-                            <Badge className="bg-cyan-100 text-cyan-700 text-xs">{customer.status}</Badge>
+                            <Badge className="bg-status-info-bg text-status-info-fg text-xs">{customer.status}</Badge>
                           ) : "-"}
                         </td>
                         <td className="px-3 py-2 text-sm">{customer.assigned_to || "-"}</td>
@@ -549,7 +549,7 @@ const FiltersPage = () => {
                 </tbody>
               </table>
               {filteredCustomers.length === 0 && (
-                <div className="text-center py-12 text-muted-foreground/70">
+                <div className="text-center py-12 text-muted-foreground">
                   <Filter className="w-12 h-12 mx-auto mb-3 opacity-50" />
                   <p>Filtre koşullarına uyan müşteri bulunamadı</p>
                 </div>
@@ -559,7 +559,7 @@ const FiltersPage = () => {
         </div>
       ) : (
         <div className="flex-1 flex items-center justify-center">
-          <div className="text-center text-muted-foreground/70">
+          <div className="text-center text-muted-foreground">
             <Filter className="w-16 h-16 mx-auto mb-4 opacity-30" />
             <h3 className="text-lg font-medium text-muted-foreground mb-2">Bir Filtre Seçin</h3>
             <p className="max-w-md">
@@ -695,7 +695,7 @@ const FiltersPage = () => {
                         className="h-7 w-7"
                         onClick={() => removeFilterCondition(index)}
                       >
-                        <X className="w-3.5 h-3.5 text-red-500" />
+                        <X className="w-3.5 h-3.5 text-status-danger-fg" />
                       </Button>
                     )}
                   </div>

@@ -141,7 +141,7 @@ const ProductsCell = memo(function ProductsCell({ customer, onUpdate, options, o
               </Badge>
             ))
           ) : (
-            <span className="text-muted-foreground/70 text-xs">+ Ekle</span>
+            <span className="text-muted-foreground text-xs">+ Ekle</span>
           )}
           {products.length > 2 && (
             <Badge variant="outline" className="text-[10px] h-5">
@@ -161,7 +161,7 @@ const ProductsCell = memo(function ProductsCell({ customer, onUpdate, options, o
                 <Badge key={idx} variant="secondary" className="text-xs pr-1">
                   {p}
                   <button
-                    className="ml-1 hover:text-red-500"
+                    className="ml-1 hover:text-status-danger-fg"
                     onClick={() => removeProduct(p)}
                   >
                     <X className="w-3 h-3" />
@@ -214,35 +214,39 @@ const ProductsCell = memo(function ProductsCell({ customer, onUpdate, options, o
   );
 });
 
-// Airtable-style colors for tags
+/* Kategori etiketleri tek renk — sessiz gri hap.
+   Altı ayrı renge dağıtılıyordu; kategori bir DURUM değil, renklendirmek
+   bilgi taşımıyor. Bu palette yeşil ve kırmızının işi belli (başarı/hata);
+   market ya da şehir adına dağıtılınca o anlam bozuluyor.
+   Gerçek durumlar (CALL_OUTCOME_COLORS, STATUS_OPTIONS) renkli kalıyor. */
 const TAG_COLORS = {
-  emerald: "bg-emerald-100 text-emerald-800",
-  blue: "bg-blue-100 text-blue-800",
-  purple: "bg-purple-100 text-purple-800",
-  amber: "bg-amber-100 text-amber-800",
-  rose: "bg-rose-100 text-rose-800",
-  cyan: "bg-cyan-100 text-cyan-800",
+  emerald: "bg-muted text-foreground",
+  blue: "bg-muted text-foreground",
+  purple: "bg-muted text-foreground",
+  amber: "bg-muted text-foreground",
+  rose: "bg-muted text-foreground",
+  cyan: "bg-muted text-foreground",
 };
 
 // Call outcome colors — pastel pill (rounded-md, no border)
 const CALL_OUTCOME_COLORS = {
-  "Olumlu": "bg-emerald-100 text-emerald-700",
-  "Olumsuz": "bg-red-100 text-red-700",
-  "Aranacak": "bg-amber-100 text-amber-700",
-  "Beklemede": "bg-blue-100 text-primary",
-  "Görüşüldü": "bg-purple-100 text-purple-700",
-  "İlgileniyor": "bg-cyan-100 text-cyan-700",
+  "Olumlu": "bg-status-success-bg text-status-success-fg",
+  "Olumsuz": "bg-status-danger-bg text-status-danger-fg",
+  "Aranacak": "bg-status-warning-bg text-status-warning-fg",
+  "Beklemede": "bg-status-info-bg text-primary",
+  "Görüşüldü": "bg-status-info-bg text-status-info-fg",
+  "İlgileniyor": "bg-status-info-bg text-status-info-fg",
   "Teklif Verildi": "bg-primary-fixed/60 text-primary",
 };
 
 // Fixed status options - synced with Kanban columns
 const STATUS_OPTIONS = [
-  { value: "Beklemede", label: "Beklemede", bg: "bg-amber-100", text: "text-amber-700", border: "border-transparent" },
-  { value: "İletişimde", label: "İletişimde", bg: "bg-blue-100", text: "text-primary", border: "border-transparent" },
-  { value: "Teklif Verildi", label: "Teklif Verildi", bg: "bg-purple-100", text: "text-purple-700", border: "border-transparent" },
-  { value: "Çalışılıyor", label: "Çalışılıyor", bg: "bg-emerald-100", text: "text-emerald-700", border: "border-transparent" },
-  { value: "Kazanıldı", label: "Kazanıldı", bg: "bg-green-100", text: "text-green-700", border: "border-transparent" },
-  { value: "Kaybedildi", label: "Kaybedildi", bg: "bg-red-100", text: "text-red-700", border: "border-transparent" },
+  { value: "Beklemede", label: "Beklemede", bg: "bg-status-warning-bg", text: "text-status-warning-fg", border: "border-transparent" },
+  { value: "İletişimde", label: "İletişimde", bg: "bg-status-info-bg", text: "text-primary", border: "border-transparent" },
+  { value: "Teklif Verildi", label: "Teklif Verildi", bg: "bg-status-info-bg", text: "text-status-info-fg", border: "border-transparent" },
+  { value: "Çalışılıyor", label: "Çalışılıyor", bg: "bg-status-success-bg", text: "text-status-success-fg", border: "border-transparent" },
+  { value: "Kazanıldı", label: "Kazanıldı", bg: "bg-status-success-bg", text: "text-status-success-fg", border: "border-transparent" },
+  { value: "Kaybedildi", label: "Kaybedildi", bg: "bg-status-danger-bg", text: "text-status-danger-fg", border: "border-transparent" },
 ];
 
 const STATUS_COLOR_MAP = Object.fromEntries(
@@ -251,14 +255,14 @@ const STATUS_COLOR_MAP = Object.fromEntries(
 
 // Avatar palette — flat pastel circles, deterministic by company name
 const AVATAR_GRADIENTS = [
-  "bg-violet-100 text-violet-700",
-  "bg-emerald-100 text-emerald-700",
-  "bg-amber-100 text-amber-700",
-  "bg-rose-100 text-rose-700",
-  "bg-blue-100 text-blue-700",
-  "bg-fuchsia-100 text-fuchsia-700",
-  "bg-cyan-100 text-cyan-700",
-  "bg-lime-100 text-lime-700",
+  "bg-status-info-bg text-status-info-fg",
+  "bg-status-success-bg text-status-success-fg",
+  "bg-status-warning-bg text-status-warning-fg",
+  "bg-status-danger-bg text-status-danger-fg",
+  "bg-status-info-bg text-status-info-fg",
+  "bg-status-info-bg text-status-info-fg",
+  "bg-status-info-bg text-status-info-fg",
+  "bg-status-success-bg text-status-success-fg",
 ];
 
 // Tamamen büyük harfle girilmiş firma isimlerini (ör. "ZORLU DEĞİRMEN") okunaklı
@@ -1144,7 +1148,7 @@ const Customers = () => {
         className="cursor-text hover:bg-muted px-2 py-1 rounded min-h-[28px] flex items-center"
         onClick={() => startEditing(customer.id, field, customer[field])}
       >
-        {displayValue || <span className="text-muted-foreground/70">-</span>}
+        {displayValue || <span className="text-muted-foreground">-</span>}
       </div>
     );
   };
@@ -1166,7 +1170,7 @@ const Customers = () => {
     if (!ai) return cell;
     return (
       <div
-        className="rounded-md ring-1 ring-rose-400 bg-rose-50/70 dark:bg-rose-950/30 dark:ring-rose-700"
+        className="rounded-md ring-1 ring-status-danger-line bg-status-danger-bg/70 dark:bg-destructive/30 dark:ring-status-danger-line"
         title={`Sistem (AI) doldurdu · güven %${ai.confidence} · ${ai.source}`}
       >
         {cell}
@@ -1204,7 +1208,7 @@ const Customers = () => {
   const renderCallStatusCell = (customer) => {
     const currentOutcome = customerCalls[customer.id] || "";
     const outcomeOptions = ["Olumlu", "Olumsuz", "Aranacak", "Beklemede", "Görüşüldü", "İlgileniyor", "Teklif Verildi"];
-    const colorClass = CALL_OUTCOME_COLORS[currentOutcome] || "bg-muted text-muted-foreground border-slate-200";
+    const colorClass = CALL_OUTCOME_COLORS[currentOutcome] || "bg-muted text-muted-foreground border-border";
     
     return (
       <Select
@@ -1240,7 +1244,7 @@ const Customers = () => {
         displayClass="text-xs truncate block"
         inputClass="h-7 text-xs"
         renderDisplay={(val) => {
-          if (!val) return <span className="text-slate-300">—</span>;
+          if (!val) return <span className="text-primary-foreground">—</span>;
           const url = val.startsWith("http") ? val : `https://${val}`;
           const displayText = val.replace(/^https?:\/\/(www\.)?/, '').replace(/\/$/, '');
           return (
@@ -1264,7 +1268,7 @@ const Customers = () => {
     if (!ai) return cell;
     return (
       <div
-        className="rounded-md ring-1 ring-rose-400 bg-rose-50/70 dark:bg-rose-950/30 dark:ring-rose-700"
+        className="rounded-md ring-1 ring-status-danger-line bg-status-danger-bg/70 dark:bg-destructive/30 dark:ring-status-danger-line"
         title={`Sistem (AI) doldurdu · güven %${ai.confidence} · ${ai.source}`}
       >
         {cell}
@@ -1277,22 +1281,22 @@ const Customers = () => {
     <div className="p-6 space-y-2">
       {[...Array(8)].map((_, i) => (
         <div key={i} className="flex items-center gap-4 py-2.5 px-3 rounded-lg bg-muted/30 animate-pulse">
-          <div className="w-4 h-4 bg-slate-200 rounded" />
-          <div className="h-4 bg-slate-200 rounded w-1/4" />
+          <div className="w-4 h-4 bg-muted rounded" />
+          <div className="h-4 bg-muted rounded w-1/4" />
           <div className="h-4 bg-muted rounded w-1/6" />
           <div className="h-4 bg-muted rounded w-1/6" />
           <div className="h-4 bg-muted rounded w-1/5" />
-          <div className="h-6 bg-slate-200 rounded-full w-20" />
+          <div className="h-6 bg-muted rounded-full w-20" />
         </div>
       ))}
     </div>
   );
 
   return (
-    <div className="flex md:h-screen md:overflow-hidden bg-slate-50" data-testid="customers-page">
+    <div className="flex md:h-screen md:overflow-hidden bg-background" data-testid="customers-page">
       {/* Subtle loading bar at the top (no blocking overlay) */}
       {loading && customers.length > 0 && (
-        <div className="absolute top-0 left-0 right-0 h-0.5 bg-emerald-500 animate-pulse z-50" />
+        <div className="absolute top-0 left-0 right-0 h-0.5 bg-status-success-fg animate-pulse z-50" />
       )}
 
       {/* Main Content */}
@@ -1368,7 +1372,7 @@ const Customers = () => {
               <Button 
                 variant={activeFilters.length > 0 ? "default" : "outline"} 
                 size="sm"
-                className={`rounded-full ${activeFilters.length > 0 ? "bg-primary hover:bg-primary/90" : "border-slate-200"}`}
+                className={`rounded-full ${activeFilters.length > 0 ? "bg-primary hover:bg-primary/90" : "border-border"}`}
               >
                 <SlidersHorizontal className="w-4 h-4 mr-2" />
                 Filtre
@@ -1481,7 +1485,7 @@ const Customers = () => {
                             className="h-7 w-7 flex-shrink-0"
                             onClick={() => removeFilterCondition(index)}
                           >
-                            <X className="w-3.5 h-3.5 text-red-500" />
+                            <X className="w-3.5 h-3.5 text-status-danger-fg" />
                           </Button>
                         )}
                       </div>
@@ -1526,7 +1530,7 @@ const Customers = () => {
 
           {/* Quick Filters */}
           <Select value={marketFilter} onValueChange={setMarketFilter}>
-            <SelectTrigger className="w-[120px] h-8 text-xs rounded-full border-slate-200">
+            <SelectTrigger className="w-[120px] h-8 text-xs rounded-full border-border">
               <SelectValue placeholder="Market" />
             </SelectTrigger>
             <SelectContent>
@@ -1538,7 +1542,7 @@ const Customers = () => {
           </Select>
 
           <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-[120px] h-8 text-xs rounded-full border-slate-200">
+            <SelectTrigger className="w-[120px] h-8 text-xs rounded-full border-border">
               <SelectValue placeholder="Durum" />
             </SelectTrigger>
             <SelectContent>
@@ -1552,7 +1556,7 @@ const Customers = () => {
           </Select>
 
           <Select value={cityFilter} onValueChange={setCityFilter}>
-            <SelectTrigger className="w-[100px] h-8 text-xs rounded-full border-slate-200">
+            <SelectTrigger className="w-[100px] h-8 text-xs rounded-full border-border">
               <SelectValue placeholder="Şehir" />
             </SelectTrigger>
             <SelectContent>
@@ -1564,7 +1568,7 @@ const Customers = () => {
           </Select>
 
           <Select value={applicationFilter} onValueChange={setApplicationFilter}>
-            <SelectTrigger className="w-[120px] h-8 text-xs rounded-full border-slate-200">
+            <SelectTrigger className="w-[120px] h-8 text-xs rounded-full border-border">
               <SelectValue placeholder="Uygulama" />
             </SelectTrigger>
             <SelectContent>
@@ -1576,7 +1580,7 @@ const Customers = () => {
           </Select>
 
           <Select value={competitorFilter} onValueChange={setCompetitorFilter}>
-            <SelectTrigger className="w-[100px] h-8 text-xs rounded-full border-slate-200">
+            <SelectTrigger className="w-[100px] h-8 text-xs rounded-full border-border">
               <SelectValue placeholder="Rakip" />
             </SelectTrigger>
             <SelectContent>
@@ -1588,7 +1592,7 @@ const Customers = () => {
           </Select>
 
           <Select value={partnerFilter} onValueChange={setPartnerFilter}>
-            <SelectTrigger className="w-[100px] h-8 text-xs rounded-full border-slate-200">
+            <SelectTrigger className="w-[100px] h-8 text-xs rounded-full border-border">
               <SelectValue placeholder="Partner" />
             </SelectTrigger>
             <SelectContent>
@@ -1600,7 +1604,7 @@ const Customers = () => {
           </Select>
 
           <Select value={callFilter} onValueChange={setCallFilter}>
-            <SelectTrigger className="w-[100px] h-8 text-xs rounded-full border-slate-200">
+            <SelectTrigger className="w-[100px] h-8 text-xs rounded-full border-border">
               <SelectValue placeholder="Arama" />
             </SelectTrigger>
             <SelectContent>
@@ -1620,9 +1624,9 @@ const Customers = () => {
 
           {/* Sort - minimal */}
           <div className="ml-auto flex items-center gap-1.5">
-            <span className="text-xs text-muted-foreground/70 hidden md:inline">Sırala:</span>
+            <span className="text-xs text-muted-foreground hidden md:inline">Sırala:</span>
             <Select value={sortBy} onValueChange={setSortBy}>
-              <SelectTrigger className="w-[130px] h-8 text-xs rounded-full border-slate-200 bg-card">
+              <SelectTrigger className="w-[130px] h-8 text-xs rounded-full border-border bg-card">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -1635,7 +1639,7 @@ const Customers = () => {
             <Button
               variant="outline"
               size="sm"
-              className="h-8 w-8 p-0 rounded-full border-slate-200 bg-card hover:bg-muted/30"
+              className="h-8 w-8 p-0 rounded-full border-border bg-card hover:bg-muted/30"
               onClick={() => setSortOrder(sortOrder === "asc" ? "desc" : "asc")}
               title={sortOrder === "asc" ? "Artan" : "Azalan"}
             >
@@ -1646,7 +1650,7 @@ const Customers = () => {
 
         {/* Active Filters Display */}
         {activeFilters.length > 0 && (
-          <div className="mb-4 p-2 bg-blue-50 rounded-lg flex items-center gap-2 flex-wrap">
+          <div className="mb-4 p-2 bg-status-info-bg rounded-lg flex items-center gap-2 flex-wrap">
             <span className="text-xs text-primary font-medium">Aktif Filtre:</span>
             {activeFilters.map((f, idx) => (
               <Badge key={idx} variant="secondary" className="bg-card text-xs">
@@ -1664,8 +1668,8 @@ const Customers = () => {
 
         {/* Bulk Actions */}
         {selectedIds.size > 0 && isAdmin && (
-          <div className="flex items-center gap-2 mx-2 sm:mx-6 my-2 px-3 py-2 bg-blue-50 border border-blue-200 rounded-lg flex-wrap" data-testid="bulk-actions-bar">
-            <span className="text-sm font-medium text-blue-900">
+          <div className="flex items-center gap-2 mx-2 sm:mx-6 my-2 px-3 py-2 bg-status-info-bg border border-status-info-line rounded-lg flex-wrap" data-testid="bulk-actions-bar">
+            <span className="text-sm font-medium text-status-info-fg">
               <span className="tabular-nums">{selectedIds.size}</span> seçili
             </span>
             <Button
@@ -1717,16 +1721,16 @@ const Customers = () => {
             bottom, regardless of how tall the header/filter bar above it
             end up being). */}
         <div 
-          className="bg-card rounded-xl border border-border shadow-sm flex flex-col w-full mx-2 sm:mx-6 my-2 sm:my-3 flex-1 min-h-0"
+          className="bg-card rounded-xl border border-border shadow-none flex flex-col w-full mx-2 sm:mx-6 my-2 sm:my-3 flex-1 min-h-0"
         >
           {/* Initial loading skeleton */}
           {loading && customers.length === 0 ? (
             renderTableSkeleton()
           ) : displayCustomers.length === 0 ? (
-            <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground/70 p-8">
+            <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground p-8">
               <Building2 className="w-12 h-12 mb-3 opacity-40" />
               <p className="text-sm font-medium text-muted-foreground">Müşteri bulunamadı</p>
-              <p className="text-xs text-muted-foreground/70 mt-1">
+              <p className="text-xs text-muted-foreground mt-1">
                 {hasActiveFilters ? "Filtreleri temizleyip tekrar deneyin" : "Yeni müşteri eklemek için yukarıdaki butonu kullanın"}
               </p>
             </div>
@@ -1747,14 +1751,14 @@ const Customers = () => {
             id="customer-table-scroll"
           >
             <table style={{ tableLayout: 'fixed', width: '100%' }}>
-              <thead className="sticky top-0 z-10 bg-slate-50/95 backdrop-blur-md">
+              <thead className="sticky top-0 z-10 bg-background/95 ">
                 <tr className="border-b border-border">
                   {isAdmin && (
                     <th style={{ width: columnWidths.checkbox }} className="px-2 py-3 relative">
                       <Checkbox checked={selectAll} onCheckedChange={toggleSelectAll} />
                     </th>
                   )}
-                  <th style={{ width: columnWidths.company_name }} className="px-2 py-3 text-left text-[10px] font-bold uppercase tracking-[0.08em] text-muted-foreground/80 relative group">
+                  <th style={{ width: columnWidths.company_name }} className="px-2 py-3 text-left text-[10px] font-bold uppercase tracking-[0.08em] text-muted-foreground relative group">
                     Firma Adı
                     <div 
                       className="absolute right-0 top-0 h-full w-1 cursor-col-resize opacity-0 group-hover:opacity-100 hover:bg-primary/40 active:bg-primary z-10 transition-opacity" 
@@ -1762,7 +1766,7 @@ const Customers = () => {
                       onMouseDown={(e) => handleResizeStart(e, 'company_name')} 
                     />
                   </th>
-                  <th style={{ width: columnWidths.market }} className="px-2 py-3 text-left text-[10px] font-bold uppercase tracking-[0.08em] text-muted-foreground/80 relative group">
+                  <th style={{ width: columnWidths.market }} className="px-2 py-3 text-left text-[10px] font-bold uppercase tracking-[0.08em] text-muted-foreground relative group">
                     Market
                     <div 
                       className="absolute right-0 top-0 h-full w-1 cursor-col-resize opacity-0 group-hover:opacity-100 hover:bg-primary/40 active:bg-primary z-10 transition-opacity" 
@@ -1770,7 +1774,7 @@ const Customers = () => {
                       onMouseDown={(e) => handleResizeStart(e, 'market')} 
                     />
                   </th>
-                  <th style={{ width: columnWidths.application }} className="px-2 py-3 text-left text-[10px] font-bold uppercase tracking-[0.08em] text-muted-foreground/80 relative group">
+                  <th style={{ width: columnWidths.application }} className="px-2 py-3 text-left text-[10px] font-bold uppercase tracking-[0.08em] text-muted-foreground relative group">
                     Uygulama
                     <div 
                       className="absolute right-0 top-0 h-full w-1 cursor-col-resize opacity-0 group-hover:opacity-100 hover:bg-primary/40 active:bg-primary z-10 transition-opacity" 
@@ -1778,7 +1782,7 @@ const Customers = () => {
                       onMouseDown={(e) => handleResizeStart(e, 'application')} 
                     />
                   </th>
-                  <th style={{ width: columnWidths.city }} className="px-2 py-3 text-left text-[10px] font-bold uppercase tracking-[0.08em] text-muted-foreground/80 relative group">
+                  <th style={{ width: columnWidths.city }} className="px-2 py-3 text-left text-[10px] font-bold uppercase tracking-[0.08em] text-muted-foreground relative group">
                     Şehir
                     <div 
                       className="absolute right-0 top-0 h-full w-1 cursor-col-resize opacity-0 group-hover:opacity-100 hover:bg-primary/40 active:bg-primary z-10 transition-opacity" 
@@ -1786,7 +1790,7 @@ const Customers = () => {
                       onMouseDown={(e) => handleResizeStart(e, 'city')} 
                     />
                   </th>
-                  <th style={{ width: columnWidths.district }} className="px-2 py-3 text-left text-[10px] font-bold uppercase tracking-[0.08em] text-muted-foreground/80 relative group">
+                  <th style={{ width: columnWidths.district }} className="px-2 py-3 text-left text-[10px] font-bold uppercase tracking-[0.08em] text-muted-foreground relative group">
                     İlçe
                     <div 
                       className="absolute right-0 top-0 h-full w-1 cursor-col-resize opacity-0 group-hover:opacity-100 hover:bg-primary/40 active:bg-primary z-10 transition-opacity" 
@@ -1794,7 +1798,7 @@ const Customers = () => {
                       onMouseDown={(e) => handleResizeStart(e, 'district')} 
                     />
                   </th>
-                  <th style={{ width: columnWidths.web }} className="px-2 py-3 text-left text-[10px] font-bold uppercase tracking-[0.08em] text-muted-foreground/80 relative group">
+                  <th style={{ width: columnWidths.web }} className="px-2 py-3 text-left text-[10px] font-bold uppercase tracking-[0.08em] text-muted-foreground relative group">
                     Web
                     <div 
                       className="absolute right-0 top-0 h-full w-1 cursor-col-resize opacity-0 group-hover:opacity-100 hover:bg-primary/40 active:bg-primary z-10 transition-opacity" 
@@ -1802,7 +1806,7 @@ const Customers = () => {
                       onMouseDown={(e) => handleResizeStart(e, 'web')} 
                     />
                   </th>
-                  <th style={{ width: columnWidths.competitor }} className="px-2 py-3 text-left text-[10px] font-bold uppercase tracking-[0.08em] text-muted-foreground/80 relative group">
+                  <th style={{ width: columnWidths.competitor }} className="px-2 py-3 text-left text-[10px] font-bold uppercase tracking-[0.08em] text-muted-foreground relative group">
                     Rakip
                     <div 
                       className="absolute right-0 top-0 h-full w-1 cursor-col-resize opacity-0 group-hover:opacity-100 hover:bg-primary/40 active:bg-primary z-10 transition-opacity" 
@@ -1810,7 +1814,7 @@ const Customers = () => {
                       onMouseDown={(e) => handleResizeStart(e, 'competitor')} 
                     />
                   </th>
-                  <th style={{ width: columnWidths.partner }} className="px-2 py-3 text-left text-[10px] font-bold uppercase tracking-[0.08em] text-muted-foreground/80 relative group">
+                  <th style={{ width: columnWidths.partner }} className="px-2 py-3 text-left text-[10px] font-bold uppercase tracking-[0.08em] text-muted-foreground relative group">
                     Partner
                     <div 
                       className="absolute right-0 top-0 h-full w-1 cursor-col-resize opacity-0 group-hover:opacity-100 hover:bg-primary/40 active:bg-primary z-10 transition-opacity" 
@@ -1818,7 +1822,7 @@ const Customers = () => {
                       onMouseDown={(e) => handleResizeStart(e, 'partner')} 
                     />
                   </th>
-                  <th style={{ width: columnWidths.products }} className="px-2 py-3 text-left text-[10px] font-bold uppercase tracking-[0.08em] text-muted-foreground/80 relative group">
+                  <th style={{ width: columnWidths.products }} className="px-2 py-3 text-left text-[10px] font-bold uppercase tracking-[0.08em] text-muted-foreground relative group">
                     Ürünler
                     <div 
                       className="absolute right-0 top-0 h-full w-1 cursor-col-resize opacity-0 group-hover:opacity-100 hover:bg-primary/40 active:bg-primary z-10 transition-opacity" 
@@ -1826,7 +1830,7 @@ const Customers = () => {
                       onMouseDown={(e) => handleResizeStart(e, 'products')} 
                     />
                   </th>
-                  <th style={{ width: columnWidths.potential }} className="px-2 py-3 text-left text-[10px] font-bold uppercase tracking-[0.08em] text-muted-foreground/80 relative group">
+                  <th style={{ width: columnWidths.potential }} className="px-2 py-3 text-left text-[10px] font-bold uppercase tracking-[0.08em] text-muted-foreground relative group">
                     Potansiyel Seviye
                     <div 
                       className="absolute right-0 top-0 h-full w-1 cursor-col-resize opacity-0 group-hover:opacity-100 hover:bg-primary/40 active:bg-primary z-10 transition-opacity" 
@@ -1834,7 +1838,7 @@ const Customers = () => {
                       onMouseDown={(e) => handleResizeStart(e, 'potential')} 
                     />
                   </th>
-                  <th style={{ width: columnWidths.potential_value }} className="px-2 py-3 text-left text-[10px] font-bold uppercase tracking-[0.08em] text-muted-foreground/80 relative group">
+                  <th style={{ width: columnWidths.potential_value }} className="px-2 py-3 text-left text-[10px] font-bold uppercase tracking-[0.08em] text-muted-foreground relative group">
                     Potansiyel (k€)
                     <div 
                       className="absolute right-0 top-0 h-full w-1 cursor-col-resize opacity-0 group-hover:opacity-100 hover:bg-primary/40 active:bg-primary z-10 transition-opacity" 
@@ -1842,7 +1846,7 @@ const Customers = () => {
                       onMouseDown={(e) => handleResizeStart(e, 'potential_value')} 
                     />
                   </th>
-                  <th style={{ width: columnWidths.status }} className="px-2 py-3 text-left text-[10px] font-bold uppercase tracking-[0.08em] text-muted-foreground/80 relative group">
+                  <th style={{ width: columnWidths.status }} className="px-2 py-3 text-left text-[10px] font-bold uppercase tracking-[0.08em] text-muted-foreground relative group">
                     Durum
                     <div 
                       className="absolute right-0 top-0 h-full w-1 cursor-col-resize opacity-0 group-hover:opacity-100 hover:bg-primary/40 active:bg-primary z-10 transition-opacity" 
@@ -1850,7 +1854,7 @@ const Customers = () => {
                       onMouseDown={(e) => handleResizeStart(e, 'status')} 
                     />
                   </th>
-                  <th style={{ width: columnWidths.call }} className="px-2 py-3 text-left text-[10px] font-bold uppercase tracking-[0.08em] text-muted-foreground/80 relative group">
+                  <th style={{ width: columnWidths.call }} className="px-2 py-3 text-left text-[10px] font-bold uppercase tracking-[0.08em] text-muted-foreground relative group">
                     Arama
                     <div 
                       className="absolute right-0 top-0 h-full w-1 cursor-col-resize opacity-0 group-hover:opacity-100 hover:bg-primary/40 active:bg-primary z-10 transition-opacity" 
@@ -1858,7 +1862,7 @@ const Customers = () => {
                       onMouseDown={(e) => handleResizeStart(e, 'call')} 
                     />
                   </th>
-                  <th style={{ width: columnWidths.assigned }} className="px-2 py-3 text-left text-[10px] font-bold uppercase tracking-[0.08em] text-muted-foreground/80 relative group">
+                  <th style={{ width: columnWidths.assigned }} className="px-2 py-3 text-left text-[10px] font-bold uppercase tracking-[0.08em] text-muted-foreground relative group">
                     Takip Eden
                     <div 
                       className="absolute right-0 top-0 h-full w-1 cursor-col-resize opacity-0 group-hover:opacity-100 hover:bg-primary/40 active:bg-primary z-10 transition-opacity" 
@@ -1928,7 +1932,7 @@ const Customers = () => {
                                 </span>
                               ))}
                               {customer._matchInfo.fields.length > 2 && (
-                                <span className="text-[9.5px] text-muted-foreground/70 font-medium">
+                                <span className="text-[9.5px] text-muted-foreground font-medium">
                                   +{customer._matchInfo.fields.length - 2}
                                 </span>
                               )}
@@ -1936,7 +1940,7 @@ const Customers = () => {
                           )}
                         </div>
                         <div className="flex items-center gap-1 flex-shrink-0">
-                          {customer.is_followup && <Bell className="w-3.5 h-3.5 text-amber-500" title="Takipte" />}
+                          {customer.is_followup && <Bell className="w-3.5 h-3.5 text-status-warning-fg" title="Takipte" />}
                         </div>
                       </div>
                     </td>
@@ -1979,7 +1983,7 @@ const Customers = () => {
                     >
                       {customer.potential_value
                         ? `${Number(customer.potential_value).toLocaleString("tr-TR")} k€`
-                        : <span className="text-muted-foreground/40">—</span>}
+                        : <span className="text-muted-foreground">—</span>}
                     </td>
                     <td style={{ width: columnWidths.status }} className="px-2 py-2.5 overflow-hidden">
                       {renderStatusCell(customer)}
@@ -1999,8 +2003,8 @@ const Customers = () => {
           
           {/* Pagination - Bottom bar */}
           {totalPages > 1 && (
-            <div className="flex items-center justify-between px-4 py-2.5 border-t border-border bg-slate-50">
-              <span className="text-xs text-slate-500">
+            <div className="flex items-center justify-between px-4 py-2.5 border-t border-border bg-background">
+              <span className="text-xs text-muted-foreground">
                 Sayfa <span className="font-medium text-foreground">{currentPage}</span> / {totalPages} • {totalItems.toLocaleString("tr-TR")} kayıt
               </span>
               <div className="flex items-center gap-1">
@@ -2057,7 +2061,7 @@ const Customers = () => {
               placeholder="Örn: İstanbul Yüksek Potansiyel"
               className="mt-1"
             />
-            <p className="text-xs text-slate-500 mt-2">
+            <p className="text-xs text-muted-foreground mt-2">
               {filterConditions.filter(c => c.operator === "is_empty" || c.operator === "is_not_empty" || c.value).length} koşul kaydedilecek
             </p>
           </div>
@@ -2085,7 +2089,7 @@ const Customers = () => {
           </DialogHeader>
           <div className="space-y-3 py-2">
             <div>
-              <Label className="text-xs text-slate-500 mb-1 block">Alan</Label>
+              <Label className="text-xs text-muted-foreground mb-1 block">Alan</Label>
               <Select value={bulkUpdateField} onValueChange={setBulkUpdateField}>
                 <SelectTrigger className="h-9" data-testid="bulk-field-select">
                   <SelectValue />
@@ -2105,7 +2109,7 @@ const Customers = () => {
               </Select>
             </div>
             <div>
-              <Label className="text-xs text-slate-500 mb-1 block">
+              <Label className="text-xs text-muted-foreground mb-1 block">
                 Yeni Değer
               </Label>
               {bulkUpdateField === "status" ? (
@@ -2129,7 +2133,7 @@ const Customers = () => {
                 />
               )}
             </div>
-            <div className="bg-amber-50 border border-amber-200 rounded-md p-2.5 text-xs text-amber-900">
+            <div className="bg-status-warning-bg border border-status-warning-line rounded-md p-2.5 text-xs text-status-warning-fg">
               <strong>Dikkat:</strong> Bu değer seçili tüm müşterilerin "{bulkUpdateField}" alanının üzerine yazılır. Geri alınamaz.
             </div>
           </div>

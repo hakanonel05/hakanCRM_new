@@ -51,15 +51,15 @@ const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 // Dynamic column colors
 const COLUMN_COLORS = {
   // Status colors — glass style
-  "Beklemede": { bg: "bg-white/20", border: "border-white/40", header: "bg-amber-100/60", text: "text-amber-800", badge: "bg-amber-500" },
+  "Beklemede": { bg: "bg-white/20", border: "border-white/40", header: "bg-status-warning-bg/60", text: "text-status-warning-fg", badge: "bg-status-warning-bg" },
   "İletişimde": { bg: "bg-white/20", border: "border-white/40", header: "bg-primary-fixed/50", text: "text-primary", badge: "bg-primary" },
   "Teklif Verildi": { bg: "bg-white/20", border: "border-white/40", header: "bg-tertiary-fixed/50", text: "text-tertiary-md", badge: "bg-tertiary-md" },
-  "Çalışılıyor": { bg: "bg-white/20", border: "border-white/40", header: "bg-emerald-100/60", text: "text-emerald-800", badge: "bg-emerald-500" },
+  "Çalışılıyor": { bg: "bg-white/20", border: "border-white/40", header: "bg-status-success-bg/60", text: "text-status-success-fg", badge: "bg-status-success-fg" },
   "Kazanıldı": { bg: "bg-white/20", border: "border-white/40", header: "bg-secondary-container/60", text: "text-secondary-md", badge: "bg-secondary-md" },
-  "Kaybedildi": { bg: "bg-white/20", border: "border-white/40", header: "bg-red-100/60", text: "text-red-800", badge: "bg-red-500" },
+  "Kaybedildi": { bg: "bg-white/20", border: "border-white/40", header: "bg-status-danger-bg/60", text: "text-status-danger-fg", badge: "bg-destructive" },
   // Potential level colors
-  "Yüksek": { bg: "bg-white/20", border: "border-white/40", header: "bg-emerald-100/60", text: "text-emerald-800", badge: "bg-emerald-500" },
-  "Orta": { bg: "bg-white/20", border: "border-white/40", header: "bg-amber-100/60", text: "text-amber-800", badge: "bg-amber-500" },
+  "Yüksek": { bg: "bg-white/20", border: "border-white/40", header: "bg-status-success-bg/60", text: "text-status-success-fg", badge: "bg-status-success-fg" },
+  "Orta": { bg: "bg-white/20", border: "border-white/40", header: "bg-status-warning-bg/60", text: "text-status-warning-fg", badge: "bg-status-warning-bg" },
   "Düşük": { bg: "bg-white/20", border: "border-white/40", header: "bg-surface-container/60", text: "text-on-surface-variant", badge: "bg-outline-md" },
   // Default/fallback
   "Atanmamış": { bg: "bg-white/20", border: "border-white/40", header: "bg-surface-container/60", text: "text-on-surface-variant", badge: "bg-outline-md" },
@@ -68,15 +68,15 @@ const COLUMN_COLORS = {
 // Dynamic color palette for unknown columns — glass style
 const DYNAMIC_COLOR_PALETTE = [
   { bg: "bg-white/20", border: "border-white/40", header: "bg-primary-fixed/50", text: "text-primary", badge: "bg-primary" },
-  { bg: "bg-white/20", border: "border-white/40", header: "bg-emerald-100/60", text: "text-emerald-800", badge: "bg-emerald-500" },
+  { bg: "bg-white/20", border: "border-white/40", header: "bg-status-success-bg/60", text: "text-status-success-fg", badge: "bg-status-success-fg" },
   { bg: "bg-white/20", border: "border-white/40", header: "bg-tertiary-fixed/50", text: "text-tertiary-md", badge: "bg-tertiary-md" },
-  { bg: "bg-white/20", border: "border-white/40", header: "bg-amber-100/60", text: "text-amber-800", badge: "bg-amber-500" },
-  { bg: "bg-white/20", border: "border-white/40", header: "bg-red-100/60", text: "text-red-800", badge: "bg-red-500" },
+  { bg: "bg-white/20", border: "border-white/40", header: "bg-status-warning-bg/60", text: "text-status-warning-fg", badge: "bg-status-warning-bg" },
+  { bg: "bg-white/20", border: "border-white/40", header: "bg-status-danger-bg/60", text: "text-status-danger-fg", badge: "bg-destructive" },
   { bg: "bg-white/20", border: "border-white/40", header: "bg-secondary-container/60", text: "text-secondary-md", badge: "bg-secondary-md" },
   { bg: "bg-white/20", border: "border-white/40", header: "bg-primary-container/20", text: "text-primary", badge: "bg-primary-container" },
-  { bg: "bg-white/20", border: "border-white/40", header: "bg-orange-100/60", text: "text-orange-800", badge: "bg-orange-500" },
-  { bg: "bg-white/20", border: "border-white/40", header: "bg-teal-100/60", text: "text-teal-800", badge: "bg-teal-600" },
-  { bg: "bg-white/20", border: "border-white/40", header: "bg-pink-100/60", text: "text-pink-800", badge: "bg-pink-500" },
+  { bg: "bg-white/20", border: "border-white/40", header: "bg-status-warning-bg/60", text: "text-status-warning-fg", badge: "bg-status-warning-bg" },
+  { bg: "bg-white/20", border: "border-white/40", header: "bg-status-success-bg/60", text: "text-status-success-fg", badge: "bg-status-success-fg" },
+  { bg: "bg-white/20", border: "border-white/40", header: "bg-status-info-bg/60", text: "text-status-info-fg", badge: "bg-primary" },
 ];
 
 const getColumnColors = (columnName, index) => {
@@ -290,7 +290,7 @@ const Kanban = () => {
         <div className="page-header">
           <div className="flex-1">
             <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-              <LayoutGrid className="w-6 h-6 text-emerald-600" />
+              <LayoutGrid className="w-6 h-6 text-status-success-fg" />
               Kanban Panosu
             </h1>
             <p className="text-sm text-muted-foreground mt-1">Müşteriler yükleniyor...</p>
@@ -300,11 +300,11 @@ const Kanban = () => {
           <div className="flex gap-3 h-full">
             {[1, 2, 3, 4, 5, 6].map(i => (
               <div key={i} className="flex-shrink-0 w-64 rounded-xl bg-muted/30 border-2 border-border p-3 animate-pulse">
-                <div className="h-6 bg-slate-200 rounded mb-3"></div>
+                <div className="h-6 bg-muted rounded mb-3"></div>
                 <div className="space-y-2">
                   {[1, 2, 3, 4].map(j => (
                     <div key={j} className="bg-card rounded-lg p-3 space-y-2">
-                      <div className="h-4 bg-slate-200 rounded w-3/4"></div>
+                      <div className="h-4 bg-muted rounded w-3/4"></div>
                       <div className="h-3 bg-muted rounded w-1/2"></div>
                       <div className="h-3 bg-muted rounded w-2/3"></div>
                     </div>
@@ -341,7 +341,7 @@ const Kanban = () => {
             <button
               onClick={() => setBoardMode("status")}
               className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
-                boardMode === "status" ? "bg-card shadow-sm text-foreground" : "text-muted-foreground"
+                boardMode === "status" ? "bg-card shadow-none text-foreground" : "text-muted-foreground"
               }`}
               data-testid="board-mode-status"
             >
@@ -350,7 +350,7 @@ const Kanban = () => {
             <button
               onClick={() => setBoardMode("process")}
               className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
-                boardMode === "process" ? "bg-card shadow-sm text-foreground" : "text-muted-foreground"
+                boardMode === "process" ? "bg-card shadow-none text-foreground" : "text-muted-foreground"
               }`}
               data-testid="board-mode-process"
             >
@@ -411,8 +411,8 @@ const Kanban = () => {
                   flex items-center gap-2 px-3 py-1.5 rounded-full text-sm cursor-pointer
                   transition-all flex-shrink-0 group
                   ${activeView?.id === view.id 
-                    ? "bg-blue-100 text-blue-800 border-2 border-blue-300" 
-                    : "bg-muted text-foreground hover:bg-slate-200 border-2 border-transparent"
+                    ? "bg-status-info-bg text-status-info-fg border-2 border-status-info-line" 
+                    : "bg-muted text-foreground hover:bg-muted border-2 border-transparent"
                   }
                 `}
                 data-testid={`view-tab-${view.id}`}
@@ -421,7 +421,7 @@ const Kanban = () => {
                 <span>{view.name}</span>
                 <button
                   onClick={(e) => handleDeleteView(view.id, e)}
-                  className="opacity-0 group-hover:opacity-100 transition-opacity hover:text-red-600"
+                  className="opacity-0 group-hover:opacity-100 transition-opacity hover:text-status-danger-fg"
                   data-testid={`delete-view-${view.id}`}
                 >
                   <X className="w-3 h-3" />
@@ -447,7 +447,7 @@ const Kanban = () => {
               return (
                 <div 
                   key={columnId} 
-                  className={`flex-shrink-0 w-64 rounded-2xl ${colors.bg} ${colors.border} border backdrop-blur-xl shadow-[0_8px_32px_rgba(0,0,0,0.04)] flex flex-col max-h-[calc(100vh-220px)]`}
+                  className={`flex-shrink-0 w-64 rounded-2xl ${colors.bg} ${colors.border} border  shadow-[0_8px_32px_rgba(0,0,0,0.04)] flex flex-col max-h-[calc(100vh-220px)]`}
                   data-testid={`kanban-column-${columnId}`}
                 >
                   {/* Column Header */}
@@ -490,20 +490,20 @@ const Kanban = () => {
                                 <div className="flex items-start gap-2">
                                   <div
                                     {...provided.dragHandleProps}
-                                    className="mt-1 text-muted-foreground/70 opacity-0 group-hover:opacity-100 transition-opacity"
+                                    className="mt-1 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity"
                                   >
                                     <GripVertical className="w-3 h-3" />
                                   </div>
                                   <div className="flex-1 min-w-0">
                                     <div className="flex items-center gap-2">
-                                      <div className="w-6 h-6 bg-blue-500 rounded flex items-center justify-center text-white font-semibold text-xs flex-shrink-0">
+                                      <div className="w-6 h-6 bg-primary rounded flex items-center justify-center text-white font-semibold text-xs flex-shrink-0">
                                         {customer.company_name?.charAt(0) || "?"}
                                       </div>
                                       <div className="flex-1 min-w-0">
                                         <h4 className="font-medium text-foreground text-sm truncate flex items-center gap-1">
                                           {customer.company_name}
                                           {customer.is_followup && (
-                                            <Bell className="w-3 h-3 text-amber-500 flex-shrink-0" />
+                                            <Bell className="w-3 h-3 text-status-warning-fg flex-shrink-0" />
                                           )}
                                         </h4>
                                         {customer.market && (
@@ -516,13 +516,13 @@ const Kanban = () => {
                                     <div className="mt-2 space-y-1">
                                       {customer.contact_info?.contact_person && (
                                         <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                                          <User className="w-3 h-3 text-muted-foreground/70" />
+                                          <User className="w-3 h-3 text-muted-foreground" />
                                           <span className="truncate">{customer.contact_info.contact_person}</span>
                                         </div>
                                       )}
                                       {customer.contact_info?.phone && (
                                         <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                                          <Phone className="w-3 h-3 text-muted-foreground/70" />
+                                          <Phone className="w-3 h-3 text-muted-foreground" />
                                           <span className="truncate">{customer.contact_info.phone}</span>
                                         </div>
                                       )}
@@ -532,8 +532,8 @@ const Kanban = () => {
                                     <div className="mt-2 flex flex-wrap gap-1">
                                       {customer.potential_level && (
                                         <Badge className={`text-[10px] px-1.5 py-0 ${
-                                          customer.potential_level === "Yüksek" ? "bg-emerald-100 text-emerald-700" :
-                                          customer.potential_level === "Orta" ? "bg-amber-100 text-amber-700" :
+                                          customer.potential_level === "Yüksek" ? "bg-status-success-bg text-status-success-fg" :
+                                          customer.potential_level === "Orta" ? "bg-status-warning-bg text-status-warning-fg" :
                                           "bg-muted text-muted-foreground"
                                         }`}>
                                           {customer.potential_level}
@@ -545,7 +545,7 @@ const Kanban = () => {
                                         </Badge>
                                       )}
                                       {currentGroupBy !== "status" && customer.status && (
-                                        <Badge className="text-[10px] px-1.5 py-0 bg-purple-100 text-purple-700">
+                                        <Badge className="text-[10px] px-1.5 py-0 bg-status-info-bg text-status-info-fg">
                                           {customer.status}
                                         </Badge>
                                       )}
@@ -570,7 +570,7 @@ const Kanban = () => {
                         
                         {/* Empty state */}
                         {customers.length === 0 && (
-                          <div className="text-center py-8 text-muted-foreground/70">
+                          <div className="text-center py-8 text-muted-foreground">
                             <Building2 className="w-8 h-8 mx-auto mb-2 opacity-50" />
                             <p className="text-sm">Bu sütunda müşteri yok</p>
                           </div>

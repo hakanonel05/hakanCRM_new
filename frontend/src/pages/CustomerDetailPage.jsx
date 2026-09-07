@@ -68,10 +68,10 @@ const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 // Call status options from image
 const CALL_STATUSES = [
-  { value: "Yapıldı", color: "bg-blue-500 text-white" },
-  { value: "Olumlu", color: "bg-emerald-100 text-emerald-700" },
-  { value: "Olumsuz", color: "bg-red-100 text-red-700" },
-  { value: "Aranacak", color: "bg-amber-100 text-amber-700" },
+  { value: "Yapıldı", color: "bg-primary text-white" },
+  { value: "Olumlu", color: "bg-status-success-bg text-status-success-fg" },
+  { value: "Olumsuz", color: "bg-status-danger-bg text-status-danger-fg" },
+  { value: "Aranacak", color: "bg-status-warning-bg text-status-warning-fg" },
   { value: "Ulaşılamadı", color: "bg-muted text-foreground" }
 ];
 
@@ -681,9 +681,9 @@ const CustomerDetailPage = ({ customerId: propCustomerId, isModal = false, onClo
     return (
       <div className="flex items-center justify-center h-[60vh]">
         <div className="text-center">
-          <div className="w-16 h-16 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin mx-auto mb-4"></div>
+          <div className="w-16 h-16 border-4 border-status-info-line border-t-primary rounded-full animate-spin mx-auto mb-4"></div>
           <p className="text-muted-foreground font-medium">Müşteri bilgileri yükleniyor...</p>
-          <p className="text-sm text-muted-foreground/70">Lütfen bekleyin</p>
+          <p className="text-sm text-muted-foreground">Lütfen bekleyin</p>
         </div>
       </div>
     );
@@ -715,7 +715,7 @@ const CustomerDetailPage = ({ customerId: propCustomerId, isModal = false, onClo
               </Button>
             )}
             <div className="flex items-center gap-3 sm:gap-4 min-w-0">
-              <div className="w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center text-white font-bold text-lg sm:text-xl shadow-lg flex-shrink-0">
+              <div className="w-12 h-12 sm:w-14 sm:h-14 bg-muted from-muted to-muted rounded-xl flex items-center justify-center text-white font-bold text-lg sm:text-xl shadow-none flex-shrink-0">
                 {customer.company_name?.charAt(0) || "?"}
               </div>
               <div className="min-w-0">
@@ -726,7 +726,7 @@ const CustomerDetailPage = ({ customerId: propCustomerId, isModal = false, onClo
                 >
                   <span className="truncate">{customer.company_name || "İsimsiz Firma"}</span>
                   {customer.is_followup && (
-                    <Bell className="w-5 h-5 text-amber-500 fill-amber-200 flex-shrink-0" />
+                    <Bell className="w-5 h-5 text-status-warning-fg fill-status-warning-bg flex-shrink-0" />
                   )}
                 </h1>
                 <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 text-sm text-muted-foreground mt-0.5">
@@ -734,12 +734,12 @@ const CustomerDetailPage = ({ customerId: propCustomerId, isModal = false, onClo
                   {customer.city && <span>{customer.city}</span>}
                   {customer.status && (() => {
                     const statusColorMap = {
-                      "Beklemede": "bg-amber-100 text-amber-700",
-                      "İletişimde": "bg-blue-100 text-primary",
-                      "Teklif Verildi": "bg-purple-100 text-purple-700",
-                      "Çalışılıyor": "bg-emerald-100 text-emerald-700",
-                      "Kazanıldı": "bg-green-100 text-green-700",
-                      "Kaybedildi": "bg-red-100 text-red-700",
+                      "Beklemede": "bg-status-warning-bg text-status-warning-fg",
+                      "İletişimde": "bg-status-info-bg text-primary",
+                      "Teklif Verildi": "bg-status-info-bg text-status-info-fg",
+                      "Çalışılıyor": "bg-status-success-bg text-status-success-fg",
+                      "Kazanıldı": "bg-status-success-bg text-status-success-fg",
+                      "Kaybedildi": "bg-status-danger-bg text-status-danger-fg",
                     };
                     return <Badge className={statusColorMap[customer.status] || "bg-muted text-foreground"}>{customer.status}</Badge>;
                   })()}
@@ -749,7 +749,7 @@ const CustomerDetailPage = ({ customerId: propCustomerId, isModal = false, onClo
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <Button variant="outline" size="sm" onClick={handleToggleFollowup}>
-              <Bell className={`w-4 h-4 sm:mr-1 ${customer.is_followup ? "text-amber-500 fill-amber-500" : ""}`} />
+              <Bell className={`w-4 h-4 sm:mr-1 ${customer.is_followup ? "text-status-warning-fg fill-status-warning-line" : ""}`} />
               <span className="hidden sm:inline">{customer.is_followup ? "Takipten Çıkar" : "Takibe Al"}</span>
             </Button>
             <Button size="sm" onClick={() => setEditModalOpen(true)}>
@@ -776,7 +776,7 @@ const CustomerDetailPage = ({ customerId: propCustomerId, isModal = false, onClo
               {/* Company Info */}
               <div className="bg-card rounded-xl border border-border p-4">
                 <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
-                  <Building2 className="w-4 h-4 text-muted-foreground/70" />
+                  <Building2 className="w-4 h-4 text-muted-foreground" />
                   Firma Bilgileri
                 </h3>
                 <div className="space-y-3">
@@ -786,11 +786,11 @@ const CustomerDetailPage = ({ customerId: propCustomerId, isModal = false, onClo
                     const AiBadge = ({ field }) => ai[field] ? (
                       <span
                         title={`Sistem (AI) otomatik doldurdu · güven %${ai[field].confidence} · ${ai[field].source}`}
-                        className="ml-1 text-[9px] font-bold leading-none px-1 py-0.5 rounded bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300 align-middle"
+                        className="ml-1 text-[9px] font-bold leading-none px-1 py-0.5 rounded bg-status-danger-bg text-status-danger-fg dark:bg-destructive/40 dark:text-primary-foreground align-middle"
                       >AI</span>
                     ) : null;
                     const valClass = (field) =>
-                      `text-sm font-medium ${ai[field] ? "text-rose-600 dark:text-rose-400" : ""}`;
+                      `text-sm font-medium ${ai[field] ? "text-status-danger-fg dark:text-status-danger-fg" : ""}`;
                     return (
                       <>
                         <div className="grid grid-cols-2 gap-2">
@@ -820,7 +820,7 @@ const CustomerDetailPage = ({ customerId: propCustomerId, isModal = false, onClo
                               href={customer.website.startsWith("http") ? customer.website : `https://${customer.website}`}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className={`text-sm hover:underline flex items-center gap-1 ${ai.website ? "text-rose-600 dark:text-rose-400" : "text-primary"}`}
+                              className={`text-sm hover:underline flex items-center gap-1 ${ai.website ? "text-status-danger-fg dark:text-status-danger-fg" : "text-primary"}`}
                             >
                               <Globe className="w-3 h-3" />
                               {customer.website}
@@ -854,20 +854,20 @@ const CustomerDetailPage = ({ customerId: propCustomerId, isModal = false, onClo
                     <div>
                       <Label className="text-xs text-muted-foreground block mb-1">Potansiyel</Label>
                       <Badge className={`block w-fit ${
-                        customer.potential_level === "Yüksek" ? "bg-emerald-100 text-emerald-700" :
-                        customer.potential_level === "Orta" ? "bg-amber-100 text-amber-700" :
+                        customer.potential_level === "Yüksek" ? "bg-status-success-bg text-status-success-fg" :
+                        customer.potential_level === "Orta" ? "bg-status-warning-bg text-status-warning-fg" :
                         "bg-muted text-foreground"
                       }`}>{customer.potential_level || "Düşük"}</Badge>
                     </div>
                     <div>
                       <Label className="text-xs text-muted-foreground block mb-1">Durum</Label>
                       <Badge className={`block w-fit ${
-                        customer.status === "Beklemede" ? "bg-amber-100 text-amber-700" :
-                        customer.status === "İletişimde" ? "bg-blue-100 text-primary" :
-                        customer.status === "Teklif Verildi" ? "bg-purple-100 text-purple-700" :
-                        customer.status === "Çalışılıyor" ? "bg-emerald-100 text-emerald-700" :
-                        customer.status === "Kazanıldı" ? "bg-green-100 text-green-700" :
-                        customer.status === "Kaybedildi" ? "bg-red-100 text-red-700" :
+                        customer.status === "Beklemede" ? "bg-status-warning-bg text-status-warning-fg" :
+                        customer.status === "İletişimde" ? "bg-status-info-bg text-primary" :
+                        customer.status === "Teklif Verildi" ? "bg-status-info-bg text-status-info-fg" :
+                        customer.status === "Çalışılıyor" ? "bg-status-success-bg text-status-success-fg" :
+                        customer.status === "Kazanıldı" ? "bg-status-success-bg text-status-success-fg" :
+                        customer.status === "Kaybedildi" ? "bg-status-danger-bg text-status-danger-fg" :
                         "bg-muted text-foreground"
                       }`}>{customer.status || "Beklemede"}</Badge>
                     </div>
@@ -888,10 +888,10 @@ const CustomerDetailPage = ({ customerId: propCustomerId, isModal = false, onClo
               {/* Potential Value */}
               <div className="bg-card rounded-xl border border-border p-4">
                 <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
-                  <Target className="w-4 h-4 text-muted-foreground/70" />
+                  <Target className="w-4 h-4 text-muted-foreground" />
                   Potansiyel (k€)
                 </h3>
-                <p className="text-lg font-bold text-emerald-600">
+                <p className="text-lg font-bold text-status-success-fg">
                   {customer.potential_value
                     ? `${customer.potential_value.toLocaleString("tr-TR")} k€`
                     : "-"}
@@ -904,7 +904,7 @@ const CustomerDetailPage = ({ customerId: propCustomerId, isModal = false, onClo
                   <h3 className="text-sm font-semibold text-foreground mb-3">Etiketler</h3>
                   <div className="flex flex-wrap gap-1">
                     {customer.tags.map((tag, idx) => (
-                      <Badge key={idx} className="bg-emerald-100 text-emerald-700 text-xs">{tag}</Badge>
+                      <Badge key={idx} className="bg-status-success-bg text-status-success-fg text-xs">{tag}</Badge>
                     ))}
                   </div>
                 </div>
@@ -913,7 +913,7 @@ const CustomerDetailPage = ({ customerId: propCustomerId, isModal = false, onClo
               {/* Timeline */}
               <div className="bg-card rounded-xl border border-border p-4">
                 <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
-                  <Clock className="w-4 h-4 text-muted-foreground/70" />
+                  <Clock className="w-4 h-4 text-muted-foreground" />
                   Zaman Çizelgesi
                 </h3>
                 <div className="space-y-2 text-sm">
@@ -930,7 +930,7 @@ const CustomerDetailPage = ({ customerId: propCustomerId, isModal = false, onClo
                   {customer.next_followup_date && (
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Sonraki Takip</span>
-                      <span className="text-amber-600">{new Date(customer.next_followup_date).toLocaleDateString("tr-TR")}</span>
+                      <span className="text-status-warning-fg">{new Date(customer.next_followup_date).toLocaleDateString("tr-TR")}</span>
                     </div>
                   )}
                 </div>
@@ -939,7 +939,7 @@ const CustomerDetailPage = ({ customerId: propCustomerId, isModal = false, onClo
               {/* Stats */}
               <div className="bg-card rounded-xl border border-border p-4">
                 <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
-                  <Briefcase className="w-4 h-4 text-muted-foreground/70" />
+                  <Briefcase className="w-4 h-4 text-muted-foreground" />
                   Özet İstatistikler
                 </h3>
                 <div className="grid grid-cols-2 gap-2">
@@ -948,15 +948,15 @@ const CustomerDetailPage = ({ customerId: propCustomerId, isModal = false, onClo
                     <p className="text-xs text-muted-foreground">Ziyaret</p>
                   </div>
                   <div className="text-center p-2 bg-muted/30 rounded-lg">
-                    <p className="text-lg font-bold text-emerald-600">{calls.length}</p>
+                    <p className="text-lg font-bold text-status-success-fg">{calls.length}</p>
                     <p className="text-xs text-muted-foreground">Arama</p>
                   </div>
                   <div className="text-center p-2 bg-muted/30 rounded-lg">
-                    <p className="text-lg font-bold text-amber-600">{notes.length}</p>
+                    <p className="text-lg font-bold text-status-warning-fg">{notes.length}</p>
                     <p className="text-xs text-muted-foreground">Not</p>
                   </div>
                   <div className="text-center p-2 bg-muted/30 rounded-lg">
-                    <p className="text-lg font-bold text-purple-600">{documents.length}</p>
+                    <p className="text-lg font-bold text-status-info-fg">{documents.length}</p>
                     <p className="text-xs text-muted-foreground">Dosya</p>
                   </div>
                 </div>
@@ -1005,9 +1005,9 @@ const CustomerDetailPage = ({ customerId: propCustomerId, isModal = false, onClo
                     {timeline.length > 0 ? timeline.map((item, idx) => (
                       <div key={idx} className="flex gap-3">
                         <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
-                          item.type === "visit" ? "bg-blue-100 text-primary" :
-                          item.type === "call" ? "bg-emerald-100 text-emerald-600" :
-                          "bg-amber-100 text-amber-600"
+                          item.type === "visit" ? "bg-status-info-bg text-primary" :
+                          item.type === "call" ? "bg-status-success-bg text-status-success-fg" :
+                          "bg-status-warning-bg text-status-warning-fg"
                         }`}>
                           {item.type === "visit" && <Calendar className="w-4 h-4" />}
                           {item.type === "call" && <PhoneCall className="w-4 h-4" />}
@@ -1020,7 +1020,7 @@ const CustomerDetailPage = ({ customerId: propCustomerId, isModal = false, onClo
                               {item.type === "call" && "Arama"}
                               {item.type === "note" && "Not"}
                             </span>
-                            <span className="text-xs text-muted-foreground/70">
+                            <span className="text-xs text-muted-foreground">
                               {new Date(item.date).toLocaleDateString("tr-TR")}
                             </span>
                           </div>
@@ -1028,13 +1028,13 @@ const CustomerDetailPage = ({ customerId: propCustomerId, isModal = false, onClo
                             <div>
                               <p className="text-sm font-medium">{item.data.visit_type || "Yüz Yüze"}</p>
                               {item.data.notes && <p className="text-sm text-muted-foreground mt-1">{item.data.notes}</p>}
-                              {item.data.outcome && <p className="text-xs text-emerald-600 mt-1">Sonuç: {item.data.outcome}</p>}
+                              {item.data.outcome && <p className="text-xs text-status-success-fg mt-1">Sonuç: {item.data.outcome}</p>}
                             </div>
                           )}
                           {item.type === "call" && (
                             <div>
                               <div className="flex items-center gap-2">
-                                {item.data.call_type === "Gelen" ? <PhoneIncoming className="w-3 h-3 text-blue-500" /> : <PhoneOutgoing className="w-3 h-3 text-emerald-500" />}
+                                {item.data.call_type === "Gelen" ? <PhoneIncoming className="w-3 h-3 text-status-info-fg" /> : <PhoneOutgoing className="w-3 h-3 text-status-success-fg" />}
                                 <span className="text-sm font-medium">{item.data.call_type}</span>
                                 {item.data.outcome && (
                                   <Badge className={CALL_STATUSES.find(s => s.value === item.data.outcome)?.color || "bg-muted"}>
@@ -1049,7 +1049,7 @@ const CustomerDetailPage = ({ customerId: propCustomerId, isModal = false, onClo
                         </div>
                       </div>
                     )) : (
-                      <div className="text-center py-12 text-muted-foreground/70">
+                      <div className="text-center py-12 text-muted-foreground">
                         <Activity className="w-12 h-12 mx-auto mb-3 opacity-50" />
                         <p>Henüz aktivite yok</p>
                       </div>
@@ -1104,7 +1104,7 @@ const CustomerDetailPage = ({ customerId: propCustomerId, isModal = false, onClo
                                   </Button>
                                 </div>
                               </div>
-                              <p className="text-xs text-muted-foreground/70 mt-2">{new Date(note.created_at).toLocaleString("tr-TR")}</p>
+                              <p className="text-xs text-muted-foreground mt-2">{new Date(note.created_at).toLocaleString("tr-TR")}</p>
                             </>
                           )}
                         </div>
@@ -1137,7 +1137,7 @@ const CustomerDetailPage = ({ customerId: propCustomerId, isModal = false, onClo
                                 key={status.value}
                                 onClick={() => setNewCall({ ...newCall, outcome: status.value })}
                                 className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
-                                  newCall.outcome === status.value ? status.color : "bg-slate-200 text-muted-foreground hover:bg-slate-300"
+                                  newCall.outcome === status.value ? status.color : "bg-muted text-muted-foreground hover:bg-input"
                                 }`}
                               >
                                 {status.value}
@@ -1148,14 +1148,14 @@ const CustomerDetailPage = ({ customerId: propCustomerId, isModal = false, onClo
 
                         {/* Call Details Input */}
                         <div className="flex items-center gap-2 bg-card rounded-lg border p-3">
-                          <PhoneCall className="w-5 h-5 text-muted-foreground/70" />
+                          <PhoneCall className="w-5 h-5 text-muted-foreground" />
                           <Input
                             value={newCall.notes}
                             onChange={(e) => setNewCall({ ...newCall, notes: e.target.value })}
                             placeholder="Arama detaylarını girin..."
                             className="border-0 p-0 focus-visible:ring-0"
                           />
-                          <Button onClick={handleAddCall} className="bg-blue-500 hover:bg-primary">
+                          <Button onClick={handleAddCall} className="bg-primary hover:bg-primary">
                             <Save className="w-4 h-4 mr-1" />
                             KAYDET
                           </Button>
@@ -1197,7 +1197,7 @@ const CustomerDetailPage = ({ customerId: propCustomerId, isModal = false, onClo
                         <div key={call.id} className="p-4 bg-muted/30 rounded-lg group">
                           <div className="flex justify-between items-start">
                             <div className="flex items-center gap-3">
-                              <div className={`w-10 h-10 rounded-full flex items-center justify-center ${call.call_type === "Gelen" ? "bg-blue-100 text-primary" : "bg-emerald-100 text-emerald-600"}`}>
+                              <div className={`w-10 h-10 rounded-full flex items-center justify-center ${call.call_type === "Gelen" ? "bg-status-info-bg text-primary" : "bg-status-success-bg text-status-success-fg"}`}>
                                 {call.call_type === "Gelen" ? <PhoneIncoming className="w-5 h-5" /> : <PhoneOutgoing className="w-5 h-5" />}
                               </div>
                               <div>
@@ -1221,7 +1221,7 @@ const CustomerDetailPage = ({ customerId: propCustomerId, isModal = false, onClo
                               </Button>
                               {isAdmin && (
                                 <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleDeleteCall(call.id)}>
-                                  <Trash2 className="w-3 h-3 text-red-500" />
+                                  <Trash2 className="w-3 h-3 text-status-danger-fg" />
                                 </Button>
                               )}
                             </div>
@@ -1229,7 +1229,7 @@ const CustomerDetailPage = ({ customerId: propCustomerId, isModal = false, onClo
                           {call.notes && <p className="text-sm text-muted-foreground mt-2 ml-13">{call.notes}</p>}
                         </div>
                       )) : (
-                        <div className="text-center py-8 text-muted-foreground/70">
+                        <div className="text-center py-8 text-muted-foreground">
                           <PhoneCall className="w-12 h-12 mx-auto mb-3 opacity-50" />
                           <p>Henüz arama kaydı yok</p>
                         </div>
@@ -1256,14 +1256,14 @@ const CustomerDetailPage = ({ customerId: propCustomerId, isModal = false, onClo
                         <div key={visit.id} className="p-4 bg-muted/30 rounded-lg group">
                           <div className="flex justify-between items-start mb-2">
                             <div className="flex items-center gap-2">
-                              <Calendar className="w-4 h-4 text-muted-foreground/70" />
+                              <Calendar className="w-4 h-4 text-muted-foreground" />
                               <span className="font-medium text-sm">
                                 {visit.visit_date ? new Date(visit.visit_date).toLocaleDateString("tr-TR") : "-"}
                               </span>
                               <Badge className="text-xs">{visit.visit_type || "Yüz Yüze"}</Badge>
                             </div>
                             <div className="flex items-center gap-1">
-                              {visit.is_followup && <Bell className="w-4 h-4 text-amber-500" />}
+                              {visit.is_followup && <Bell className="w-4 h-4 text-status-warning-fg" />}
                               <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
                                 <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => { setEditingVisit(visit); setVisitModalOpen(true); }}>
                                   <Pencil className="w-3 h-3" />
@@ -1272,10 +1272,10 @@ const CustomerDetailPage = ({ customerId: propCustomerId, isModal = false, onClo
                             </div>
                           </div>
                           {visit.notes && <p className="text-muted-foreground text-sm">{visit.notes}</p>}
-                          {visit.outcome && <p className="text-sm text-emerald-600 mt-1">Sonuç: {visit.outcome}</p>}
+                          {visit.outcome && <p className="text-sm text-status-success-fg mt-1">Sonuç: {visit.outcome}</p>}
                         </div>
                       )) : (
-                        <div className="text-center py-8 text-muted-foreground/70">
+                        <div className="text-center py-8 text-muted-foreground">
                           <Calendar className="w-12 h-12 mx-auto mb-3 opacity-50" />
                           <p>Henüz ziyaret yok</p>
                         </div>
@@ -1334,7 +1334,7 @@ const CustomerDetailPage = ({ customerId: propCustomerId, isModal = false, onClo
                       {documents.length > 0 ? documents.map((doc) => (
                         <div key={doc.id} className="flex items-center justify-between p-3 bg-muted/30 rounded-lg group">
                           <div className="flex items-center gap-3">
-                            <Paperclip className="w-4 h-4 text-muted-foreground/70" />
+                            <Paperclip className="w-4 h-4 text-muted-foreground" />
                             <div>
                               {doc.url ? (
                                 <a 
@@ -1348,7 +1348,7 @@ const CustomerDetailPage = ({ customerId: propCustomerId, isModal = false, onClo
                               ) : (
                                 <span className="font-medium text-foreground text-sm">{doc.name}</span>
                               )}
-                              <div className="flex items-center gap-2 text-xs text-muted-foreground/70">
+                              <div className="flex items-center gap-2 text-xs text-muted-foreground">
                                 <span>{new Date(doc.created_at).toLocaleDateString("tr-TR")}</span>
                                 {doc.size && <span>• {(doc.size / 1024).toFixed(1)} KB</span>}
                               </div>
@@ -1359,7 +1359,7 @@ const CustomerDetailPage = ({ customerId: propCustomerId, isModal = false, onClo
                           </Button>
                         </div>
                       )) : (
-                        <div className="text-center py-8 text-muted-foreground/70">
+                        <div className="text-center py-8 text-muted-foreground">
                           <Paperclip className="w-12 h-12 mx-auto mb-3 opacity-50" />
                           <p>Henüz döküman yok</p>
                           <p className="text-xs mt-1">Dosya yükleyin veya link ekleyin</p>
@@ -1375,7 +1375,7 @@ const CustomerDetailPage = ({ customerId: propCustomerId, isModal = false, onClo
                 <ResponsiveScroll isNarrow={isNarrow} className="h-full">
                   <div className="p-4 space-y-3">
                     {loadingSimilar ? (
-                      <div className="text-center py-12 text-muted-foreground/70">
+                      <div className="text-center py-12 text-muted-foreground">
                         <Sparkles className="w-12 h-12 mx-auto mb-3 opacity-50" />
                         <p>Benzer firmalar aranıyor...</p>
                       </div>
@@ -1396,14 +1396,14 @@ const CustomerDetailPage = ({ customerId: propCustomerId, isModal = false, onClo
                                 {[s.market, s.city].filter(Boolean).join(" · ") || "—"}
                               </p>
                             </div>
-                            <Badge className="bg-blue-100 text-primary shrink-0 ml-3">
+                            <Badge className="bg-status-info-bg text-primary shrink-0 ml-3">
                               %{s.similarity}
                             </Badge>
                           </button>
                         ))}
                       </>
                     ) : similarLoaded ? (
-                      <div className="text-center py-12 text-muted-foreground/70">
+                      <div className="text-center py-12 text-muted-foreground">
                         <Sparkles className="w-12 h-12 mx-auto mb-3 opacity-50" />
                         <p>Benzer firma bulunamadı</p>
                       </div>
@@ -1429,7 +1429,7 @@ const CustomerDetailPage = ({ customerId: propCustomerId, isModal = false, onClo
               {/* Primary Contact */}
               <div className="bg-card rounded-xl border border-border p-4">
                 <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
-                  <Users className="w-4 h-4 text-muted-foreground/70" />
+                  <Users className="w-4 h-4 text-muted-foreground" />
                   Ana İletişim
                 </h3>
                 
@@ -1437,25 +1437,25 @@ const CustomerDetailPage = ({ customerId: propCustomerId, isModal = false, onClo
                   <div className="space-y-2">
                     {customer.contact_info.contact_person && (
                       <div className="flex items-center gap-2 text-sm">
-                        <Users className="w-3 h-3 text-muted-foreground/70" />
+                        <Users className="w-3 h-3 text-muted-foreground" />
                         <span className="font-medium">{customer.contact_info.contact_person}</span>
                       </div>
                     )}
                     {customer.contact_info.phone && (
                       <div className="flex items-center gap-2 text-sm">
-                        <Phone className="w-3 h-3 text-muted-foreground/70" />
+                        <Phone className="w-3 h-3 text-muted-foreground" />
                         <a href={`tel:${customer.contact_info.phone}`} className="text-primary hover:underline">{customer.contact_info.phone}</a>
                       </div>
                     )}
                     {customer.contact_info.email && (
                       <div className="flex items-center gap-2 text-sm">
-                        <Mail className="w-3 h-3 text-muted-foreground/70" />
+                        <Mail className="w-3 h-3 text-muted-foreground" />
                         <a href={`mailto:${customer.contact_info.email}`} className="text-primary hover:underline">{customer.contact_info.email}</a>
                       </div>
                     )}
                   </div>
                 ) : (
-                  <p className="text-sm text-muted-foreground/70">İletişim bilgisi yok</p>
+                  <p className="text-sm text-muted-foreground">İletişim bilgisi yok</p>
                 )}
               </div>
 
@@ -1481,7 +1481,7 @@ const CustomerDetailPage = ({ customerId: propCustomerId, isModal = false, onClo
                       >
                         <div className="flex items-center gap-2 mb-1">
                           <span className="font-medium text-sm">{contact.name}</span>
-                          {contact.is_primary && <Star className="w-3 h-3 text-amber-500 fill-amber-500" />}
+                          {contact.is_primary && <Star className="w-3 h-3 text-status-warning-fg fill-status-warning-line" />}
                         </div>
                         {contact.title && <p className="text-xs text-muted-foreground">{contact.title}</p>}
                         {contact.phone && <p className="text-xs text-muted-foreground">{contact.phone}</p>}
@@ -1490,7 +1490,7 @@ const CustomerDetailPage = ({ customerId: propCustomerId, isModal = false, onClo
                     ))}
                   </div>
                 ) : (
-                  <div className="text-center py-4 text-muted-foreground/70">
+                  <div className="text-center py-4 text-muted-foreground">
                     <Users className="w-8 h-8 mx-auto mb-2 opacity-50" />
                     <p className="text-sm">Henüz kişi eklenmemiş</p>
                   </div>
@@ -1596,13 +1596,13 @@ const CustomerDetailPage = ({ customerId: propCustomerId, isModal = false, onClo
           {selectedContact && (
             <div className="space-y-4">
               <div className="flex items-center gap-4">
-                <div className="w-16 h-16 bg-blue-500 rounded-full flex items-center justify-center text-white text-2xl font-bold">
+                <div className="w-16 h-16 bg-primary rounded-full flex items-center justify-center text-white text-2xl font-bold">
                   {selectedContact.name?.charAt(0).toUpperCase()}
                 </div>
                 <div>
                   <h3 className="text-xl font-semibold flex items-center gap-2">
                     {selectedContact.name}
-                    {selectedContact.is_primary && <Star className="w-4 h-4 text-amber-500 fill-amber-500" />}
+                    {selectedContact.is_primary && <Star className="w-4 h-4 text-status-warning-fg fill-status-warning-line" />}
                   </h3>
                   {selectedContact.title && (
                     <p className="text-muted-foreground">{selectedContact.title}</p>
@@ -1613,8 +1613,8 @@ const CustomerDetailPage = ({ customerId: propCustomerId, isModal = false, onClo
               <div className="border-t pt-4 space-y-3">
                 {selectedContact.phone && (
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-emerald-100 rounded-lg flex items-center justify-center">
-                      <Phone className="w-5 h-5 text-emerald-600" />
+                    <div className="w-10 h-10 bg-status-success-bg rounded-lg flex items-center justify-center">
+                      <Phone className="w-5 h-5 text-status-success-fg" />
                     </div>
                     <div>
                       <p className="text-xs text-muted-foreground">Telefon</p>
@@ -1627,7 +1627,7 @@ const CustomerDetailPage = ({ customerId: propCustomerId, isModal = false, onClo
                 
                 {selectedContact.email && (
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                    <div className="w-10 h-10 bg-status-info-bg rounded-lg flex items-center justify-center">
                       <Mail className="w-5 h-5 text-primary" />
                     </div>
                     <div>
@@ -1749,7 +1749,7 @@ const CustomerDetailPage = ({ customerId: propCustomerId, isModal = false, onClo
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <CalendarDays className="w-5 h-5 text-amber-500" />
+              <CalendarDays className="w-5 h-5 text-status-warning-fg" />
               Takip Tarihi Belirle
             </DialogTitle>
           </DialogHeader>
@@ -1768,7 +1768,7 @@ const CustomerDetailPage = ({ customerId: propCustomerId, isModal = false, onClo
             </div>
             {selectedFollowupDate && (
               <p className="text-center mt-4 text-sm text-muted-foreground">
-                Seçilen tarih: <strong className="text-amber-600">{selectedFollowupDate.toLocaleDateString("tr-TR", { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</strong>
+                Seçilen tarih: <strong className="text-status-warning-fg">{selectedFollowupDate.toLocaleDateString("tr-TR", { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</strong>
               </p>
             )}
           </div>
@@ -1776,7 +1776,7 @@ const CustomerDetailPage = ({ customerId: propCustomerId, isModal = false, onClo
             <Button variant="outline" onClick={() => setFollowupDateOpen(false)}>
               İptal
             </Button>
-            <Button onClick={handleSetFollowupDate} className="bg-amber-500 hover:bg-amber-600">
+            <Button onClick={handleSetFollowupDate} className="bg-status-warning-bg hover:bg-status-warning-bg">
               <Bell className="w-4 h-4 mr-2" />
               Takibe Al
             </Button>

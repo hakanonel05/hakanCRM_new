@@ -11,11 +11,11 @@ export default function ThemeToggle({ className = "" }) {
       onClick={toggleTheme}
       aria-label={isDark ? "Açık temaya geç" : "Koyu temaya geç"}
       data-testid="theme-toggle-button"
-      className={`relative inline-flex items-center justify-center w-9 h-9 rounded-full border border-border bg-card/60 backdrop-blur-md hover:bg-accent/10 hover:border-accent/40 transition-all duration-300 group ${className}`}
+      className={`relative inline-flex items-center justify-center w-9 h-9 rounded-full border border-border bg-card/60  hover:bg-accent/10 hover:border-accent/40 transition-all duration-300 group ${className}`}
     >
       <Sun
         className={`w-4 h-4 absolute transition-all duration-500 ${
-          isDark ? "opacity-0 rotate-90 scale-50" : "opacity-100 rotate-0 scale-100 text-amber-500"
+          isDark ? "opacity-0 rotate-90 scale-50" : "opacity-100 rotate-0 scale-100 text-status-warning-fg"
         }`}
       />
       <Moon

@@ -61,9 +61,9 @@ const fillCount = (m) => FIELDS.filter((f) => !!m[f] && String(m[f]).trim()).len
 
 // Color for the score badge
 const scoreColor = (s) => {
-  if (s >= 98) return "bg-red-100 text-red-700 border-red-200";
-  if (s >= 95) return "bg-orange-100 text-orange-700 border-orange-200";
-  if (s >= 90) return "bg-amber-100 text-amber-700 border-amber-200";
+  if (s >= 98) return "bg-status-danger-bg text-status-danger-fg border-status-danger-line";
+  if (s >= 95) return "bg-status-warning-bg text-status-warning-fg border-status-warning-line";
+  if (s >= 90) return "bg-status-warning-bg text-status-warning-fg border-status-warning-line";
   return "bg-muted text-foreground border-border";
 };
 
@@ -269,7 +269,7 @@ export default function DuplicatesPage() {
             size="sm"
             onClick={openAutoMerge}
             disabled={loading || !data?.total_groups}
-            className="h-8 bg-amber-500 hover:bg-amber-600 text-white"
+            className="h-8 bg-status-warning-bg hover:bg-status-warning-bg text-white"
             data-testid="auto-merge-btn"
           >
             <Zap className="w-3.5 h-3.5 sm:mr-1.5" />
@@ -281,7 +281,7 @@ export default function DuplicatesPage() {
       <div className="px-3 sm:px-6 py-3 sm:py-4 max-w-5xl mx-auto">
         {/* Search */}
         <div className="relative mb-3">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground/70" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
           <Input
             placeholder="Grup içinde firma adı / şehir ara..."
             value={search}
@@ -292,7 +292,7 @@ export default function DuplicatesPage() {
 
         {/* States */}
         {loading && (
-          <div className="flex items-center justify-center py-16 text-muted-foreground/70">
+          <div className="flex items-center justify-center py-16 text-muted-foreground">
             <Loader2 className="w-5 h-5 animate-spin mr-2" />
             Müşteri kayıtları benzerlik için taranıyor...
           </div>
@@ -300,7 +300,7 @@ export default function DuplicatesPage() {
 
         {!loading && filteredGroups.length === 0 && (
           <div className="bg-card border border-border rounded-xl p-10 text-center">
-            <CheckCircle2 className="w-10 h-10 mx-auto text-emerald-500 mb-3" />
+            <CheckCircle2 className="w-10 h-10 mx-auto text-status-success-fg mb-3" />
             <p className="text-sm font-medium text-foreground">
               {data?.groups?.length === 0
                 ? "Yinelenen müşteri bulunamadı"
@@ -350,7 +350,7 @@ export default function DuplicatesPage() {
                     key={m.id}
                     className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
                       isKeep
-                        ? "border-emerald-400 bg-emerald-50/50"
+                        ? "border-status-success-line bg-status-success-bg/50"
                         : "border-border hover:bg-muted/30"
                     }`}
                   >
@@ -369,7 +369,7 @@ export default function DuplicatesPage() {
                           {m.company_name || "—"}
                         </span>
                         {idx === 0 && (
-                          <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 text-[10px] px-1.5 py-0">
+                          <Badge className="bg-status-success-bg text-status-success-fg border-status-success-line text-[10px] px-1.5 py-0">
                             <Sparkles className="w-2.5 h-2.5 mr-0.5" />
                             Önerilen
                           </Badge>
@@ -378,12 +378,12 @@ export default function DuplicatesPage() {
                           {fc}/{FIELDS.length} dolu
                         </Badge>
                         {isKeep ? (
-                          <Badge className="bg-emerald-600 text-white text-[10px] px-1.5 py-0">
+                          <Badge className="bg-status-success-fg text-white text-[10px] px-1.5 py-0">
                             <Crown className="w-2.5 h-2.5 mr-0.5" />
                             Korunacak
                           </Badge>
                         ) : (
-                          <Badge className="bg-red-100 text-red-700 border-red-200 text-[10px] px-1.5 py-0">
+                          <Badge className="bg-status-danger-bg text-status-danger-fg border-status-danger-line text-[10px] px-1.5 py-0">
                             <Trash2 className="w-2.5 h-2.5 mr-0.5" />
                             Silinecek
                           </Badge>
@@ -394,7 +394,7 @@ export default function DuplicatesPage() {
                           (f) =>
                             m[f] && (
                               <span key={f} className="truncate">
-                                <span className="text-muted-foreground/70">
+                                <span className="text-muted-foreground">
                                   {FIELD_LABELS[f]}:
                                 </span>{" "}
                                 {m[f]}
@@ -403,7 +403,7 @@ export default function DuplicatesPage() {
                         )}
                       </div>
                       {m.created_at && (
-                        <p className="text-[10px] text-muted-foreground/70 mt-1">
+                        <p className="text-[10px] text-muted-foreground mt-1">
                           Eklendi: {formatDate(m.created_at)}
                         </p>
                       )}
@@ -449,14 +449,14 @@ export default function DuplicatesPage() {
         <DialogContent className="max-w-xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Zap className="w-4 h-4 text-amber-500" />
+              <Zap className="w-4 h-4 text-status-warning-fg" />
               Otomatik Birleştir
             </DialogTitle>
             <DialogDescription>
               Yüksek güvenli grupları (aynı isim/şehir/telefon/website) tek
               tıkla birleştir. Her grupta <strong>en dolu kayıt korunur</strong>,
               diğerleri silinir. İlişkili ziyaret/arama/aktivite kayıtları
-              taşınır. <strong className="text-red-600">Bu işlem geri alınamaz.</strong>
+              taşınır. <strong className="text-status-danger-fg">Bu işlem geri alınamaz.</strong>
             </DialogDescription>
           </DialogHeader>
 
@@ -482,7 +482,7 @@ export default function DuplicatesPage() {
             </div>
 
             {autoPreviewing && (
-              <div className="flex items-center justify-center py-6 text-sm text-muted-foreground/70">
+              <div className="flex items-center justify-center py-6 text-sm text-muted-foreground">
                 <Loader2 className="w-4 h-4 animate-spin mr-2" />
                 Önizleme hazırlanıyor...
               </div>
@@ -490,9 +490,9 @@ export default function DuplicatesPage() {
 
             {!autoPreviewing && autoPreview && (
               <>
-                <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 flex items-start gap-2">
-                  <AlertCircle className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" />
-                  <div className="text-sm text-amber-900">
+                <div className="bg-status-warning-bg border border-status-warning-line rounded-lg p-3 flex items-start gap-2">
+                  <AlertCircle className="w-4 h-4 text-status-warning-fg mt-0.5 flex-shrink-0" />
+                  <div className="text-sm text-status-warning-fg">
                     Bu eşikte <strong>{autoPreview.groups_eligible}</strong>{" "}
                     grup birleştirilecek ve{" "}
                     <strong>{autoPreview.customers_to_delete}</strong> kayıt
@@ -505,7 +505,7 @@ export default function DuplicatesPage() {
                     <p className="text-xs font-medium text-muted-foreground mb-1.5">
                       İlk {autoPreview.preview.length} grup örneği:
                     </p>
-                    <div className="border border-border rounded-lg max-h-44 overflow-y-auto divide-y divide-slate-100">
+                    <div className="border border-border rounded-lg max-h-44 overflow-y-auto divide-y divide-border">
                       {autoPreview.preview.map((p, i) => (
                         <div
                           key={i}
@@ -521,7 +521,7 @@ export default function DuplicatesPage() {
                           <span className="font-medium text-foreground truncate">
                             {p.keep}
                           </span>
-                          <span className="text-muted-foreground/70">
+                          <span className="text-muted-foreground">
                             ← {p.delete.length} kayıt
                           </span>
                         </div>
@@ -554,7 +554,7 @@ export default function DuplicatesPage() {
                 autoPreviewing ||
                 !autoPreview?.groups_eligible
               }
-              className="bg-amber-500 hover:bg-amber-600 text-white"
+              className="bg-status-warning-bg hover:bg-status-warning-bg text-white"
               data-testid="auto-merge-confirm"
             >
               {autoRunning ? (
@@ -585,7 +585,7 @@ const DuplicateCard = ({ group, onOpenCustomer, onMerge }) => {
     >
       <div className="px-3 sm:px-4 py-2.5 border-b border-border flex items-center justify-between flex-wrap gap-2">
         <div className="flex items-center gap-2 flex-wrap">
-          <AlertCircle className="w-4 h-4 text-amber-500" />
+          <AlertCircle className="w-4 h-4 text-status-warning-fg" />
           <span className="text-sm font-medium text-foreground">
             {group.size} olası tekrar
           </span>
@@ -596,7 +596,7 @@ const DuplicateCard = ({ group, onOpenCustomer, onMerge }) => {
         <Button
           size="sm"
           onClick={() => onMerge(group)}
-          className="bg-slate-900 hover:bg-slate-800 text-white h-7 px-3 text-xs"
+          className="bg-foreground hover:bg-foreground text-white h-7 px-3 text-xs"
           data-testid={`merge-open-${group.id}`}
         >
           Birleştir
@@ -604,7 +604,7 @@ const DuplicateCard = ({ group, onOpenCustomer, onMerge }) => {
         </Button>
       </div>
 
-      <div className="divide-y divide-slate-100">
+      <div className="divide-y divide-border">
         {group.members.map((m) => {
           const fc = fillCount(m);
           return (
@@ -627,7 +627,7 @@ const DuplicateCard = ({ group, onOpenCustomer, onMerge }) => {
                     .join(" · ") || "—"}
                 </p>
                 {(m.phone || m.email || m.website) && (
-                  <p className="text-[11px] text-muted-foreground/70 truncate mt-0.5">
+                  <p className="text-[11px] text-muted-foreground truncate mt-0.5">
                     {[m.phone, m.email, m.website]
                       .filter(Boolean)
                       .join("  ·  ")}
@@ -639,7 +639,7 @@ const DuplicateCard = ({ group, onOpenCustomer, onMerge }) => {
                   {fc}/{FIELDS.length} dolu
                 </Badge>
                 {m.best_match_type && (
-                  <span className="text-[10px] text-muted-foreground/70">
+                  <span className="text-[10px] text-muted-foreground">
                     {m.best_match_type} %{m.best_score}
                   </span>
                 )}

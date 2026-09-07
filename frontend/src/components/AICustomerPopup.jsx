@@ -57,12 +57,12 @@ const AICustomerPopup = ({ customer, isOpen, onClose }) => {
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-lg flex items-center justify-center">
+            <div className="w-8 h-8 bg-muted from-muted to-muted rounded-lg flex items-center justify-center">
               <Sparkles className="w-4 h-4 text-white" />
             </div>
             <div>
               <span className="text-lg">AI Müşteri Özeti</span>
-              <p className="text-sm font-normal text-slate-500">{customer?.company_name}</p>
+              <p className="text-sm font-normal text-muted-foreground">{customer?.company_name}</p>
             </div>
           </DialogTitle>
           <DialogDescription className="sr-only">
@@ -72,17 +72,17 @@ const AICustomerPopup = ({ customer, isOpen, onClose }) => {
 
         <div className="mt-4">
           {loading ? (
-            <div className="flex flex-col items-center justify-center py-8 text-slate-500">
-              <Loader2 className="w-8 h-8 animate-spin mb-3 text-purple-500" />
+            <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
+              <Loader2 className="w-8 h-8 animate-spin mb-3 text-status-info-fg" />
               <p className="text-sm">AI özet hazırlanıyor...</p>
-              <p className="text-xs text-slate-400 mt-1">Gemini 2.5 Flash</p>
+              <p className="text-xs text-muted-foreground mt-1">Gemini 2.5 Flash</p>
             </div>
           ) : error ? (
             <div className="text-center py-6">
-              <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                <X className="w-6 h-6 text-red-500" />
+              <div className="w-12 h-12 bg-status-danger-bg rounded-full flex items-center justify-center mx-auto mb-3">
+                <X className="w-6 h-6 text-status-danger-fg" />
               </div>
-              <p className="text-red-600 text-sm mb-3">{error}</p>
+              <p className="text-status-danger-fg text-sm mb-3">{error}</p>
               <Button variant="outline" size="sm" onClick={fetchSummary}>
                 <RefreshCw className="w-4 h-4 mr-2" />
                 Tekrar Dene
@@ -90,10 +90,10 @@ const AICustomerPopup = ({ customer, isOpen, onClose }) => {
             </div>
           ) : summary ? (
             <div className="space-y-4">
-              <div className="bg-gradient-to-br from-purple-50 to-indigo-50 rounded-xl p-4 border border-purple-100">
+              <div className="bg-muted from-muted to-muted rounded-xl p-4 border border-status-info-line">
                 <div className="prose prose-sm prose-slate max-w-none">
                   {summary.split('\n').map((line, idx) => (
-                    <p key={idx} className="text-slate-700 text-sm leading-relaxed mb-2 last:mb-0">
+                    <p key={idx} className="text-foreground text-sm leading-relaxed mb-2 last:mb-0">
                       {line}
                     </p>
                   ))}
@@ -101,7 +101,7 @@ const AICustomerPopup = ({ customer, isOpen, onClose }) => {
               </div>
               
               <div className="flex items-center justify-between pt-2">
-                <span className="text-[10px] text-slate-400 flex items-center gap-1">
+                <span className="text-[10px] text-muted-foreground flex items-center gap-1">
                   <Sparkles className="w-3 h-3" />
                   Gemini 2.5 Flash ile oluşturuldu
                 </span>
@@ -112,8 +112,8 @@ const AICustomerPopup = ({ customer, isOpen, onClose }) => {
               </div>
             </div>
           ) : (
-            <div className="flex flex-col items-center justify-center py-8 text-slate-500">
-              <Sparkles className="w-8 h-8 mb-3 text-purple-300" />
+            <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
+              <Sparkles className="w-8 h-8 mb-3 text-primary-foreground" />
               <p className="text-sm">Özet yükleniyor...</p>
             </div>
           )}

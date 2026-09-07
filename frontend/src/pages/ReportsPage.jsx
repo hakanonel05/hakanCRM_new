@@ -227,11 +227,11 @@ const ReportsPage = () => {
         <div className="flex gap-2">
           <button 
             onClick={() => selectAllColumns(columns, setSelectedCols)}
-            className="text-xs text-primary hover:text-blue-800"
+            className="text-xs text-primary hover:text-status-info-fg"
           >
             Tümünü Seç
           </button>
-          <span className="text-slate-300">|</span>
+          <span className="text-primary-foreground">|</span>
           <button 
             onClick={() => deselectAllColumns(setSelectedCols)}
             className="text-xs text-muted-foreground hover:text-foreground"
@@ -246,7 +246,7 @@ const ReportsPage = () => {
             key={col.key}
             className={`flex items-center gap-2 p-2 rounded-lg border cursor-pointer transition-colors ${
               selectedCols.includes(col.key) 
-                ? "bg-emerald-50 border-emerald-300" 
+                ? "bg-status-success-bg border-status-success-line" 
                 : "bg-card border-border hover:border-border"
             }`}
           >
@@ -270,12 +270,12 @@ const ReportsPage = () => {
         <Icon className="w-5 h-5 text-muted-foreground" />
         <span className="font-medium text-foreground">{title}</span>
         {badge && (
-          <span className="px-2 py-0.5 bg-emerald-100 text-emerald-700 text-xs rounded-full">
+          <span className="px-2 py-0.5 bg-status-success-bg text-status-success-fg text-xs rounded-full">
             {badge}
           </span>
         )}
       </div>
-      {expanded ? <ChevronUp className="w-5 h-5 text-muted-foreground/70" /> : <ChevronDown className="w-5 h-5 text-muted-foreground/70" />}
+      {expanded ? <ChevronUp className="w-5 h-5 text-muted-foreground" /> : <ChevronDown className="w-5 h-5 text-muted-foreground" />}
     </button>
   );
 
@@ -283,7 +283,7 @@ const ReportsPage = () => {
     return (
       <div className="flex items-center justify-center h-[60vh]">
         <div className="text-center">
-          <FileSpreadsheet className="w-16 h-16 text-slate-300 mx-auto mb-4" />
+          <FileSpreadsheet className="w-16 h-16 text-primary-foreground mx-auto mb-4" />
           <h2 className="text-xl font-semibold text-foreground">Erişim Engellendi</h2>
           <p className="text-muted-foreground mt-2">Bu sayfayı görüntülemek için admin yetkisi gerekli</p>
         </div>
@@ -530,8 +530,8 @@ const ReportsPage = () => {
         <div className="space-y-4">
           <div className="bg-card rounded-xl border border-border p-6 sticky top-4">
             <div className="text-center mb-6">
-              <div className="w-16 h-16 bg-emerald-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                <FileSpreadsheet className="w-8 h-8 text-emerald-600" />
+              <div className="w-16 h-16 bg-status-success-bg rounded-2xl flex items-center justify-center mx-auto mb-4">
+                <FileSpreadsheet className="w-8 h-8 text-status-success-fg" />
               </div>
               <h3 className="font-semibold text-foreground">Rapor Özeti</h3>
             </div>
@@ -568,7 +568,7 @@ const ReportsPage = () => {
               {includeNotes && (
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Notlar</span>
-                  <span className="font-medium text-emerald-600">Dahil</span>
+                  <span className="font-medium text-status-success-fg">Dahil</span>
                 </div>
               )}
               <div className="border-t border-border pt-3 flex justify-between text-sm">
@@ -586,7 +586,7 @@ const ReportsPage = () => {
             <Button 
               onClick={generateReport}
               disabled={generating || selectedCustomerCols.length === 0}
-              className="w-full bg-emerald-600 hover:bg-primary"
+              className="w-full bg-status-success-fg hover:bg-primary"
             >
               {generating ? (
                 <>
@@ -601,7 +601,7 @@ const ReportsPage = () => {
               )}
             </Button>
 
-            <p className="text-xs text-muted-foreground/70 text-center mt-3">
+            <p className="text-xs text-muted-foreground text-center mt-3">
               Rapor .xlsx formatında indirilecek
             </p>
           </div>
@@ -618,7 +618,7 @@ const ReportsPage = () => {
                   setIncludeCalls(true);
                   setIncludeNotes(true);
                 }}
-                className="w-full text-left p-3 rounded-lg border border-border hover:border-emerald-300 hover:bg-emerald-50 transition-colors text-sm"
+                className="w-full text-left p-3 rounded-lg border border-border hover:border-status-success-line hover:bg-status-success-bg transition-colors text-sm"
               >
                 📊 Tam Rapor (Tüm Veriler)
               </button>
@@ -630,7 +630,7 @@ const ReportsPage = () => {
                   setIncludeCalls(false);
                   setIncludeNotes(false);
                 }}
-                className="w-full text-left p-3 rounded-lg border border-border hover:border-blue-300 hover:bg-blue-50 transition-colors text-sm"
+                className="w-full text-left p-3 rounded-lg border border-border hover:border-status-info-line hover:bg-status-info-bg transition-colors text-sm"
               >
                 👥 Müşteri + Kişiler
               </button>
@@ -642,7 +642,7 @@ const ReportsPage = () => {
                   setIncludeCalls(false);
                   setIncludeNotes(false);
                 }}
-                className="w-full text-left p-3 rounded-lg border border-border hover:border-amber-300 hover:bg-amber-50 transition-colors text-sm"
+                className="w-full text-left p-3 rounded-lg border border-border hover:border-status-warning-line hover:bg-status-warning-bg transition-colors text-sm"
               >
                 📅 Takip Raporu
               </button>

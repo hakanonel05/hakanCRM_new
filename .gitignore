@@ -52,3 +52,6 @@ test_reports/
 Thumbs.db
 .vscode/
 .idea/
+
+# Claude Code oturum ayarlari (makineye ozel)
+.claude/

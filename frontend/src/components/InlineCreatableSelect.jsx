@@ -11,30 +11,21 @@ import axios from "axios";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
-// Solid pastel pill colors — reference: image 4 style (rounded, no border, medium contrast)
-const PILL_COLORS = [
-  "bg-emerald-100 text-emerald-700",
-  "bg-blue-100 text-blue-700",
-  "bg-violet-100 text-violet-700",
-  "bg-amber-100 text-amber-700",
-  "bg-rose-100 text-rose-700",
-  "bg-cyan-100 text-cyan-700",
-  "bg-lime-100 text-lime-700",
-  "bg-orange-100 text-orange-700",
-  "bg-primary-fixed text-primary",
-  "bg-pink-100 text-pink-700",
-  "bg-teal-100 text-teal-700",
-  "bg-sky-100 text-sky-700",
-];
+/* KATEGORİ HAPLARI TEK RENK.
+ *
+ * Burada on iki renklik bir palet vardı ve renk, DEĞERİN HASH'İNDEN
+ * seçiliyordu: "Otomotiv" yeşile, "Kimya" kırmızıya düşüyordu. Bu bir bilgi
+ * taşımıyor — üstelik zararlı, çünkü bu palette yeşil "başarı", kırmızı
+ * "hata" demek. Market ya da şehir adına rastgele bu anlamlar yükleniyordu.
+ *
+ * Renk, bir şey İFADE ETTİĞİNDE ortaya çıkar. Kategori bir durum değil, o
+ * yüzden sessiz bir gri hap: okunur, sıralanır, göz yormaz. Gerçek durum
+ * alanları (Durum, Potansiyel) kendi anlamlı renklerini kullanmaya devam
+ * ediyor.
+ */
+const PILL_CLASS = "bg-muted text-foreground";
 
-const getColorForValue = (value) => {
-  if (!value) return "bg-slate-100 text-slate-400";
-  let hash = 0;
-  for (let i = 0; i < value.length; i++) {
-    hash = value.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  return PILL_COLORS[Math.abs(hash) % PILL_COLORS.length];
-};
+const getColorForValue = (value) => (value ? PILL_CLASS : "bg-muted text-muted-foreground");
 
 const InlineCreatableSelect = ({ 
   value, 
@@ -115,7 +106,7 @@ const InlineCreatableSelect = ({
           className={cn(
             "text-left px-2.5 py-1 rounded-full text-xs font-medium cursor-pointer inline-flex items-center whitespace-nowrap",
             "hover:opacity-80 transition-opacity",
-            value ? colorClass : "text-slate-400"
+            value ? colorClass : "text-muted-foreground"
           )}
         >
           {value || "-"}
@@ -124,7 +115,7 @@ const InlineCreatableSelect = ({
       <PopoverContent className="w-[200px] p-0" align="start">
         <div className="p-2">
           <div className="relative">
-            <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
               ref={inputRef}
               placeholder="Ara veya yeni ekle..."
@@ -144,7 +135,7 @@ const InlineCreatableSelect = ({
         <div className="max-h-[200px] overflow-y-auto">
           {/* Empty option */}
           <button
-            className="w-full text-left px-3 py-2 text-sm hover:bg-slate-100 flex items-center text-slate-400"
+            className="w-full text-left px-3 py-2 text-sm hover:bg-muted flex items-center text-muted-foreground"
             onClick={() => handleSelect("")}
           >
             (Boş)
@@ -155,12 +146,12 @@ const InlineCreatableSelect = ({
             <button
               key={opt.id}
               className={cn(
-                "w-full text-left px-3 py-2 text-sm hover:bg-slate-100 flex items-center gap-2",
-                value === opt.value && "bg-slate-100"
+                "w-full text-left px-3 py-2 text-sm hover:bg-muted flex items-center gap-2",
+                value === opt.value && "bg-muted"
               )}
               onClick={() => handleSelect(opt.value)}
             >
-              {value === opt.value && <Check className="w-4 h-4 text-emerald-600" />}
+              {value === opt.value && <Check className="w-4 h-4 text-status-success-fg" />}
               <span className={cn(
                 "px-2.5 py-1 rounded-full text-xs font-medium",
                 getColorForValue(opt.value),
@@ -174,7 +165,7 @@ const InlineCreatableSelect = ({
           {/* Create new option */}
           {showCreateOption && (
             <button
-              className="w-full text-left px-3 py-2 text-sm hover:bg-emerald-50 flex items-center gap-2 text-emerald-600 border-t"
+              className="w-full text-left px-3 py-2 text-sm hover:bg-status-success-bg flex items-center gap-2 text-status-success-fg border-t"
               onClick={handleCreate}
             >
               <Plus className="w-4 h-4" />
@@ -184,7 +175,7 @@ const InlineCreatableSelect = ({
 
           {/* No results */}
           {filteredOptions.length === 0 && !showCreateOption && (
-            <div className="px-3 py-2 text-sm text-slate-400 text-center">
+            <div className="px-3 py-2 text-sm text-muted-foreground text-center">
               Sonuç bulunamadı
             </div>
           )}

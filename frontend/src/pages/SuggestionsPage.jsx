@@ -25,9 +25,9 @@ const FIELD_LABELS = {
 };
 
 const confColor = (c) => {
-  if (c >= 60) return "bg-amber-100 text-amber-800";
-  if (c >= 40) return "bg-orange-100 text-orange-800";
-  return "bg-rose-100 text-rose-800";
+  if (c >= 60) return "bg-status-warning-bg text-status-warning-fg";
+  if (c >= 40) return "bg-status-warning-bg text-status-warning-fg";
+  return "bg-status-danger-bg text-status-danger-fg";
 };
 
 const SuggestionsPage = () => {
@@ -157,7 +157,7 @@ const SuggestionsPage = () => {
           Yükleniyor...
         </div>
       ) : groups.length === 0 ? (
-        <div className="text-center py-16 text-muted-foreground/70">
+        <div className="text-center py-16 text-muted-foreground">
           <Sparkles className="w-12 h-12 mx-auto mb-3 opacity-40" />
           <p>Onay bekleyen öneri yok.</p>
           <p className="text-sm mt-1">Arka plan taraması çalıştıkça buraya düşük güvenli öneriler düşecek.</p>
@@ -196,7 +196,7 @@ const SuggestionsPage = () => {
                       <Button
                         size="icon"
                         variant="ghost"
-                        className="h-8 w-8 text-emerald-600 hover:text-emerald-700"
+                        className="h-8 w-8 text-status-success-fg hover:text-status-success-fg"
                         onClick={() => approveOne(s)}
                         title="Onayla ve yaz"
                       >
@@ -205,7 +205,7 @@ const SuggestionsPage = () => {
                       <Button
                         size="icon"
                         variant="ghost"
-                        className="h-8 w-8 text-rose-500 hover:text-rose-600"
+                        className="h-8 w-8 text-status-danger-fg hover:text-status-danger-fg"
                         onClick={() => rejectOne(s)}
                         title="Reddet"
                       >

@@ -165,9 +165,9 @@ const FollowupNotifications = () => {
 
   const getUrgencyColor = (urgency) => {
     switch (urgency) {
-      case "overdue": return "bg-red-100 text-red-700 border-red-200";
-      case "today": return "bg-amber-100 text-amber-700 border-amber-200";
-      case "tomorrow": return "bg-blue-100 text-blue-700 border-blue-200";
+      case "overdue": return "bg-status-danger-bg text-status-danger-fg border-status-danger-line";
+      case "today": return "bg-status-warning-bg text-status-warning-fg border-status-warning-line";
+      case "tomorrow": return "bg-status-info-bg text-status-info-fg border-status-info-line";
       default: return "bg-muted text-foreground border-border";
     }
   };
@@ -192,7 +192,7 @@ const FollowupNotifications = () => {
         >
           <Bell className="w-5 h-5 text-muted-foreground" />
           {unreadCount > 0 && (
-            <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center font-medium animate-pulse">
+            <span className="absolute -top-1 -right-1 w-5 h-5 bg-destructive text-white text-xs rounded-full flex items-center justify-center font-medium animate-pulse">
               {unreadCount > 9 ? "9+" : unreadCount}
             </span>
           )}
@@ -218,18 +218,18 @@ const FollowupNotifications = () => {
         
         <ScrollArea className="max-h-[400px]">
           {loading ? (
-            <div className="p-8 text-center text-muted-foreground/70">
-              <div className="w-6 h-6 border-2 border-border border-t-emerald-500 rounded-full animate-spin mx-auto mb-2" />
+            <div className="p-8 text-center text-muted-foreground">
+              <div className="w-6 h-6 border-2 border-border border-t-status-success-fg rounded-full animate-spin mx-auto mb-2" />
               Yükleniyor...
             </div>
           ) : notifications.length === 0 ? (
-            <div className="p-8 text-center text-muted-foreground/70">
+            <div className="p-8 text-center text-muted-foreground">
               <Bell className="w-12 h-12 mx-auto mb-3 opacity-30" />
               <p>Yaklaşan takip yok</p>
               <p className="text-xs mt-1">Tüm takipler güncel</p>
             </div>
           ) : (
-            <div className="divide-y divide-slate-100">
+            <div className="divide-y divide-border">
               {notifications.map((notif) => (
                 <div 
                   key={notif.id}
@@ -239,9 +239,9 @@ const FollowupNotifications = () => {
                     <span className="text-lg">{getUrgencyIcon(notif.urgency)}</span>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
-                        <Building2 className="w-3 h-3 text-muted-foreground/70 flex-shrink-0" />
+                        <Building2 className="w-3 h-3 text-muted-foreground flex-shrink-0" />
                         <span 
-                          className="font-medium text-sm text-foreground truncate cursor-pointer hover:text-blue-600"
+                          className="font-medium text-sm text-foreground truncate cursor-pointer hover:text-status-info-fg"
                           onClick={() => {
                             openCustomerModal(notif.customer_id);
                             setOpen(false);
@@ -275,7 +275,7 @@ const FollowupNotifications = () => {
                         <Button 
                           variant="ghost" 
                           size="icon" 
-                          className="h-7 w-7 text-muted-foreground/70 hover:text-muted-foreground"
+                          className="h-7 w-7 text-muted-foreground hover:text-muted-foreground"
                           onClick={() => dismissNotification(notif.id)}
                         >
                           <X className="w-4 h-4" />

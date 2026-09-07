@@ -11,12 +11,12 @@ import {
 } from "./ui/dropdown-menu";
 
 const STATUS_COLORS = {
-  Beklemede: "bg-amber-100 text-amber-700 border-amber-200",
-  İletişimde: "bg-blue-100 text-blue-700 border-blue-200",
-  "Teklif Verildi": "bg-violet-100 text-violet-700 border-violet-200",
-  Çalışılıyor: "bg-emerald-100 text-emerald-700 border-emerald-200",
-  Kazanıldı: "bg-green-100 text-green-700 border-green-200",
-  Kaybedildi: "bg-red-100 text-red-700 border-red-200",
+  Beklemede: "bg-status-warning-bg text-status-warning-fg border-status-warning-line",
+  İletişimde: "bg-status-info-bg text-status-info-fg border-status-info-line",
+  "Teklif Verildi": "bg-status-info-bg text-status-info-fg border-status-info-line",
+  Çalışılıyor: "bg-status-success-bg text-status-success-fg border-status-success-line",
+  Kazanıldı: "bg-status-success-bg text-status-success-fg border-status-success-line",
+  Kaybedildi: "bg-status-danger-bg text-status-danger-fg border-status-danger-line",
 };
 
 /**
@@ -43,7 +43,7 @@ export default function MobileCustomerList({
 }) {
   if (!customers || customers.length === 0) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground/70 p-8">
+      <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground p-8">
         <Building2 className="w-10 h-10 mb-3 opacity-40" />
         <p className="text-sm font-medium text-muted-foreground">Müşteri bulunamadı</p>
       </div>
@@ -64,7 +64,7 @@ export default function MobileCustomerList({
           <div
             key={c.id}
             className={`bg-card rounded-xl border ${
-              isSelected ? "border-emerald-400" : "border-border"
+              isSelected ? "border-status-success-line" : "border-border"
             } px-3 py-2.5 shadow-[0_1px_2px_rgba(0,0,0,0.03)] active:bg-muted/30 transition-colors`}
             data-testid={`mobile-cust-card-${c.id}`}
           >
@@ -93,7 +93,7 @@ export default function MobileCustomerList({
                         {c.company_name || "—"}
                       </p>
                       {c.is_followup && (
-                        <Bell className="w-3 h-3 text-amber-500 flex-shrink-0" />
+                        <Bell className="w-3 h-3 text-status-warning-fg flex-shrink-0" />
                       )}
                     </div>
                     <p className="text-[11px] text-muted-foreground truncate mt-0.5">
@@ -126,7 +126,7 @@ export default function MobileCustomerList({
                 </div>
 
                 {(c.partner || c.assigned_to) && (
-                  <p className="text-[11px] text-muted-foreground/70 mt-1.5 truncate">
+                  <p className="text-[11px] text-muted-foreground mt-1.5 truncate">
                     {[c.partner && `🤝 ${c.partner}`, c.assigned_to && `👤 ${c.assigned_to}`]
                       .filter(Boolean)
                       .join(" · ")}
@@ -177,7 +177,7 @@ export default function MobileCustomerList({
                   )}
                   {onDelete && isAdmin && (
                     <DropdownMenuItem
-                      className="text-red-600 focus:text-red-600"
+                      className="text-status-danger-fg focus:text-status-danger-fg"
                       onClick={() => onDelete(c.id)}
                     >
                       Sil

@@ -62,10 +62,10 @@ const CloudBackupModal = ({ open, onClose }) => {
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-lg" data-testid="cloud-backup-modal">
-        <DialogHeader className="pb-4 border-b border-slate-200">
+        <DialogHeader className="pb-4 border-b border-border">
           <DialogTitle className="flex items-center gap-3 text-xl font-semibold">
-            <div className="p-2 bg-blue-100 rounded-lg">
-              <Cloud className="w-5 h-5 text-blue-700" />
+            <div className="p-2 bg-status-info-bg rounded-lg">
+              <Cloud className="w-5 h-5 text-status-info-fg" />
             </div>
             Cloud Yedekleme
           </DialogTitle>
@@ -73,22 +73,22 @@ const CloudBackupModal = ({ open, onClose }) => {
 
         <div className="py-6 space-y-6">
           {/* Instructions */}
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <div className="bg-status-info-bg border border-status-info-line rounded-lg p-4">
             <div className="flex items-start gap-3">
-              <Info className="w-5 h-5 text-blue-600 mt-0.5" />
+              <Info className="w-5 h-5 text-status-info-fg mt-0.5" />
               <div>
-                <h4 className="font-medium text-blue-800 mb-2">Cloud Depolama Nasıl Yedeklenir?</h4>
-                <ol className="text-sm text-blue-700 space-y-2">
+                <h4 className="font-medium text-status-info-fg mb-2">Cloud Depolama Nasıl Yedeklenir?</h4>
+                <ol className="text-sm text-status-info-fg space-y-2">
                   <li className="flex items-start gap-2">
-                    <span className="w-5 h-5 bg-blue-200 rounded-full flex items-center justify-center text-xs font-semibold shrink-0">1</span>
+                    <span className="w-5 h-5 bg-status-info-bg rounded-full flex items-center justify-center text-xs font-semibold shrink-0">1</span>
                     <span>Aşağıdaki "Yedek Dosyasını İndir" butonuna tıklayın</span>
                   </li>
                   <li className="flex items-start gap-2">
-                    <span className="w-5 h-5 bg-blue-200 rounded-full flex items-center justify-center text-xs font-semibold shrink-0">2</span>
+                    <span className="w-5 h-5 bg-status-info-bg rounded-full flex items-center justify-center text-xs font-semibold shrink-0">2</span>
                     <span>.xlsx formatında yedek dosyası indirilecek</span>
                   </li>
                   <li className="flex items-start gap-2">
-                    <span className="w-5 h-5 bg-blue-200 rounded-full flex items-center justify-center text-xs font-semibold shrink-0">3</span>
+                    <span className="w-5 h-5 bg-status-info-bg rounded-full flex items-center justify-center text-xs font-semibold shrink-0">3</span>
                     <span>İndirilen dosyayı Google Drive veya OneDrive'a yükleyin</span>
                   </li>
                 </ol>
@@ -100,7 +100,7 @@ const CloudBackupModal = ({ open, onClose }) => {
           <Button
             onClick={handleDownloadBackup}
             disabled={downloading}
-            className="w-full h-14 bg-emerald-600 hover:bg-emerald-700 text-white"
+            className="w-full h-14 bg-status-success-fg hover:bg-status-success-fg text-white"
             data-testid="btn-download-backup"
           >
             <Download className="w-5 h-5 mr-3" />
@@ -111,7 +111,7 @@ const CloudBackupModal = ({ open, onClose }) => {
           <div className="grid grid-cols-2 gap-4">
             <button
               onClick={openGoogleDrive}
-              className="flex items-center justify-center gap-3 p-4 border-2 border-slate-200 rounded-xl hover:border-blue-400 hover:bg-blue-50 transition-all"
+              className="flex items-center justify-center gap-3 p-4 border-2 border-border rounded-xl hover:border-status-info-line hover:bg-status-info-bg transition-all"
               data-testid="btn-google-drive"
             >
               <svg className="w-8 h-8" viewBox="0 0 87.3 78">
@@ -123,15 +123,15 @@ const CloudBackupModal = ({ open, onClose }) => {
                 <path d="m73.4 26.5-12.7-22c-.8-1.4-1.95-2.5-3.3-3.3l-13.75 23.8 16.15 28h27.45c0-1.55-.4-3.1-1.2-4.5z" fill="#ffba00"/>
               </svg>
               <div className="text-left">
-                <p className="font-medium text-slate-900">Google Drive</p>
-                <p className="text-xs text-slate-500">Yükle</p>
+                <p className="font-medium text-foreground">Google Drive</p>
+                <p className="text-xs text-muted-foreground">Yükle</p>
               </div>
-              <ExternalLink className="w-4 h-4 text-slate-400" />
+              <ExternalLink className="w-4 h-4 text-muted-foreground" />
             </button>
 
             <button
               onClick={openOneDrive}
-              className="flex items-center justify-center gap-3 p-4 border-2 border-slate-200 rounded-xl hover:border-blue-400 hover:bg-blue-50 transition-all"
+              className="flex items-center justify-center gap-3 p-4 border-2 border-border rounded-xl hover:border-status-info-line hover:bg-status-info-bg transition-all"
               data-testid="btn-onedrive"
             >
               <svg className="w-8 h-8" viewBox="0 0 24 24">
@@ -141,17 +141,17 @@ const CloudBackupModal = ({ open, onClose }) => {
                 <path fill="#28A8EA" d="M19.8 15.9h-5.3l-5.3-4.4h5.3c.8 0 1.5.2 2.1.6l.4.3 2.8 3.5z"/>
               </svg>
               <div className="text-left">
-                <p className="font-medium text-slate-900">OneDrive</p>
-                <p className="text-xs text-slate-500">Yükle</p>
+                <p className="font-medium text-foreground">OneDrive</p>
+                <p className="text-xs text-muted-foreground">Yükle</p>
               </div>
-              <ExternalLink className="w-4 h-4 text-slate-400" />
+              <ExternalLink className="w-4 h-4 text-muted-foreground" />
             </button>
           </div>
 
           {/* Success message */}
-          <div className="bg-slate-50 border border-slate-200 rounded-lg p-4">
-            <div className="flex items-center gap-2 text-slate-700">
-              <CheckCircle className="w-5 h-5 text-emerald-600" />
+          <div className="bg-background border border-border rounded-lg p-4">
+            <div className="flex items-center gap-2 text-foreground">
+              <CheckCircle className="w-5 h-5 text-status-success-fg" />
               <span className="text-sm">
                 Yedek dosyalarınız her zaman <strong>.xlsx</strong> formatında indirilir ve tüm müşteri bilgilerinizi içerir.
               </span>
@@ -160,7 +160,7 @@ const CloudBackupModal = ({ open, onClose }) => {
         </div>
 
         {/* Footer */}
-        <div className="pt-4 border-t border-slate-200 flex justify-end">
+        <div className="pt-4 border-t border-border flex justify-end">
           <Button variant="outline" onClick={onClose}>
             Kapat
           </Button>

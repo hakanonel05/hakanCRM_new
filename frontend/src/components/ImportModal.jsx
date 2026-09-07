@@ -690,42 +690,42 @@ const ImportModal = ({ open, onClose, onImportComplete }) => {
   const renderSelectStep = () => (
     <div className="p-6 space-y-6">
       <div className="text-center mb-6">
-        <h3 className="text-lg font-semibold text-slate-900">İçe Aktarma Türünü Seçin</h3>
-        <p className="text-sm text-slate-500 mt-1">Hangi tür veriyi içe aktarmak istiyorsunuz?</p>
+        <h3 className="text-lg font-semibold text-foreground">İçe Aktarma Türünü Seçin</h3>
+        <p className="text-sm text-muted-foreground mt-1">Hangi tür veriyi içe aktarmak istiyorsunuz?</p>
       </div>
 
       <div className="grid grid-cols-2 gap-4">
         <button
           onClick={() => handleTypeSelect('company')}
-          className="p-6 border-2 border-slate-200 rounded-xl hover:border-blue-400 hover:bg-blue-50 transition-all text-center group"
+          className="p-6 border-2 border-border rounded-xl hover:border-status-info-line hover:bg-status-info-bg transition-all text-center group"
           data-testid="btn-import-company"
         >
-          <div className="w-16 h-16 bg-blue-100 rounded-xl flex items-center justify-center mx-auto mb-4 group-hover:bg-blue-200 transition-colors">
-            <Building2 className="w-8 h-8 text-blue-600" />
+          <div className="w-16 h-16 bg-status-info-bg rounded-xl flex items-center justify-center mx-auto mb-4 group-hover:bg-status-info-bg transition-colors">
+            <Building2 className="w-8 h-8 text-status-info-fg" />
           </div>
-          <h4 className="font-semibold text-slate-900">Şirket Verilerini İçe Aktar</h4>
-          <p className="text-sm text-slate-500 mt-1">Excel dosyasından şirket bilgilerini toplu olarak ekleyin</p>
+          <h4 className="font-semibold text-foreground">Şirket Verilerini İçe Aktar</h4>
+          <p className="text-sm text-muted-foreground mt-1">Excel dosyasından şirket bilgilerini toplu olarak ekleyin</p>
         </button>
 
         <button
           onClick={() => handleTypeSelect('visit')}
-          className="p-6 border-2 border-slate-200 rounded-xl hover:border-emerald-400 hover:bg-emerald-50 transition-all text-center group"
+          className="p-6 border-2 border-border rounded-xl hover:border-status-success-line hover:bg-status-success-bg transition-all text-center group"
           data-testid="btn-import-visit"
         >
-          <div className="w-16 h-16 bg-emerald-100 rounded-xl flex items-center justify-center mx-auto mb-4 group-hover:bg-emerald-200 transition-colors">
-            <Calendar className="w-8 h-8 text-emerald-600" />
+          <div className="w-16 h-16 bg-status-success-bg rounded-xl flex items-center justify-center mx-auto mb-4 group-hover:bg-status-success-bg transition-colors">
+            <Calendar className="w-8 h-8 text-status-success-fg" />
           </div>
-          <h4 className="font-semibold text-slate-900">Ziyaret Verilerini İçe Aktar</h4>
-          <p className="text-sm text-slate-500 mt-1">Mevcut bir şirket için ziyaret raporlarını toplu olarak ekleyin</p>
+          <h4 className="font-semibold text-foreground">Ziyaret Verilerini İçe Aktar</h4>
+          <p className="text-sm text-muted-foreground mt-1">Mevcut bir şirket için ziyaret raporlarını toplu olarak ekleyin</p>
         </button>
       </div>
 
-      <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+      <div className="bg-status-warning-bg border border-status-warning-line rounded-lg p-4">
         <div className="flex items-start gap-2">
-          <Lightbulb className="w-5 h-5 text-amber-600 mt-0.5" />
+          <Lightbulb className="w-5 h-5 text-status-warning-fg mt-0.5" />
           <div>
-            <p className="font-medium text-amber-800">İpuçları:</p>
-            <ul className="text-sm text-amber-700 mt-1 space-y-1">
+            <p className="font-medium text-status-warning-fg">İpuçları:</p>
+            <ul className="text-sm text-status-warning-fg mt-1 space-y-1">
               <li>• <strong>Şirket İçe Aktarma:</strong> Yeni müşterileri toplu olarak sisteme eklemek için</li>
               <li>• <strong>Ziyaret İçe Aktarma:</strong> Mevcut bir müşteri için geçmiş ziyaret raporlarını eklemek için</li>
               <li>• Her iki seçenek için de Excel şablonları mevcuttur</li>
@@ -746,27 +746,27 @@ const ImportModal = ({ open, onClose, onImportComplete }) => {
           donmuş gibi görünüyordu. */}
       {processingFile && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl p-8 max-w-md w-full mx-4 shadow-2xl text-center">
-            <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Loader2 className="w-10 h-10 text-blue-600 animate-spin" />
+          <div className="bg-white rounded-2xl p-8 max-w-md w-full mx-4 shadow-none text-center">
+            <div className="w-20 h-20 bg-status-info-bg rounded-full flex items-center justify-center mx-auto mb-4">
+              <Loader2 className="w-10 h-10 text-status-info-fg animate-spin" />
             </div>
             {processingPhase === "comparing" ? (
               <>
-                <h3 className="text-xl font-bold text-slate-800 mb-2">Müşteriler Karşılaştırılıyor...</h3>
-                <p className="text-slate-500 mb-2">
+                <h3 className="text-xl font-bold text-foreground mb-2">Müşteriler Karşılaştırılıyor...</h3>
+                <p className="text-muted-foreground mb-2">
                   {processingRowCount > 0
                     ? `${processingRowCount} kayıt, mevcut müşterilerinizle karşılaştırılıyor`
                     : "Mevcut müşterilerinizle karşılaştırılıyor"}
                 </p>
-                <p className="text-sm text-slate-400">
+                <p className="text-sm text-muted-foreground">
                   Büyük listelerde bu adım 1-2 dakika sürebilir. Lütfen bu pencereyi kapatmayın.
                 </p>
               </>
             ) : (
               <>
-                <h3 className="text-xl font-bold text-slate-800 mb-2">Dosya İşleniyor...</h3>
-                <p className="text-slate-500 mb-2">Excel dosyası okunuyor ve analiz ediliyor</p>
-                <p className="text-sm text-slate-400">Bu işlem dosya boyutuna göre biraz zaman alabilir</p>
+                <h3 className="text-xl font-bold text-foreground mb-2">Dosya İşleniyor...</h3>
+                <p className="text-muted-foreground mb-2">Excel dosyası okunuyor ve analiz ediliyor</p>
+                <p className="text-sm text-muted-foreground">Bu işlem dosya boyutuna göre biraz zaman alabilir</p>
               </>
             )}
           </div>
@@ -778,17 +778,17 @@ const ImportModal = ({ open, onClose, onImportComplete }) => {
           <Download className="w-4 h-4 mr-2" />
           Şirket Şablonu İndir
         </Button>
-        <p className="text-sm text-slate-500 mt-2">Excel dosyanızın beklenen formatını görmek için şablonu indirin</p>
+        <p className="text-sm text-muted-foreground mt-2">Excel dosyanızın beklenen formatını görmek için şablonu indirin</p>
       </div>
 
       <div
         onDrop={handleDrop}
         onDragOver={(e) => e.preventDefault()}
-        className="border-2 border-dashed border-slate-300 rounded-xl p-8 text-center hover:border-blue-400 transition-colors"
+        className="border-2 border-dashed border-input rounded-xl p-8 text-center hover:border-status-info-line transition-colors"
       >
-        <Upload className="w-12 h-12 text-slate-400 mx-auto mb-4" />
-        <p className="font-medium text-slate-700">Şirket Excel dosyanızı buraya sürükleyin</p>
-        <p className="text-sm text-slate-500 mt-1">veya dosya seçmek için tıklayın</p>
+        <Upload className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+        <p className="font-medium text-foreground">Şirket Excel dosyanızı buraya sürükleyin</p>
+        <p className="text-sm text-muted-foreground mt-1">veya dosya seçmek için tıklayın</p>
         <input
           type="file"
           accept=".csv,.xlsx,.xls"
@@ -823,9 +823,9 @@ const ImportModal = ({ open, onClose, onImportComplete }) => {
         </Button>
       </div>
 
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-        <p className="font-medium text-blue-800">Excel Dosya Formatı:</p>
-        <ul className="text-sm text-blue-700 mt-2 space-y-1">
+      <div className="bg-status-info-bg border border-status-info-line rounded-lg p-4">
+        <p className="font-medium text-status-info-fg">Excel Dosya Formatı:</p>
+        <ul className="text-sm text-status-info-fg mt-2 space-y-1">
           <li>• <strong>Zorunlu alan:</strong> Sadece Firma Adı</li>
           <li>• <strong>Desteklenen kolonlar:</strong> Market, Uygulama, Şehir, İlçe, Durum, Rakip, Partner, Potansiyel, Takip Eden, ABB Ürünleri vb.</li>
           <li>• <strong>Potansiyel:</strong> Düşük, Orta veya Yüksek olarak girin</li>
@@ -840,13 +840,13 @@ const ImportModal = ({ open, onClose, onImportComplete }) => {
           adımı yok, sadece okuma/analiz — o yüzden tek aşamalı) */}
       {processingFile && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl p-8 max-w-md w-full mx-4 shadow-2xl text-center">
-            <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Loader2 className="w-10 h-10 text-blue-600 animate-spin" />
+          <div className="bg-white rounded-2xl p-8 max-w-md w-full mx-4 shadow-none text-center">
+            <div className="w-20 h-20 bg-status-info-bg rounded-full flex items-center justify-center mx-auto mb-4">
+              <Loader2 className="w-10 h-10 text-status-info-fg animate-spin" />
             </div>
-            <h3 className="text-xl font-bold text-slate-800 mb-2">Dosya İşleniyor...</h3>
-            <p className="text-slate-500 mb-2">Excel dosyası okunuyor ve analiz ediliyor</p>
-            <p className="text-sm text-slate-400">Bu işlem dosya boyutuna göre biraz zaman alabilir</p>
+            <h3 className="text-xl font-bold text-foreground mb-2">Dosya İşleniyor...</h3>
+            <p className="text-muted-foreground mb-2">Excel dosyası okunuyor ve analiz ediliyor</p>
+            <p className="text-sm text-muted-foreground">Bu işlem dosya boyutuna göre biraz zaman alabilir</p>
           </div>
         </div>
       )}
@@ -865,28 +865,28 @@ const ImportModal = ({ open, onClose, onImportComplete }) => {
             ))}
           </SelectContent>
         </Select>
-        <p className="text-sm text-slate-500 mt-1">Tüm ziyaretler seçilen şirkete atanacaktır</p>
+        <p className="text-sm text-muted-foreground mt-1">Tüm ziyaretler seçilen şirkete atanacaktır</p>
       </div>
 
       {selectedCustomerId && (
         <>
           <div className="text-center">
-            <Button onClick={downloadVisitTemplate} className="bg-emerald-600 hover:bg-emerald-700">
+            <Button onClick={downloadVisitTemplate} className="bg-status-success-fg hover:bg-status-success-fg">
               <Download className="w-4 h-4 mr-2" />
               Ziyaret Şablonu İndir
             </Button>
-            <p className="text-sm text-slate-500 mt-2">Ziyaret verilerinin beklenen formatını görmek için şablonu indirin</p>
+            <p className="text-sm text-muted-foreground mt-2">Ziyaret verilerinin beklenen formatını görmek için şablonu indirin</p>
           </div>
 
           <div
             onDrop={handleDrop}
             onDragOver={(e) => e.preventDefault()}
-            className="border-2 border-dashed border-slate-300 rounded-xl p-8 text-center hover:border-emerald-400 transition-colors"
+            className="border-2 border-dashed border-input rounded-xl p-8 text-center hover:border-status-success-line transition-colors"
           >
-            <Upload className="w-12 h-12 text-slate-400 mx-auto mb-4" />
-            <p className="font-medium text-slate-700">Ziyaret Excel dosyanızı buraya sürükleyin</p>
-            <p className="text-sm text-slate-500 mt-1">veya dosya seçmek için tıklayın</p>
-            <p className="text-sm text-emerald-600 font-medium mt-2">
+            <Upload className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+            <p className="font-medium text-foreground">Ziyaret Excel dosyanızı buraya sürükleyin</p>
+            <p className="text-sm text-muted-foreground mt-1">veya dosya seçmek için tıklayın</p>
+            <p className="text-sm text-status-success-fg font-medium mt-2">
               Seçilen şirket: {customers.find(c => c.id === selectedCustomerId)?.company_name}
             </p>
             <input
@@ -898,7 +898,7 @@ const ImportModal = ({ open, onClose, onImportComplete }) => {
             />
             <Button 
               variant="default" 
-              className="mt-4 bg-emerald-600 hover:bg-emerald-700"
+              className="mt-4 bg-status-success-fg hover:bg-status-success-fg"
               onClick={() => document.getElementById('visit-file-input').click()}
             >
               Dosya Seç
@@ -915,25 +915,25 @@ const ImportModal = ({ open, onClose, onImportComplete }) => {
         {/* Import Progress Overlay */}
         {importing && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-2xl p-8 max-w-md w-full mx-4 shadow-2xl">
+            <div className="bg-white rounded-2xl p-8 max-w-md w-full mx-4 shadow-none">
               <div className="text-center">
-                <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Loader2 className="w-10 h-10 text-blue-600 animate-spin" />
+                <div className="w-20 h-20 bg-status-info-bg rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Loader2 className="w-10 h-10 text-status-info-fg animate-spin" />
                 </div>
-                <h3 className="text-xl font-bold text-slate-800 mb-2">İçe Aktarılıyor...</h3>
-                <p className="text-slate-500 mb-4">Lütfen bu pencereyi kapatmayın</p>
+                <h3 className="text-xl font-bold text-foreground mb-2">İçe Aktarılıyor...</h3>
+                <p className="text-muted-foreground mb-4">Lütfen bu pencereyi kapatmayın</p>
                 
                 {/* Progress Bar */}
-                <div className="w-full bg-slate-200 rounded-full h-4 mb-2 overflow-hidden">
+                <div className="w-full bg-muted rounded-full h-4 mb-2 overflow-hidden">
                   <div 
                     className="bg-primary h-full rounded-full transition-all duration-300"
                     style={{ width: `${importProgress.total > 0 ? (importProgress.current / importProgress.total) * 100 : 0}%` }}
                   />
                 </div>
-                <p className="text-lg font-semibold text-slate-700">
+                <p className="text-lg font-semibold text-foreground">
                   %{importProgress.total > 0 ? Math.round((importProgress.current / importProgress.total) * 100) : 0}
                 </p>
-                <p className="text-sm text-slate-500 mt-1">
+                <p className="text-sm text-muted-foreground mt-1">
                   {importProgress.current === 0 ? 'Sunucuya bağlanılıyor... (sunucu uykudaysa ilk yanıt 30-60 sn sürebilir)' :
                    importProgress.current === 1 && importType === 'company' ? 'Seçenekler kaydedildi, müşteriler aktarılıyor...' :
                    importProgress.total > 0 
@@ -944,17 +944,17 @@ const ImportModal = ({ open, onClose, onImportComplete }) => {
                 {/* Live counters — updates after every batch */}
                 {(importLive.added > 0 || importLive.updated > 0 || importLive.failed > 0) && (
                   <div className="grid grid-cols-3 gap-2 mt-4">
-                    <div className="bg-emerald-50 border border-emerald-200 rounded-lg py-2">
-                      <p className="text-lg font-bold text-emerald-700">{importLive.added}</p>
-                      <p className="text-[11px] text-emerald-600">Eklendi</p>
+                    <div className="bg-status-success-bg border border-status-success-line rounded-lg py-2">
+                      <p className="text-lg font-bold text-status-success-fg">{importLive.added}</p>
+                      <p className="text-[11px] text-status-success-fg">Eklendi</p>
                     </div>
-                    <div className="bg-blue-50 border border-blue-200 rounded-lg py-2">
-                      <p className="text-lg font-bold text-blue-700">{importLive.updated}</p>
-                      <p className="text-[11px] text-blue-600">Güncellendi</p>
+                    <div className="bg-status-info-bg border border-status-info-line rounded-lg py-2">
+                      <p className="text-lg font-bold text-status-info-fg">{importLive.updated}</p>
+                      <p className="text-[11px] text-status-info-fg">Güncellendi</p>
                     </div>
-                    <div className="bg-red-50 border border-red-200 rounded-lg py-2">
-                      <p className="text-lg font-bold text-red-700">{importLive.failed}</p>
-                      <p className="text-[11px] text-red-600">Hata</p>
+                    <div className="bg-status-danger-bg border border-status-danger-line rounded-lg py-2">
+                      <p className="text-lg font-bold text-status-danger-fg">{importLive.failed}</p>
+                      <p className="text-[11px] text-status-danger-fg">Hata</p>
                     </div>
                   </div>
                 )}
@@ -966,35 +966,35 @@ const ImportModal = ({ open, onClose, onImportComplete }) => {
         {/* Final result summary — stays on screen until the user closes it */}
         {!importing && importResult && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-2xl p-8 max-w-md w-full mx-4 shadow-2xl text-center">
-              <div className={`w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4 ${importResult.failed > 0 ? 'bg-amber-100' : 'bg-emerald-100'}`}>
+            <div className="bg-white rounded-2xl p-8 max-w-md w-full mx-4 shadow-none text-center">
+              <div className={`w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4 ${importResult.failed > 0 ? 'bg-status-warning-bg' : 'bg-status-success-bg'}`}>
                 {importResult.failed > 0 ? (
-                  <AlertTriangle className="w-10 h-10 text-amber-600" />
+                  <AlertTriangle className="w-10 h-10 text-status-warning-fg" />
                 ) : (
-                  <CheckCircle className="w-10 h-10 text-emerald-600" />
+                  <CheckCircle className="w-10 h-10 text-status-success-fg" />
                 )}
               </div>
-              <h3 className="text-xl font-bold text-slate-800 mb-1">
+              <h3 className="text-xl font-bold text-foreground mb-1">
                 {importResult.failed > 0 ? 'İçe Aktarma Tamamlandı (hatalarla)' : 'İçe Aktarma Tamamlandı'}
               </h3>
-              <p className="text-sm text-slate-500 mb-5">İşlem sonucu aşağıda özetlenmiştir</p>
+              <p className="text-sm text-muted-foreground mb-5">İşlem sonucu aşağıda özetlenmiştir</p>
 
               <div className="grid grid-cols-2 gap-3 mb-6">
-                <div className="bg-emerald-50 border border-emerald-200 rounded-xl py-3">
-                  <p className="text-2xl font-bold text-emerald-700">{importResult.added}</p>
-                  <p className="text-xs text-emerald-600">Yeni Eklendi</p>
+                <div className="bg-status-success-bg border border-status-success-line rounded-xl py-3">
+                  <p className="text-2xl font-bold text-status-success-fg">{importResult.added}</p>
+                  <p className="text-xs text-status-success-fg">Yeni Eklendi</p>
                 </div>
-                <div className="bg-blue-50 border border-blue-200 rounded-xl py-3">
-                  <p className="text-2xl font-bold text-blue-700">{importResult.updated}</p>
-                  <p className="text-xs text-blue-600">Güncellendi</p>
+                <div className="bg-status-info-bg border border-status-info-line rounded-xl py-3">
+                  <p className="text-2xl font-bold text-status-info-fg">{importResult.updated}</p>
+                  <p className="text-xs text-status-info-fg">Güncellendi</p>
                 </div>
-                <div className="bg-slate-50 border border-slate-200 rounded-xl py-3">
-                  <p className="text-2xl font-bold text-slate-700">{importResult.skipped}</p>
-                  <p className="text-xs text-slate-500">Atlandı / Yoksayıldı</p>
+                <div className="bg-background border border-border rounded-xl py-3">
+                  <p className="text-2xl font-bold text-foreground">{importResult.skipped}</p>
+                  <p className="text-xs text-muted-foreground">Atlandı / Yoksayıldı</p>
                 </div>
-                <div className="bg-red-50 border border-red-200 rounded-xl py-3">
-                  <p className="text-2xl font-bold text-red-700">{importResult.failed}</p>
-                  <p className="text-xs text-red-600">Hata</p>
+                <div className="bg-status-danger-bg border border-status-danger-line rounded-xl py-3">
+                  <p className="text-2xl font-bold text-status-danger-fg">{importResult.failed}</p>
+                  <p className="text-xs text-status-danger-fg">Hata</p>
                 </div>
               </div>
 
@@ -1007,11 +1007,11 @@ const ImportModal = ({ open, onClose, onImportComplete }) => {
 
         {/* Loading state */}
         {checkingSimilarity && (
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-center gap-3">
-            <Loader2 className="w-6 h-6 text-blue-600 animate-spin" />
+          <div className="bg-status-info-bg border border-status-info-line rounded-lg p-4 flex items-center gap-3">
+            <Loader2 className="w-6 h-6 text-status-info-fg animate-spin" />
             <div>
-              <p className="font-medium text-blue-800">Benzerlik Kontrolü Yapılıyor...</p>
-              <p className="text-sm text-blue-600">Mevcut müşterilerle karşılaştırılıyor ({previewData.length} kayıt)</p>
+              <p className="font-medium text-status-info-fg">Benzerlik Kontrolü Yapılıyor...</p>
+              <p className="text-sm text-status-info-fg">Mevcut müşterilerle karşılaştırılıyor ({previewData.length} kayıt)</p>
             </div>
           </div>
         )}
@@ -1020,29 +1020,29 @@ const ImportModal = ({ open, onClose, onImportComplete }) => {
           <>
             {/* Stats summary */}
             <div className="grid grid-cols-3 gap-3">
-              <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3 text-center">
-                <Plus className="w-5 h-5 text-emerald-600 mx-auto mb-1" />
-                <p className="text-lg font-bold text-emerald-700">{previewStats.new}</p>
-                <p className="text-xs text-emerald-600">Yeni Şirket</p>
+              <div className="bg-status-success-bg border border-status-success-line rounded-lg p-3 text-center">
+                <Plus className="w-5 h-5 text-status-success-fg mx-auto mb-1" />
+                <p className="text-lg font-bold text-status-success-fg">{previewStats.new}</p>
+                <p className="text-xs text-status-success-fg">Yeni Şirket</p>
               </div>
-              <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-center">
-                <AlertTriangle className="w-5 h-5 text-amber-600 mx-auto mb-1" />
-                <p className="text-lg font-bold text-amber-700">{previewStats.similar}</p>
-                <p className="text-xs text-amber-600">Benzer Şirket</p>
+              <div className="bg-status-warning-bg border border-status-warning-line rounded-lg p-3 text-center">
+                <AlertTriangle className="w-5 h-5 text-status-warning-fg mx-auto mb-1" />
+                <p className="text-lg font-bold text-status-warning-fg">{previewStats.similar}</p>
+                <p className="text-xs text-status-warning-fg">Benzer Şirket</p>
               </div>
-              <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-center">
-                <Copy className="w-5 h-5 text-red-600 mx-auto mb-1" />
-                <p className="text-lg font-bold text-red-700">{previewStats.duplicate}</p>
-                <p className="text-xs text-red-600">Kopya (Otomatik Atlandı)</p>
+              <div className="bg-status-danger-bg border border-status-danger-line rounded-lg p-3 text-center">
+                <Copy className="w-5 h-5 text-status-danger-fg mx-auto mb-1" />
+                <p className="text-lg font-bold text-status-danger-fg">{previewStats.duplicate}</p>
+                <p className="text-xs text-status-danger-fg">Kopya (Otomatik Atlandı)</p>
               </div>
             </div>
 
             {/* Import summary */}
-            <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4 flex items-center gap-3">
-              <CheckCircle className="w-6 h-6 text-emerald-600" />
+            <div className="bg-status-success-bg border border-status-success-line rounded-lg p-4 flex items-center gap-3">
+              <CheckCircle className="w-6 h-6 text-status-success-fg" />
               <div>
-                <p className="font-medium text-emerald-800">İçe Aktarılacak</p>
-                <p className="text-sm text-emerald-600">
+                <p className="font-medium text-status-success-fg">İçe Aktarılacak</p>
+                <p className="text-sm text-status-success-fg">
                   {previewData.length - skipItems.size} / {previewData.length} {importType === 'company' ? 'şirket' : 'ziyaret'}
                 </p>
               </div>
@@ -1050,12 +1050,12 @@ const ImportModal = ({ open, onClose, onImportComplete }) => {
 
             {/* Parse errors */}
             {parseErrors.length > 0 && (
-              <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                <div className="flex items-center gap-2 text-red-800 font-medium mb-2">
+              <div className="bg-status-danger-bg border border-status-danger-line rounded-lg p-4">
+                <div className="flex items-center gap-2 text-status-danger-fg font-medium mb-2">
                   <AlertCircle className="w-5 h-5" />
                   Format Hataları ({parseErrors.length})
                 </div>
-                <ul className="text-sm text-red-600 space-y-1">
+                <ul className="text-sm text-status-danger-fg space-y-1">
                   {parseErrors.slice(0, 5).map((err, i) => (
                     <li key={i}>• {err}</li>
                   ))}
@@ -1068,9 +1068,9 @@ const ImportModal = ({ open, onClose, onImportComplete }) => {
 
             {/* Similarity warnings with Ekle/Yoksay buttons */}
             {similarityWarnings.length > 0 && (
-              <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+              <div className="bg-status-warning-bg border border-status-warning-line rounded-lg p-4">
                 <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-2 text-amber-800 font-medium">
+                  <div className="flex items-center gap-2 text-status-warning-fg font-medium">
                     <AlertTriangle className="w-5 h-5" />
                     Benzer Şirketler ({similarityWarnings.length})
                   </div>
@@ -1128,17 +1128,17 @@ const ImportModal = ({ open, onClose, onImportComplete }) => {
                   {similarityWarnings.map((warning, i) => (
                     <div key={i} className={`bg-white rounded-lg p-3 border ${
                       warning.similarity_status === "duplicate" 
-                        ? "border-red-200" 
-                        : "border-amber-100"
+                        ? "border-status-danger-line" 
+                        : "border-status-warning-line"
                     }`}>
                       <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center gap-2">
                           {warning.similarity_status === "duplicate" ? (
-                            <Badge className="bg-red-100 text-red-700 text-xs">Kopya</Badge>
+                            <Badge className="bg-status-danger-bg text-status-danger-fg text-xs">Kopya</Badge>
                           ) : (
-                            <Badge className="bg-amber-100 text-amber-700 text-xs">Benzer</Badge>
+                            <Badge className="bg-status-warning-bg text-status-warning-fg text-xs">Benzer</Badge>
                           )}
-                          <span className="font-medium text-slate-800">&ldquo;{warning.company_name}&rdquo;</span>
+                          <span className="font-medium text-foreground">&ldquo;{warning.company_name}&rdquo;</span>
                         </div>
                         <div className="flex items-center gap-1">
                           <Button
@@ -1166,7 +1166,7 @@ const ImportModal = ({ open, onClose, onImportComplete }) => {
                           <Button
                             size="sm"
                             variant={!skipItems.has(warning.rowNum) && !updateItems.has(warning.rowNum) ? "default" : "outline"}
-                            className={`text-xs h-7 ${!skipItems.has(warning.rowNum) && !updateItems.has(warning.rowNum) ? "bg-emerald-600 hover:bg-emerald-700" : ""}`}
+                            className={`text-xs h-7 ${!skipItems.has(warning.rowNum) && !updateItems.has(warning.rowNum) ? "bg-status-success-fg hover:bg-status-success-fg" : ""}`}
                             onClick={() => {
                               const newSkip = new Set(skipItems);
                               const newUpdate = new Map(updateItems);
@@ -1198,11 +1198,11 @@ const ImportModal = ({ open, onClose, onImportComplete }) => {
                         </div>
                       </div>
                       {warning.similarities.map((sim, j) => (
-                        <p key={j} className="text-sm text-slate-600 ml-2">
+                        <p key={j} className="text-sm text-muted-foreground ml-2">
                           → Mevcut &ldquo;<span className="font-medium">{sim.company_name}</span>&rdquo; ile 
                           <span className={`font-bold ml-1 ${
-                            sim.similarity_score >= 95 ? "text-red-600" : 
-                            sim.similarity_score >= 80 ? "text-amber-600" : "text-yellow-600"
+                            sim.similarity_score >= 95 ? "text-status-danger-fg" : 
+                            sim.similarity_score >= 80 ? "text-status-warning-fg" : "text-status-warning-fg"
                           }`}>
                             %{sim.similarity_score}
                           </span> benzerlik ({sim.match_type})
@@ -1216,21 +1216,21 @@ const ImportModal = ({ open, onClose, onImportComplete }) => {
 
             {/* All items preview - only new ones */}
             {previewData.filter(item => item.similarity_status === "new").length > 0 && (
-              <div className="bg-slate-50 border border-slate-200 rounded-lg p-4">
-                <p className="font-medium text-slate-700 mb-2">Yeni Şirketler (Benzerlik Yok)</p>
+              <div className="bg-background border border-border rounded-lg p-4">
+                <p className="font-medium text-foreground mb-2">Yeni Şirketler (Benzerlik Yok)</p>
                 <div className="space-y-1 max-h-32 overflow-y-auto">
                   {previewData
                     .filter(item => item.similarity_status === "new")
                     .slice(0, 10)
                     .map((item, i) => (
-                      <div key={i} className="flex items-center gap-2 text-sm text-slate-600">
-                        <CheckCircle className="w-3 h-3 text-emerald-500" />
+                      <div key={i} className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <CheckCircle className="w-3 h-3 text-status-success-fg" />
                         {item.company_name}
                       </div>
                     ))
                   }
                   {previewData.filter(item => item.similarity_status === "new").length > 10 && (
-                    <p className="text-xs text-slate-500">
+                    <p className="text-xs text-muted-foreground">
                       ...ve {previewData.filter(item => item.similarity_status === "new").length - 10} daha
                     </p>
                   )}
@@ -1246,15 +1246,15 @@ const ImportModal = ({ open, onClose, onImportComplete }) => {
   return (
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="max-w-2xl max-h-[90vh] p-0" data-testid="import-modal">
-        <DialogHeader className="px-6 py-4 border-b border-slate-200">
+        <DialogHeader className="px-6 py-4 border-b border-border">
           <div className="flex items-center gap-3">
             {step !== 'select' && (
               <Button variant="ghost" size="icon" onClick={handleBack} className="h-8 w-8">
                 <ArrowLeft className="w-4 h-4" />
               </Button>
             )}
-            <div className="p-2 bg-emerald-100 rounded-lg">
-              <FileSpreadsheet className="w-5 h-5 text-emerald-700" />
+            <div className="p-2 bg-status-success-bg rounded-lg">
+              <FileSpreadsheet className="w-5 h-5 text-status-success-fg" />
             </div>
             <DialogTitle className="text-xl font-semibold">
               {step === 'select' && 'Veri İçe Aktarma'}
@@ -1275,27 +1275,27 @@ const ImportModal = ({ open, onClose, onImportComplete }) => {
 
         {/* Footer for preview */}
         {step === 'preview' && (
-          <div className="px-6 py-4 border-t border-slate-200 space-y-3">
+          <div className="px-6 py-4 border-t border-border space-y-3">
             {/* Progress Bar - Only show during import */}
             {importing && importProgress.total > 0 && (
               <div className="space-y-2">
                 <div className="flex justify-between text-sm">
-                  <span className="text-slate-600">
+                  <span className="text-muted-foreground">
                     {importProgress.current === 0 ? 'Hazırlanıyor...' : 
                      importProgress.current === 1 && importType === 'company' ? 'Seçenekler kaydedildi, müşteriler aktarılıyor...' :
                      'İçe aktarılıyor...'}
                   </span>
-                  <span className="font-medium text-emerald-600">
+                  <span className="font-medium text-status-success-fg">
                     %{Math.round((importProgress.current / importProgress.total) * 100)}
                   </span>
                 </div>
-                <div className="w-full bg-slate-200 rounded-full h-3 overflow-hidden">
+                <div className="w-full bg-muted rounded-full h-3 overflow-hidden">
                   <div 
-                    className="bg-emerald-500 h-3 rounded-full transition-all duration-300 ease-out"
+                    className="bg-status-success-fg h-3 rounded-full transition-all duration-300 ease-out"
                     style={{ width: `${(importProgress.current / importProgress.total) * 100}%` }}
                   />
                 </div>
-                <p className="text-xs text-slate-500 text-center">
+                <p className="text-xs text-muted-foreground text-center">
                   %{Math.round((importProgress.current / importProgress.total) * 100)} tamamlandı
                 </p>
               </div>
@@ -1308,7 +1308,7 @@ const ImportModal = ({ open, onClose, onImportComplete }) => {
               <Button 
                 onClick={handleImport} 
                 disabled={importing || checkingSimilarity || previewData.length === skipItems.size}
-                className="bg-emerald-600 hover:bg-emerald-700"
+                className="bg-status-success-fg hover:bg-status-success-fg"
                 data-testid="btn-confirm-import"
               >
                 {importing ? (

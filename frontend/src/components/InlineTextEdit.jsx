@@ -98,7 +98,7 @@ const InlineTextEdit = ({
         <button
           type="button"
           onMouseDown={(e) => { e.preventDefault(); save(); }}
-          className="text-emerald-600 hover:text-emerald-700 disabled:opacity-40"
+          className="text-status-success-fg hover:text-status-success-fg disabled:opacity-40"
           disabled={saving}
           title="Kaydet (Enter)"
         >
@@ -107,7 +107,7 @@ const InlineTextEdit = ({
         <button
           type="button"
           onMouseDown={(e) => { e.preventDefault(); cancel(); }}
-          className="text-slate-400 hover:text-slate-600"
+          className="text-muted-foreground hover:text-muted-foreground"
           title="İptal (Esc)"
         >
           <X className="w-4 h-4" />
@@ -145,7 +145,7 @@ const InlineTextEdit = ({
     >
       {renderDisplay
         ? renderDisplay(value)
-        : (value || <span className="text-slate-300">{placeholder}</span>)}
+        : (value || <span className="text-primary-foreground">{placeholder}</span>)}
     </span>
   );
 };

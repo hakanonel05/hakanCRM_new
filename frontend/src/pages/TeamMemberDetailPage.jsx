@@ -56,12 +56,12 @@ const formatDate = (ts) => {
 };
 
 const STATUS_COLORS = {
-  "İletişimde": "bg-blue-100 text-blue-700",
-  "Beklemede": "bg-amber-100 text-amber-700",
-  "Çalışıyor": "bg-indigo-100 text-indigo-700",
-  "Teklif Verildi": "bg-violet-100 text-violet-700",
-  "Kazanıldı": "bg-emerald-100 text-emerald-700",
-  "Kaybedildi": "bg-rose-100 text-rose-700",
+  "İletişimde": "bg-status-info-bg text-status-info-fg",
+  "Beklemede": "bg-status-warning-bg text-status-warning-fg",
+  "Çalışıyor": "bg-status-info-bg text-status-info-fg",
+  "Teklif Verildi": "bg-status-info-bg text-status-info-fg",
+  "Kazanıldı": "bg-status-success-bg text-status-success-fg",
+  "Kaybedildi": "bg-status-danger-bg text-status-danger-fg",
 };
 
 const ACTIVITY_TYPE_LABEL = {
@@ -158,7 +158,7 @@ export default function TeamMemberDetailPage() {
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
-          <div className="px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 text-xs font-semibold">
+          <div className="px-3 py-1.5 rounded-lg bg-status-success-bg text-status-success-fg text-xs font-semibold">
             %{winRate} kazanma oranı
           </div>
         </div>
@@ -167,11 +167,11 @@ export default function TeamMemberDetailPage() {
       {/* Summary stat cards */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
         <StatCard icon={Users} label="Müşteri" value={summary.customers_count} color="text-foreground" />
-        <StatCard icon={Bell} label="Takipte" value={summary.followup_count} color="text-amber-600" />
-        <StatCard icon={Calendar} label="Ziyaret" value={summary.visits_count} color="text-blue-600" />
-        <StatCard icon={Activity} label="Aktivite" value={summary.activities_count} color="text-indigo-600" />
-        <StatCard icon={TrendingUp} label="Kazanıldı" value={summary.won_count} color="text-emerald-600" />
-        <StatCard icon={TrendingDown} label="Kaybedildi" value={summary.lost_count} color="text-rose-600" />
+        <StatCard icon={Bell} label="Takipte" value={summary.followup_count} color="text-status-warning-fg" />
+        <StatCard icon={Calendar} label="Ziyaret" value={summary.visits_count} color="text-status-info-fg" />
+        <StatCard icon={Activity} label="Aktivite" value={summary.activities_count} color="text-status-info-fg" />
+        <StatCard icon={TrendingUp} label="Kazanıldı" value={summary.won_count} color="text-status-success-fg" />
+        <StatCard icon={TrendingDown} label="Kaybedildi" value={summary.lost_count} color="text-status-danger-fg" />
       </div>
 
       {/* Activity Trend + Distributions */}
@@ -218,7 +218,7 @@ export default function TeamMemberDetailPage() {
                   <div key={s._id}>
                     <div className="flex items-center justify-between text-xs mb-1">
                       <span
-                        className={`px-1.5 py-0.5 rounded ${STATUS_COLORS[s._id] || "bg-gray-100 text-gray-700"}`}
+                        className={`px-1.5 py-0.5 rounded ${STATUS_COLORS[s._id] || "bg-muted text-foreground"}`}
                       >
                         {s._id}
                       </span>
@@ -400,7 +400,7 @@ function CustomerList({ customers }) {
         <Link
           key={c.id}
           to={`/customers/${c.id}`}
-          className="rounded-lg border border-border bg-card p-3 flex items-start gap-3 hover:border-primary/40 hover:shadow-sm transition-all group"
+          className="rounded-lg border border-border bg-card p-3 flex items-start gap-3 hover:border-primary/40 hover:shadow-none transition-all group"
         >
           <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
             <Building2 className="w-4 h-4" />
@@ -420,7 +420,7 @@ function CustomerList({ customers }) {
               {c.is_followup && (
                 <>
                   <span>·</span>
-                  <span className="inline-flex items-center gap-1 text-amber-600">
+                  <span className="inline-flex items-center gap-1 text-status-warning-fg">
                     <Bell className="w-3 h-3" />
                     Takipte
                   </span>
@@ -430,7 +430,7 @@ function CustomerList({ customers }) {
           </div>
           <span
             className={`text-[10px] px-1.5 py-0.5 rounded shrink-0 ${
-              STATUS_COLORS[c.status] || "bg-gray-100 text-gray-700"
+              STATUS_COLORS[c.status] || "bg-muted text-foreground"
             }`}
           >
             {c.status || "Beklemede"}
@@ -456,7 +456,7 @@ function VisitList({ visits }) {
           key={v.id}
           className="rounded-lg border border-border bg-card p-3 flex items-start gap-3"
         >
-          <div className="w-8 h-8 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
+          <div className="w-8 h-8 rounded-full bg-status-info-bg text-status-info-fg flex items-center justify-center shrink-0">
             <Calendar className="w-4 h-4" />
           </div>
           <div className="flex-1 min-w-0">

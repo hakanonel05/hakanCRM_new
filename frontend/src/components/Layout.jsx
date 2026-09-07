@@ -109,7 +109,7 @@ const SidebarItem = memo(function SidebarItem({ to, icon: Icon, label, collapsed
         collapsed ? "justify-center" : "",
         isActive
           ? "bg-primary/10 text-primary font-semibold"
-          : "text-on-surface-variant hover:text-primary hover:bg-white/40 dark:text-gray-400 dark:hover:text-primary dark:hover:bg-white/10",
+          : "text-on-surface-variant hover:text-primary hover:bg-white/40 dark:text-muted-foreground dark:hover:text-primary dark:hover:bg-white/10",
       ].join(" ")}
       title={collapsed ? label : undefined}
     >
@@ -145,7 +145,7 @@ const UserCard = memo(function UserCard({ user, isAdmin, collapsed, onLogout, on
                 {initial}
               </div>
             )}
-            <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-white" />
+            <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-status-success-fg ring-2 ring-white" />
           </div>
           {!collapsed && (
             <div className="flex-1 min-w-0 text-left">
@@ -315,7 +315,7 @@ export default function Layout() {
         {/* Mobile Sidebar Drawer */}
         {mobileMenuOpen && (
           <div
-            className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 animate-fade-in"
+            className="fixed inset-0 bg-foreground/40  z-50 animate-fade-in"
             onClick={() => setMobileMenuOpen(false)}
           >
             <aside
@@ -348,7 +348,7 @@ export default function Layout() {
               </div>
 
               <nav className="flex-1 overflow-y-auto p-3 space-y-0.5 mt-2" data-stagger>
-                <div className="text-[10px] font-semibold text-on-surface-variant/60 uppercase tracking-[0.14em] px-3 py-2">
+                <div className="eyebrow px-3 py-2">
                   Ana Menü
                 </div>
                 {navItemsWithActive.filter(i => PUBLIC_NAV.some(p => p.to === i.to)).map((item) => (
@@ -357,7 +357,7 @@ export default function Layout() {
 
                 {isAdmin && (
                   <>
-                    <div className="text-[10px] font-semibold text-on-surface-variant/60 uppercase tracking-[0.14em] px-3 py-2 mt-4">
+                    <div className="eyebrow px-3 py-2 mt-4">
                       Yönetim
                     </div>
                     {navItemsWithActive.filter(i => ADMIN_NAV.some(a => a.to === i.to)).map((item) => (
@@ -485,7 +485,7 @@ export default function Layout() {
           )}
 
           {!collapsed && (
-            <div className="text-[10px] font-semibold text-on-surface-variant/60 uppercase tracking-[0.14em] px-3 py-2">
+            <div className="eyebrow px-3 py-2">
               Ana Menü
             </div>
           )}
@@ -496,7 +496,7 @@ export default function Layout() {
           {isAdmin && (
             <>
               {!collapsed && (
-                <div className="text-[10px] font-semibold text-on-surface-variant/60 uppercase tracking-[0.14em] px-3 py-2 mt-4">
+                <div className="eyebrow px-3 py-2 mt-4">
                   Yönetim
                 </div>
               )}

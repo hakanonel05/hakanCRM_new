@@ -115,31 +115,31 @@ const getActivityIcon = (type) => {
 const getActivityColor = (type) => {
   switch (type) {
     case "customer_created":
-      return "text-emerald-700 bg-emerald-50";
+      return "text-status-success-fg bg-status-success-bg";
     case "customer_updated":
     case "visit_created":
       return "text-primary bg-primary-fixed/60";
     case "customer_deleted":
     case "contact_deleted":
-      return "text-red-700 bg-red-50";
+      return "text-status-danger-fg bg-status-danger-bg";
     case "status_changed":
     case "call_created":
       return "text-secondary-md bg-secondary-container/60";
     case "followup_changed":
     case "contact_added":
-      return "text-amber-700 bg-amber-50";
+      return "text-status-warning-fg bg-status-warning-bg";
     default:
       return "text-on-surface-variant bg-surface-container";
   }
 };
 
 const STATUS_COLOR = {
-  Beklemede: "bg-amber-100 text-amber-700",
-  İletişimde: "bg-blue-100 text-primary",
-  "Teklif Verildi": "bg-violet-100 text-violet-700",
-  Çalışılıyor: "bg-emerald-100 text-emerald-700",
-  Kazanıldı: "bg-green-100 text-green-700",
-  Kaybedildi: "bg-red-100 text-red-700",
+  Beklemede: "bg-status-warning-bg text-status-warning-fg",
+  İletişimde: "bg-status-info-bg text-primary",
+  "Teklif Verildi": "bg-status-info-bg text-status-info-fg",
+  Çalışılıyor: "bg-status-success-bg text-status-success-fg",
+  Kazanıldı: "bg-status-success-bg text-status-success-fg",
+  Kaybedildi: "bg-status-danger-bg text-status-danger-fg",
 };
 
 // ---------- widget registry ----------
@@ -307,7 +307,7 @@ const KpiCard = memo(function KpiCard({ label, value, accent, icon: Icon, onClic
       <div className="relative flex items-center justify-between gap-3 h-full">
         <div className="min-w-0 flex-1">
           <p className={`text-[10px] uppercase tracking-[0.1em] font-semibold leading-none ${
-            isHero ? "text-white/75" : "text-muted-foreground/75"
+            isHero ? "text-white/75" : "text-muted-foreground"
           }`}>
             {label}
           </p>
@@ -318,7 +318,7 @@ const KpiCard = memo(function KpiCard({ label, value, accent, icon: Icon, onClic
           </p>
           {trend !== undefined && trend !== null && (
             <div className={`mt-1.5 inline-flex items-center gap-0.5 text-[10px] font-semibold ${
-              isHero ? "text-white/90" : trend >= 0 ? "text-emerald-600" : "text-red-600"
+              isHero ? "text-white/90" : trend >= 0 ? "text-status-success-fg" : "text-status-danger-fg"
             }`}>
               {trend >= 0 ? <ArrowUpRight className="w-2.5 h-2.5" /> : <ArrowDownRight className="w-2.5 h-2.5" />}
               {Math.abs(trend)}%
@@ -326,7 +326,7 @@ const KpiCard = memo(function KpiCard({ label, value, accent, icon: Icon, onClic
           )}
         </div>
         <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
-          isHero ? "bg-white/15 backdrop-blur-sm ring-1 ring-white/20" : accent
+          isHero ? "bg-white/15  ring-1 ring-white/20" : accent
         }`}>
           <Icon className={`w-4 h-4 ${isHero ? "text-white" : ""}`} strokeWidth={2} />
         </div>
@@ -350,9 +350,9 @@ const WidgetShell = memo(function WidgetShell({
       <div className="flex items-center justify-between px-4 py-2.5 flex-shrink-0" style={{ borderBottom: "1px solid rgba(255,255,255,0.5)" }}>
         <div className="flex items-center gap-2 min-w-0">
           {editing && (
-            <GripVertical className="w-3.5 h-3.5 text-on-surface-variant/60 drag-handle cursor-grab active:cursor-grabbing" />
+            <GripVertical className="w-3.5 h-3.5 text-muted-foreground drag-handle cursor-grab active:cursor-grabbing" />
           )}
-          {Icon && <Icon className="w-3.5 h-3.5 text-on-surface-variant/60" />}
+          {Icon && <Icon className="w-3.5 h-3.5 text-muted-foreground" />}
           <h3 className="text-[13px] font-semibold text-primary truncate">
             {title}
           </h3>
@@ -362,7 +362,7 @@ const WidgetShell = memo(function WidgetShell({
           {editing && onConfigure && (
             <button
               onClick={onConfigure}
-              className="text-on-surface-variant/60 hover:text-primary transition-colors"
+              className="text-muted-foreground hover:text-primary transition-colors"
               title="Düzenle"
             >
               <SlidersHorizontal className="w-3.5 h-3.5" />
@@ -371,7 +371,7 @@ const WidgetShell = memo(function WidgetShell({
           {editing && onRemove && (
             <button
               onClick={onRemove}
-              className="text-on-surface-variant/60 hover:text-red-500 transition-colors"
+              className="text-muted-foreground hover:text-status-danger-fg transition-colors"
               title="Kaldır"
             >
               <X className="w-3.5 h-3.5" />
@@ -412,7 +412,7 @@ const donutOptions = {
         usePointStyle: true,
         pointStyle: "circle",
         boxWidth: 8,
-        font: { size: 11, family: "Urbanist", weight: "500" },
+        font: { size: 11, family: "Inter", weight: "500" },
         color: "#42474d",
       },
     },
@@ -423,7 +423,7 @@ const donutOptions = {
       padding: 10,
       cornerRadius: 8,
       boxPadding: 4,
-      titleFont: { weight: "600", family: "Urbanist" },
+      titleFont: { weight: "600", family: "Inter" },
     },
   },
 };
@@ -505,14 +505,14 @@ const barOptions = {
       padding: 10,
       cornerRadius: 8,
       boxPadding: 4,
-      titleFont: { weight: "600", family: "Urbanist" },
+      titleFont: { weight: "600", family: "Inter" },
     },
   },
   scales: {
     x: {
       grid: { display: false },
       ticks: {
-        font: { size: 10, family: "Urbanist" },
+        font: { size: 10, family: "Inter" },
         color: "#72777e",
         maxRotation: 0,
         autoSkip: true,
@@ -523,7 +523,7 @@ const barOptions = {
       beginAtZero: true,
       grid: { color: "rgba(194, 199, 206, 0.25)", drawBorder: false },
       ticks: {
-        font: { size: 10, family: "Urbanist" },
+        font: { size: 10, family: "Inter" },
         color: "#72777e",
         padding: 8,
       },
@@ -556,7 +556,7 @@ const CenteredDonut = memo(function CenteredDonut({ entries, onSliceClick }) {
   );
   if (top.length === 0) {
     return (
-      <div className="h-full flex items-center justify-center text-xs text-muted-foreground/70">
+      <div className="h-full flex items-center justify-center text-xs text-muted-foreground">
         Veri yok
       </div>
     );
@@ -569,7 +569,7 @@ const CenteredDonut = memo(function CenteredDonut({ entries, onSliceClick }) {
           <p className="text-2xl font-bold text-foreground leading-none tabular-nums">
             {total.toLocaleString("tr-TR")}
           </p>
-          <p className="text-[10px] uppercase tracking-wider text-muted-foreground/70 mt-1 font-semibold">
+          <p className="text-[10px] uppercase tracking-wider text-muted-foreground mt-1 font-semibold">
             Toplam
           </p>
         </div>
@@ -614,7 +614,7 @@ const RoundedBar = memo(function RoundedBar({ entries, onBarClick }) {
   );
   if (top.length === 0) {
     return (
-      <div className="h-full flex items-center justify-center text-xs text-muted-foreground/70">
+      <div className="h-full flex items-center justify-center text-xs text-muted-foreground">
         Veri yok
       </div>
     );
@@ -897,7 +897,7 @@ const Dashboard = () => {
             onConfigure={() => setEditingChart(id)}
           >
             {entries === undefined ? (
-              <div className="h-full flex items-center justify-center text-xs text-muted-foreground/70">
+              <div className="h-full flex items-center justify-center text-xs text-muted-foreground">
                 Yükleniyor...
               </div>
             ) : (
@@ -946,11 +946,11 @@ const Dashboard = () => {
           >
             <div className="h-full overflow-y-auto">
               {activities.length === 0 ? (
-                <p className="text-muted-foreground/70 text-center py-8 text-xs">
+                <p className="text-muted-foreground text-center py-8 text-xs">
                   Henüz aktivite yok
                 </p>
               ) : (
-                <ul className="divide-y divide-slate-50">
+                <ul className="divide-y divide-border">
                   {activities.map((a) => (
                     <li
                       key={a.id}
@@ -969,12 +969,12 @@ const Dashboard = () => {
                           {a.title}
                         </p>
                         {a.subtitle && (
-                          <p className="text-[11px] text-muted-foreground/70 truncate mt-0.5">
+                          <p className="text-[11px] text-muted-foreground truncate mt-0.5">
                             {a.subtitle}
                           </p>
                         )}
                       </div>
-                      <span className="text-[10px] text-muted-foreground/70 flex-shrink-0 mt-0.5 tabular-nums">
+                      <span className="text-[10px] text-muted-foreground flex-shrink-0 mt-0.5 tabular-nums">
                         {formatTimeAgo(a.timestamp)}
                       </span>
                     </li>
@@ -1002,20 +1002,20 @@ const Dashboard = () => {
           >
             <div className="h-full overflow-y-auto">
               {stats?.upcoming_followups?.length ? (
-                <ul className="divide-y divide-slate-50">
+                <ul className="divide-y divide-border">
                   {stats.upcoming_followups.slice(0, 8).map((c) => (
                     <li
                       key={c.id}
                       onClick={() => !editing && openCustomerModal(c.id)}
-                      className="flex items-center gap-2.5 px-4 py-2 hover:bg-amber-50/40 cursor-pointer"
+                      className="flex items-center gap-2.5 px-4 py-2 hover:bg-status-warning-bg/40 cursor-pointer"
                     >
-                      <span className="w-7 h-7 bg-amber-50 text-amber-700 rounded-md flex items-center justify-center font-semibold text-xs flex-shrink-0">
+                      <span className="w-7 h-7 bg-status-warning-bg text-status-warning-fg rounded-md flex items-center justify-center font-semibold text-xs flex-shrink-0">
                         {c.company_name?.charAt(0) || "?"}
                       </span>
                       <p className="flex-1 min-w-0 text-[12.5px] font-medium text-foreground truncate">
                         {c.company_name}
                       </p>
-                      <span className="text-[11px] text-amber-700 tabular-nums flex-shrink-0">
+                      <span className="text-[11px] text-status-warning-fg tabular-nums flex-shrink-0">
                         {c.next_followup_date
                           ? new Date(c.next_followup_date).toLocaleDateString(
                               "tr-TR",
@@ -1027,7 +1027,7 @@ const Dashboard = () => {
                   ))}
                 </ul>
               ) : (
-                <p className="text-muted-foreground/70 text-center py-6 text-xs">
+                <p className="text-muted-foreground text-center py-6 text-xs">
                   Yaklaşan takip yok
                 </p>
               )}
@@ -1052,21 +1052,21 @@ const Dashboard = () => {
           >
             <div className="h-full overflow-y-auto">
               {stats?.recent_customers?.length ? (
-                <ul className="divide-y divide-slate-50">
+                <ul className="divide-y divide-border">
                   {stats.recent_customers.slice(0, 8).map((c) => (
                     <li
                       key={c.id}
                       onClick={() => !editing && openCustomerModal(c.id)}
                       className="flex items-center gap-2.5 px-4 py-2 hover:bg-muted/40 cursor-pointer"
                     >
-                      <span className="w-7 h-7 bg-emerald-50 text-emerald-700 rounded-md flex items-center justify-center font-semibold text-xs flex-shrink-0">
+                      <span className="w-7 h-7 bg-status-success-bg text-status-success-fg rounded-md flex items-center justify-center font-semibold text-xs flex-shrink-0">
                         {c.company_name?.charAt(0) || "?"}
                       </span>
                       <div className="flex-1 min-w-0">
                         <p className="text-[12.5px] font-medium text-foreground truncate leading-tight">
                           {c.company_name}
                         </p>
-                        <p className="text-[11px] text-muted-foreground/70 truncate">
+                        <p className="text-[11px] text-muted-foreground truncate">
                           {c.market || "—"}
                         </p>
                       </div>
@@ -1082,7 +1082,7 @@ const Dashboard = () => {
                   ))}
                 </ul>
               ) : (
-                <p className="text-muted-foreground/70 text-center py-6 text-xs">
+                <p className="text-muted-foreground text-center py-6 text-xs">
                   Henüz müşteri yok
                 </p>
               )}
@@ -1101,7 +1101,7 @@ const Dashboard = () => {
           >
             <div className="h-full overflow-y-auto p-3 space-y-2">
               {top.length === 0 && (
-                <p className="text-muted-foreground/70 text-center text-xs py-4">
+                <p className="text-muted-foreground text-center text-xs py-4">
                   Veri yok
                 </p>
               )}
@@ -1146,12 +1146,12 @@ const Dashboard = () => {
         <div className="relative h-full">
           {editing && (
             <div className="absolute top-1 left-1 right-1 z-10 flex justify-between pointer-events-none">
-              <span className="pointer-events-auto bg-card/80 backdrop-blur rounded-md p-1 drag-handle cursor-grab active:cursor-grabbing">
+              <span className="pointer-events-auto bg-card/80  rounded-md p-1 drag-handle cursor-grab active:cursor-grabbing">
                 <GripVertical className="w-3 h-3 text-muted-foreground" />
               </span>
               <button
                 onClick={() => removeWidget(id)}
-                className="pointer-events-auto bg-card/80 backdrop-blur rounded-md p-1 hover:bg-red-50 hover:text-red-500"
+                className="pointer-events-auto bg-card/80  rounded-md p-1 hover:bg-status-danger-bg hover:text-status-danger-fg"
               >
                 <X className="w-3 h-3" />
               </button>
@@ -1302,7 +1302,7 @@ const Dashboard = () => {
                     type="button"
                     onClick={() => addWidget(id)}
                     data-testid={`add-widget-${id}`}
-                    className="w-full text-left p-3 rounded-lg border border-border hover:border-slate-400 hover:bg-muted/30 transition-colors"
+                    className="w-full text-left p-3 rounded-lg border border-border hover:border-input hover:bg-muted/30 transition-colors"
                   >
                     <p className="text-sm font-medium text-foreground">
                       {w.title}
@@ -1341,17 +1341,17 @@ const Dashboard = () => {
           </DialogHeader>
           <div className="max-h-[420px] overflow-y-auto -mx-2">
             {segmentLoading && (
-              <div className="py-10 text-center text-sm text-muted-foreground/70">
+              <div className="py-10 text-center text-sm text-muted-foreground">
                 Yükleniyor...
               </div>
             )}
             {!segmentLoading && segmentData?.customers?.length === 0 && (
-              <div className="py-10 text-center text-sm text-muted-foreground/70">
+              <div className="py-10 text-center text-sm text-muted-foreground">
                 Bu segmentte müşteri bulunamadı.
               </div>
             )}
             {!segmentLoading && segmentData?.customers?.length > 0 && (
-              <ul className="divide-y divide-slate-100">
+              <ul className="divide-y divide-border">
                 {segmentData.customers.map((c) => (
                   <li
                     key={c.id}
@@ -1391,7 +1391,7 @@ const Dashboard = () => {
             )}
           </div>
           {segmentData && segmentData.count > segmentData.customers.length && (
-            <p className="text-[11px] text-muted-foreground/70 text-center pt-2">
+            <p className="text-[11px] text-muted-foreground text-center pt-2">
               İlk {segmentData.customers.length} kayıt gösteriliyor. Tümünü
               görmek için Müşteriler sayfasında filtre uygulayın.
             </p>
@@ -1426,7 +1426,7 @@ const Dashboard = () => {
                     type="text"
                     value={cur.title}
                     onChange={(e) => update({ title: e.target.value })}
-                    className="w-full h-9 px-3 text-sm rounded-md border border-border focus:border-slate-400 focus:outline-none"
+                    className="w-full h-9 px-3 text-sm rounded-md border border-border focus:border-input focus:outline-none"
                     data-testid="chart-title-input"
                   />
                 </div>
@@ -1495,7 +1495,7 @@ const Dashboard = () => {
                     onChange={(e) =>
                       update({ followup_only: e.target.checked })
                     }
-                    className="w-4 h-4 rounded border-slate-300"
+                    className="w-4 h-4 rounded border-input"
                     data-testid="chart-followup-only"
                   />
                   <span>Sadece takipteki müşterileri göster</span>

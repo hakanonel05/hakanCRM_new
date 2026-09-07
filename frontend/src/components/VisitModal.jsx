@@ -169,10 +169,10 @@ const VisitModal = ({ open, onClose, visit, customers, preselectedCustomerId = n
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-lg" data-testid="visit-modal">
-        <DialogHeader className="pb-4 border-b border-slate-200">
+        <DialogHeader className="pb-4 border-b border-border">
           <DialogTitle className="flex items-center gap-3 text-xl font-semibold">
-            <div className="p-2 bg-blue-100 rounded-lg">
-              <Calendar className="w-5 h-5 text-blue-700" />
+            <div className="p-2 bg-status-info-bg rounded-lg">
+              <Calendar className="w-5 h-5 text-status-info-fg" />
             </div>
             {visit ? "Ziyaret Düzenle" : "Yeni Ziyaret"}
           </DialogTitle>
@@ -314,7 +314,7 @@ const VisitModal = ({ open, onClose, visit, customers, preselectedCustomerId = n
         </div>
 
         {/* Footer */}
-        <div className="flex justify-between pt-4 border-t border-slate-200">
+        <div className="flex justify-between pt-4 border-t border-border">
           <div>
             {visit && (
               <Button 
@@ -334,7 +334,7 @@ const VisitModal = ({ open, onClose, visit, customers, preselectedCustomerId = n
             <Button 
               onClick={handleSave} 
               disabled={saving}
-              className="bg-emerald-700 hover:bg-emerald-800"
+              className="bg-status-success-fg hover:bg-status-success-fg"
               data-testid="btn-save-visit"
             >
               {saving ? "Kaydediliyor..." : (visit ? "Güncelle" : "Ekle")}

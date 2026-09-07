@@ -197,14 +197,14 @@ export default function AutomatedBackupSettings() {
   if (loading) {
     return (
       <div className="bg-card rounded-xl border border-border p-6 flex items-center justify-center">
-        <Loader2 className="w-5 h-5 animate-spin text-muted-foreground/70" />
+        <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
       </div>
     );
   }
 
   if (unavailable) {
     return (
-      <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm text-amber-800">
+      <div className="bg-status-warning-bg border border-status-warning-line rounded-xl p-4 text-sm text-status-warning-fg">
         <strong>Otomatik Yedekleme:</strong> Bu özellik için sunucunun
         güncellenmesi gerekiyor. Lütfen yeni sürümü GitHub'a gönderip Render
         deploy edin. Manuel yedekleme yukarıdan kullanılabilir.
@@ -247,18 +247,18 @@ export default function AutomatedBackupSettings() {
           <p className="text-xs text-muted-foreground">Son Çalışma</p>
           <div className="flex items-center gap-1.5 mt-1">
             {config.last_status === "success" ? (
-              <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+              <CheckCircle2 className="w-4 h-4 text-status-success-fg" />
             ) : config.last_status === "error" ? (
-              <XCircle className="w-4 h-4 text-red-600" />
+              <XCircle className="w-4 h-4 text-status-danger-fg" />
             ) : (
-              <Clock className="w-4 h-4 text-muted-foreground/70" />
+              <Clock className="w-4 h-4 text-muted-foreground" />
             )}
             <span className="text-sm font-medium text-foreground">
               {formatDateTime(config.last_run)}
             </span>
           </div>
           {config.last_error && (
-            <p className="text-xs text-red-600 mt-1 truncate" title={config.last_error}>
+            <p className="text-xs text-status-danger-fg mt-1 truncate" title={config.last_error}>
               {config.last_error}
             </p>
           )}
@@ -393,7 +393,7 @@ export default function AutomatedBackupSettings() {
             </div>
             <div className="flex flex-wrap gap-1.5">
               {(config.email_recipients || []).length === 0 && (
-                <span className="text-xs text-muted-foreground/70">Henüz alıcı eklenmedi</span>
+                <span className="text-xs text-muted-foreground">Henüz alıcı eklenmedi</span>
               )}
               {(config.email_recipients || []).map((em) => (
                 <Badge
@@ -403,7 +403,7 @@ export default function AutomatedBackupSettings() {
                 >
                   {em}
                   <button
-                    className="hover:text-red-600"
+                    className="hover:text-status-danger-fg"
                     onClick={() => removeRecipient(em)}
                   >
                     <Trash2 className="w-3 h-3" />
@@ -454,11 +454,11 @@ export default function AutomatedBackupSettings() {
           Yedek Geçmişi
         </h4>
         {backups.length === 0 ? (
-          <p className="text-sm text-muted-foreground/70 py-4 text-center">
+          <p className="text-sm text-muted-foreground py-4 text-center">
             Henüz yedek alınmadı
           </p>
         ) : (
-          <div className="border border-border rounded-lg overflow-hidden divide-y divide-slate-100 max-h-72 overflow-y-auto">
+          <div className="border border-border rounded-lg overflow-hidden divide-y divide-border max-h-72 overflow-y-auto">
             {backups.map((b) => (
               <div
                 key={b.filename}
@@ -485,7 +485,7 @@ export default function AutomatedBackupSettings() {
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-8 w-8 text-red-500 hover:text-red-700"
+                    className="h-8 w-8 text-status-danger-fg hover:text-status-danger-fg"
                     title="Sil"
                     onClick={() => deleteBackup(b.filename)}
                   >

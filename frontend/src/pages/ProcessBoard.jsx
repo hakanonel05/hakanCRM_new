@@ -35,13 +35,13 @@ const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 // Stage başlıkları için cam (glass) renk paleti — mevcut Kanban ile uyumlu.
 const STAGE_PALETTE = [
   { header: "bg-primary-fixed/50", text: "text-primary", badge: "bg-primary" },
-  { header: "bg-emerald-100/60", text: "text-emerald-800", badge: "bg-emerald-500" },
+  { header: "bg-status-success-bg/60", text: "text-status-success-fg", badge: "bg-status-success-fg" },
   { header: "bg-tertiary-fixed/50", text: "text-tertiary-md", badge: "bg-tertiary-md" },
-  { header: "bg-amber-100/60", text: "text-amber-800", badge: "bg-amber-500" },
-  { header: "bg-red-100/60", text: "text-red-800", badge: "bg-red-500" },
+  { header: "bg-status-warning-bg/60", text: "text-status-warning-fg", badge: "bg-status-warning-bg" },
+  { header: "bg-status-danger-bg/60", text: "text-status-danger-fg", badge: "bg-destructive" },
   { header: "bg-secondary-container/60", text: "text-secondary-md", badge: "bg-secondary-md" },
-  { header: "bg-teal-100/60", text: "text-teal-800", badge: "bg-teal-600" },
-  { header: "bg-pink-100/60", text: "text-pink-800", badge: "bg-pink-500" },
+  { header: "bg-status-success-bg/60", text: "text-status-success-fg", badge: "bg-status-success-fg" },
+  { header: "bg-status-info-bg/60", text: "text-status-info-fg", badge: "bg-primary" },
 ];
 const stageColors = (i) => STAGE_PALETTE[i % STAGE_PALETTE.length];
 
@@ -336,7 +336,7 @@ const ProcessBoard = () => {
               className={`group flex items-center gap-2 px-3 py-1.5 rounded-full text-sm cursor-pointer transition-all flex-shrink-0 border-2 ${
                 activeBoardId === b.id
                   ? "bg-primary-fixed/60 text-primary border-primary/30"
-                  : "bg-muted text-foreground hover:bg-slate-200 border-transparent"
+                  : "bg-muted text-foreground hover:bg-muted border-transparent"
               }`}
             >
               <LayoutGrid className="w-3.5 h-3.5" />
@@ -358,7 +358,7 @@ const ProcessBoard = () => {
                       e.stopPropagation();
                       handleDeleteBoard(b.id);
                     }}
-                    className="opacity-60 hover:opacity-100 hover:text-red-600"
+                    className="opacity-60 hover:opacity-100 hover:text-status-danger-fg"
                     title="Panoyu sil"
                   >
                     <Trash2 className="w-3 h-3" />
@@ -486,7 +486,7 @@ const ProcessBoard = () => {
                                   <button
                                     onClick={() => handleDeleteStage(stage.id)}
                                     onMouseDown={(e) => e.stopPropagation()}
-                                    className="text-muted-foreground/60 hover:text-red-600 transition-colors"
+                                    className="text-muted-foreground hover:text-status-danger-fg transition-colors"
                                     title="Stage'i sil"
                                   >
                                     <Trash2 className="w-3.5 h-3.5" />
@@ -522,7 +522,7 @@ const ProcessBoard = () => {
                                     <div className="flex items-start gap-2">
                                       <div
                                         {...prov.dragHandleProps}
-                                        className="mt-1 text-muted-foreground/70 opacity-0 group-hover:opacity-100 transition-opacity cursor-grab"
+                                        className="mt-1 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity cursor-grab"
                                       >
                                         <GripVertical className="w-3 h-3" />
                                       </div>
@@ -531,14 +531,14 @@ const ProcessBoard = () => {
                                         onClick={() => c.id && openCustomerModal(c.id)}
                                       >
                                         <div className="flex items-center gap-2">
-                                          <div className="w-6 h-6 bg-blue-500 rounded flex items-center justify-center text-white font-semibold text-xs flex-shrink-0">
+                                          <div className="w-6 h-6 bg-primary rounded flex items-center justify-center text-white font-semibold text-xs flex-shrink-0">
                                             {c.company_name?.charAt(0) || "?"}
                                           </div>
                                           <div className="flex-1 min-w-0">
                                             <h4 className="font-medium text-foreground text-sm truncate flex items-center gap-1">
                                               {c.company_name}
                                               {c.is_followup && (
-                                                <Bell className="w-3 h-3 text-amber-500 flex-shrink-0" />
+                                                <Bell className="w-3 h-3 text-status-warning-fg flex-shrink-0" />
                                               )}
                                             </h4>
                                             {c.market && (
@@ -550,13 +550,13 @@ const ProcessBoard = () => {
                                         <div className="mt-2 space-y-1">
                                           {c.contact_info?.contact_person && (
                                             <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                                              <User className="w-3 h-3 text-muted-foreground/70" />
+                                              <User className="w-3 h-3 text-muted-foreground" />
                                               <span className="truncate">{c.contact_info.contact_person}</span>
                                             </div>
                                           )}
                                           {c.contact_info?.phone && (
                                             <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                                              <Phone className="w-3 h-3 text-muted-foreground/70" />
+                                              <Phone className="w-3 h-3 text-muted-foreground" />
                                               <span className="truncate">{c.contact_info.phone}</span>
                                             </div>
                                           )}
@@ -564,7 +564,7 @@ const ProcessBoard = () => {
 
                                         <div className="mt-2 flex flex-wrap gap-1">
                                           {c.status && (
-                                            <Badge className="text-[10px] px-1.5 py-0 bg-purple-100 text-purple-700">
+                                            <Badge className="text-[10px] px-1.5 py-0 bg-status-info-bg text-status-info-fg">
                                               {c.status}
                                             </Badge>
                                           )}
@@ -572,9 +572,9 @@ const ProcessBoard = () => {
                                             <Badge
                                               className={`text-[10px] px-1.5 py-0 ${
                                                 c.potential_level === "Yüksek"
-                                                  ? "bg-emerald-100 text-emerald-700"
+                                                  ? "bg-status-success-bg text-status-success-fg"
                                                   : c.potential_level === "Orta"
-                                                  ? "bg-amber-100 text-amber-700"
+                                                  ? "bg-status-warning-bg text-status-warning-fg"
                                                   : "bg-muted text-muted-foreground"
                                               }`}
                                             >
@@ -587,7 +587,7 @@ const ProcessBoard = () => {
                                       {/* Karttan kaldır */}
                                       <button
                                         onClick={() => handleRemoveCard(stage.id, card.id)}
-                                        className="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground/60 hover:text-red-600"
+                                        className="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-status-danger-fg"
                                         title="Panodan kaldır"
                                       >
                                         <X className="w-3.5 h-3.5" />
@@ -615,7 +615,7 @@ const ProcessBoard = () => {
                           </button>
 
                           {cards.length === 0 && (
-                            <div className="text-center py-4 text-muted-foreground/60">
+                            <div className="text-center py-4 text-muted-foreground">
                               <Building2 className="w-7 h-7 mx-auto mb-1 opacity-40" />
                               <p className="text-xs">Boş stage</p>
                             </div>
@@ -686,7 +686,7 @@ const ProcessBoard = () => {
                       already ? "opacity-40 cursor-not-allowed" : "hover:bg-muted"
                     }`}
                   >
-                    <div className="w-7 h-7 bg-blue-500 rounded flex items-center justify-center text-white text-xs font-semibold flex-shrink-0">
+                    <div className="w-7 h-7 bg-primary rounded flex items-center justify-center text-white text-xs font-semibold flex-shrink-0">
                       {cust.company_name?.charAt(0) || "?"}
                     </div>
                     <div className="flex-1 min-w-0">

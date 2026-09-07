@@ -133,9 +133,9 @@ const Visits = () => {
 
   const getVisitTypeColor = (type) => {
     const colors = {
-      "Yüz Yüze": "bg-emerald-100 text-emerald-800",
-      "Online": "bg-blue-100 text-blue-800",
-      "Telefon": "bg-purple-100 text-purple-800"
+      "Yüz Yüze": "bg-status-success-bg text-status-success-fg",
+      "Online": "bg-status-info-bg text-status-info-fg",
+      "Telefon": "bg-status-info-bg text-status-info-fg"
     };
     return colors[type] || "bg-muted text-foreground";
   };
@@ -189,7 +189,7 @@ const Visits = () => {
       {/* Filter Bar */}
       <div className="filter-bar">
         <div className="search-input relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground/70" />
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
             placeholder="Müşteri adı, notlar veya sonuç ara..."
             value={search}
@@ -266,14 +266,14 @@ const Visits = () => {
                       >
                         {getCustomerName(visit.customer_id)}
                         {visit.is_followup && (
-                          <Bell className="w-3.5 h-3.5 text-amber-500" />
+                          <Bell className="w-3.5 h-3.5 text-status-warning-fg" />
                         )}
                       </div>
                     </div>
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
-                      <Calendar className="w-4 h-4 text-muted-foreground/70" />
+                      <Calendar className="w-4 h-4 text-muted-foreground" />
                       <span>
                         {visit.visit_date 
                           ? new Date(visit.visit_date).toLocaleDateString('tr-TR')
@@ -322,7 +322,7 @@ const Visits = () => {
                         </DropdownMenuItem>
                         <DropdownMenuItem 
                           onClick={() => handleDeleteVisit(visit.id)}
-                          className="text-red-600"
+                          className="text-status-danger-fg"
                         >
                           <Trash2 className="w-4 h-4 mr-2" />
                           Sil

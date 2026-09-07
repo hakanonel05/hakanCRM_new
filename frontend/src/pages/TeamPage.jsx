@@ -187,13 +187,13 @@ export default function TeamPage() {
         </div>
         <div className="rounded-xl border border-border bg-card p-4">
           <div className="text-xs text-muted-foreground">Takipte</div>
-          <div className="font-heading text-2xl font-bold mt-1 text-amber-600">
+          <div className="font-heading text-2xl font-bold mt-1 text-status-warning-fg">
             {totals.followups}
           </div>
         </div>
         <div className="rounded-xl border border-border bg-card p-4">
           <div className="text-xs text-muted-foreground">Kazanıldı</div>
-          <div className="font-heading text-2xl font-bold mt-1 text-emerald-600">
+          <div className="font-heading text-2xl font-bold mt-1 text-status-success-fg">
             {totals.won}
           </div>
         </div>
@@ -234,7 +234,7 @@ export default function TeamPage() {
                   }
                 }}
                 data-testid={`team-card-${m.name}`}
-                className="text-left rounded-xl border border-border bg-card p-4 hover:shadow-md hover:border-primary/40 transition-all group cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/40"
+                className="text-left rounded-xl border border-border bg-card p-4 hover:shadow-none hover:border-primary/40 transition-all group cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/40"
               >
                 <div className="flex items-start gap-3">
                   <div
@@ -251,7 +251,7 @@ export default function TeamPage() {
                       Son aktivite: {formatRelative(m.last_activity)}
                     </div>
                   </div>
-                  <ArrowRight className="w-4 h-4 text-muted-foreground/40 group-hover:text-primary group-hover:translate-x-0.5 transition-all" />
+                  <ArrowRight className="w-4 h-4 text-muted-foreground group-hover:text-primary group-hover:translate-x-0.5 transition-all" />
                 </div>
 
                 <div className="grid grid-cols-3 gap-2 mt-4 text-center">
@@ -271,7 +271,7 @@ export default function TeamPage() {
                     </div>
                   </button>
                   <div className="rounded-lg bg-muted/50 py-2">
-                    <div className="text-base font-bold text-amber-600">
+                    <div className="text-base font-bold text-status-warning-fg">
                       {m.followup_count}
                     </div>
                     <div className="text-[10px] text-muted-foreground uppercase">
@@ -279,7 +279,7 @@ export default function TeamPage() {
                     </div>
                   </div>
                   <div className="rounded-lg bg-muted/50 py-2">
-                    <div className="text-base font-bold text-blue-600">
+                    <div className="text-base font-bold text-status-info-fg">
                       {m.visits_count}
                     </div>
                     <div className="text-[10px] text-muted-foreground uppercase">
@@ -290,11 +290,11 @@ export default function TeamPage() {
 
                 <div className="flex items-center justify-between mt-3 pt-3 border-t border-border">
                   <div className="flex items-center gap-3 text-xs">
-                    <span className="inline-flex items-center gap-1 text-emerald-600">
+                    <span className="inline-flex items-center gap-1 text-status-success-fg">
                       <TrendingUp className="w-3 h-3" />
                       {m.won_count}
                     </span>
-                    <span className="inline-flex items-center gap-1 text-rose-600">
+                    <span className="inline-flex items-center gap-1 text-status-danger-fg">
                       <TrendingDown className="w-3 h-3" />
                       {m.lost_count}
                     </span>
@@ -380,7 +380,7 @@ export default function TeamPage() {
                         {c.is_followup && (
                           <>
                             <span>·</span>
-                            <span className="inline-flex items-center gap-1 text-amber-600">
+                            <span className="inline-flex items-center gap-1 text-status-warning-fg">
                               <Bell className="w-3 h-3" />
                               Takipte
                             </span>
@@ -393,7 +393,7 @@ export default function TeamPage() {
                         {c.status}
                       </span>
                     )}
-                    <ArrowRight className="w-4 h-4 text-muted-foreground/30 group-hover:text-primary group-hover:translate-x-0.5 transition-all shrink-0 mt-1" />
+                    <ArrowRight className="w-4 h-4 text-muted-foreground group-hover:text-primary group-hover:translate-x-0.5 transition-all shrink-0 mt-1" />
                   </Link>
                 ))}
               </div>

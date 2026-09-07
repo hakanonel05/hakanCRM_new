@@ -54,7 +54,7 @@ export default function Breadcrumb({ extra = [], className = "" }) {
         return (
           <div key={`${c.to || c.label}-${i}`} className="flex items-center gap-1 min-w-0">
             {i > 0 && (
-              <ChevronRight className="w-3 h-3 text-muted-foreground/50 flex-shrink-0" strokeWidth={2.5} />
+              <ChevronRight className="w-3 h-3 text-muted-foreground flex-shrink-0" strokeWidth={2.5} />
             )}
             {isLast || !c.to ? (
               <span className="text-foreground truncate" aria-current="page">

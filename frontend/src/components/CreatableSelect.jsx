@@ -22,28 +22,20 @@ import { useAuth } from "../App";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
-// Color palette matching backend
-const TAG_COLORS = {
-  emerald: { bg: "bg-emerald-100", text: "text-emerald-800", border: "border-emerald-200" },
-  blue: { bg: "bg-blue-100", text: "text-blue-800", border: "border-blue-200" },
-  purple: { bg: "bg-purple-100", text: "text-purple-800", border: "border-purple-200" },
-  amber: { bg: "bg-amber-100", text: "text-amber-800", border: "border-amber-200" },
-  rose: { bg: "bg-rose-100", text: "text-rose-800", border: "border-rose-200" },
-  cyan: { bg: "bg-cyan-100", text: "text-cyan-800", border: "border-cyan-200" },
-  orange: { bg: "bg-orange-100", text: "text-orange-800", border: "border-orange-200" },
-  pink: { bg: "bg-pink-100", text: "text-pink-800", border: "border-pink-200" },
-  teal: { bg: "bg-teal-100", text: "text-teal-800", border: "border-teal-200" },
-  indigo: { bg: "bg-indigo-100", text: "text-indigo-800", border: "border-indigo-200" },
-  lime: { bg: "bg-lime-100", text: "text-lime-800", border: "border-lime-200" },
-  fuchsia: { bg: "bg-fuchsia-100", text: "text-fuchsia-800", border: "border-fuchsia-200" },
-  sky: { bg: "bg-sky-100", text: "text-sky-800", border: "border-sky-200" },
-  violet: { bg: "bg-violet-100", text: "text-violet-800", border: "border-violet-200" },
-  red: { bg: "bg-red-100", text: "text-red-800", border: "border-red-200" }
-};
+/* ETİKET RENKLERİ TEK RENGE İNDİ.
+ *
+ * Backend her seçeneğe bir renk adı ("emerald", "purple", "cyan"…) veriyor ve
+ * burada on beş ayrı hap rengine çevriliyordu. Kategoriyi renklendirmek bir
+ * bilgi taşımıyor: "Otomotiv"in yeşil, "Kimya"nın kırmızı olması okuyucuya
+ * hiçbir şey söylemez — bu palette yeşil ve kırmızının işi belli
+ * (başarı / hata), rastgele kategorilere dağıtılınca o anlam bozulur.
+ *
+ * Backend'in renk alanı OLDUĞU GİBİ duruyor; yalnızca burada göz ardı
+ * ediliyor. Yani veri kaybı yok, isterse geri açılır.
+ */
+const TAG_PILL = { bg: "bg-muted", text: "text-foreground", border: "border-border" };
 
-const getColorClasses = (color) => {
-  return TAG_COLORS[color] || TAG_COLORS.emerald;
-};
+const getColorClasses = () => TAG_PILL;
 
 const CreatableSelect = ({ 
   value, 
@@ -205,7 +197,7 @@ const CreatableSelect = ({
             <CommandEmpty>
               {showCreateOption ? (
                 <button
-                  className="flex items-center gap-2 w-full px-2 py-1.5 text-sm text-emerald-600 hover:bg-emerald-50 rounded"
+                  className="flex items-center gap-2 w-full px-2 py-1.5 text-sm text-status-success-fg hover:bg-status-success-bg rounded"
                   onClick={handleCreate}
                 >
                   <Plus className="w-4 h-4" />
@@ -252,7 +244,7 @@ const CreatableSelect = ({
                         <Button
                           size="icon"
                           variant="ghost"
-                          className="h-6 w-6 text-emerald-600"
+                          className="h-6 w-6 text-status-success-fg"
                           onClick={(e) => {
                             e.stopPropagation();
                             handleEdit(opt);
@@ -263,7 +255,7 @@ const CreatableSelect = ({
                         <Button
                           size="icon"
                           variant="ghost"
-                          className="h-6 w-6 text-slate-400"
+                          className="h-6 w-6 text-muted-foreground"
                           onClick={cancelEdit}
                         >
                           <X className="w-3 h-3" />
@@ -291,7 +283,7 @@ const CreatableSelect = ({
                           <Button
                             size="icon"
                             variant="ghost"
-                            className="h-6 w-6 text-slate-400 hover:text-blue-600"
+                            className="h-6 w-6 text-muted-foreground hover:text-status-info-fg"
                             onClick={(e) => startEdit(opt, e)}
                           >
                             <Pencil className="w-3 h-3" />
@@ -300,7 +292,7 @@ const CreatableSelect = ({
                             <Button
                               size="icon"
                               variant="ghost"
-                              className="h-6 w-6 text-slate-400 hover:text-red-600"
+                              className="h-6 w-6 text-muted-foreground hover:text-status-danger-fg"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 handleDelete(opt);
@@ -319,8 +311,8 @@ const CreatableSelect = ({
             {showCreateOption && filteredOptions.length > 0 && (
               <CommandGroup>
                 <CommandItem onSelect={handleCreate}>
-                  <Plus className="mr-2 h-4 w-4 text-emerald-600" />
-                  <span className="text-emerald-600">&ldquo;{searchValue}&rdquo; ekle</span>
+                  <Plus className="mr-2 h-4 w-4 text-status-success-fg" />
+                  <span className="text-status-success-fg">&ldquo;{searchValue}&rdquo; ekle</span>
                 </CommandItem>
               </CommandGroup>
             )}

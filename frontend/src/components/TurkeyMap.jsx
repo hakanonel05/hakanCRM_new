@@ -371,7 +371,7 @@ export default function TurkeyMap() {
         {activeFilterCount > 0 && (
           <button
             onClick={clearFilters}
-            className="flex items-center gap-1 text-xs px-2 py-1 rounded-md bg-red-50 text-red-600 hover:bg-red-100 transition-colors"
+            className="flex items-center gap-1 text-xs px-2 py-1 rounded-md bg-status-danger-bg text-status-danger-fg hover:bg-status-danger-bg transition-colors"
           >
             <X className="w-3 h-3" /> Temizle ({activeFilterCount})
           </button>
@@ -410,7 +410,7 @@ export default function TurkeyMap() {
 
         {hover && (
           <div
-            className="absolute pointer-events-none z-10 px-2 py-1 rounded-md bg-slate-800 text-white text-xs shadow-lg"
+            className="absolute pointer-events-none z-10 px-2 py-1 rounded-md bg-foreground text-white text-xs shadow-none"
             style={{ left: hover.x, top: hover.y - 8, transform: "translate(-50%, -100%)", whiteSpace: "nowrap" }}
           >
             <span className="font-medium">{hover.name}</span>: {hover.count} müşteri
@@ -440,11 +440,11 @@ export default function TurkeyMap() {
       {/* ===== POP-UP ===== */}
       {selectedCity && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40  p-4"
           onClick={closeModal}
         >
           <div
-            className={`bg-card rounded-2xl shadow-2xl flex flex-col overflow-hidden ${
+            className={`bg-card rounded-2xl shadow-none flex flex-col overflow-hidden ${
               fullscreen ? "w-full h-full" : "w-full max-w-2xl max-h-[80vh]"
             }`}
             onClick={(e) => e.stopPropagation()}
@@ -485,7 +485,7 @@ export default function TurkeyMap() {
                   <button
                     onClick={() => selectMarket("__ALL__")}
                     className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${
-                      activeMarket === "__ALL__" ? "bg-primary text-primary-foreground border-primary" : "bg-muted hover:bg-slate-200 border-transparent"
+                      activeMarket === "__ALL__" ? "bg-primary text-primary-foreground border-primary" : "bg-muted hover:bg-muted border-transparent"
                     }`}
                   >
                     Tümü ({cityTotal})
@@ -495,7 +495,7 @@ export default function TurkeyMap() {
                       key={m.market}
                       onClick={() => selectMarket(m.market)}
                       className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${
-                        activeMarket === m.market ? "text-white border-transparent" : "bg-muted hover:bg-slate-200 border-transparent text-foreground"
+                        activeMarket === m.market ? "text-white border-transparent" : "bg-muted hover:bg-muted border-transparent text-foreground"
                       }`}
                       style={activeMarket === m.market ? { backgroundColor: MARKET_COLORS[i % MARKET_COLORS.length] } : {}}
                     >
@@ -534,13 +534,13 @@ export default function TurkeyMap() {
                       onClick={() => { closeModal(); openCustomerModal(c.id); }}
                       className="w-full text-left flex items-center gap-3 py-2 hover:bg-muted/50 rounded-lg px-2 transition-colors"
                     >
-                      <div className="w-8 h-8 bg-blue-500 rounded flex items-center justify-center text-white font-semibold text-xs flex-shrink-0">
+                      <div className="w-8 h-8 bg-primary rounded flex items-center justify-center text-white font-semibold text-xs flex-shrink-0">
                         {toTitleCaseTR(c.company_name)?.charAt(0) || "?"}
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-1.5">
                           <span className="font-medium text-sm text-foreground truncate">{toTitleCaseTR(c.company_name)}</span>
-                          {c.is_followup && <Bell className="w-3 h-3 text-amber-500 flex-shrink-0" />}
+                          {c.is_followup && <Bell className="w-3 h-3 text-status-warning-fg flex-shrink-0" />}
                         </div>
                         <div className="text-xs text-muted-foreground truncate">
                           {[c.district, c.application, c.status].filter(Boolean).join(" · ")}

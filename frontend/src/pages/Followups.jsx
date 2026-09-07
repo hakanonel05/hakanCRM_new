@@ -73,19 +73,19 @@ const Followups = () => {
 
   const getStatusColor = (status) => {
     const colors = {
-      "Çalışılıyor": "bg-emerald-100 text-emerald-800 border-emerald-200",
-      "Beklemede": "bg-amber-100 text-amber-800 border-amber-200",
-      "Takip Ediliyor": "bg-blue-100 text-blue-800 border-blue-200",
-      "Olumsuz": "bg-rose-100 text-rose-800 border-rose-200"
+      "Çalışılıyor": "bg-status-success-bg text-status-success-fg border-status-success-line",
+      "Beklemede": "bg-status-warning-bg text-status-warning-fg border-status-warning-line",
+      "Takip Ediliyor": "bg-status-info-bg text-status-info-fg border-status-info-line",
+      "Olumsuz": "bg-status-danger-bg text-status-danger-fg border-status-danger-line"
     };
     return colors[status] || "bg-muted text-foreground border-border";
   };
 
   const getVisitTypeColor = (type) => {
     const colors = {
-      "Yüz Yüze": "bg-emerald-100 text-emerald-800",
-      "Online": "bg-blue-100 text-blue-800",
-      "Telefon": "bg-purple-100 text-purple-800"
+      "Yüz Yüze": "bg-status-success-bg text-status-success-fg",
+      "Online": "bg-status-info-bg text-status-info-fg",
+      "Telefon": "bg-status-info-bg text-status-info-fg"
     };
     return colors[type] || "bg-muted text-foreground";
   };
@@ -119,7 +119,7 @@ const Followups = () => {
               <Building2 className="w-4 h-4" />
               Müşteriler
               {followups.customers.length > 0 && (
-                <Badge className="ml-1 bg-amber-100 text-amber-800">
+                <Badge className="ml-1 bg-status-warning-bg text-status-warning-fg">
                   {followups.customers.length}
                 </Badge>
               )}
@@ -128,7 +128,7 @@ const Followups = () => {
               <Calendar className="w-4 h-4" />
               Ziyaretler
               {followups.visits.length > 0 && (
-                <Badge className="ml-1 bg-amber-100 text-amber-800">
+                <Badge className="ml-1 bg-status-warning-bg text-status-warning-fg">
                   {followups.visits.length}
                 </Badge>
               )}
@@ -142,7 +142,7 @@ const Followups = () => {
                 {followups.customers.map((customer) => (
                   <Card 
                     key={customer.id} 
-                    className="border-border hover:shadow-md transition-shadow"
+                    className="border-border hover:shadow-none transition-shadow"
                     data-testid={`customer-followup-${customer.id}`}
                   >
                     <CardHeader className="pb-2">
@@ -197,7 +197,7 @@ const Followups = () => {
                             {customer.status}
                           </Badge>
                           {customer.market && (
-                            <Badge className="bg-emerald-100 text-emerald-800">
+                            <Badge className="bg-status-success-bg text-status-success-fg">
                               {customer.market}
                             </Badge>
                           )}
@@ -236,7 +236,7 @@ const Followups = () => {
               </div>
             ) : (
               <div className="text-center py-16">
-                <Building2 className="w-12 h-12 mx-auto text-slate-300 mb-4" />
+                <Building2 className="w-12 h-12 mx-auto text-primary-foreground mb-4" />
                 <p className="text-lg font-medium text-muted-foreground">Müşteri follow-up yok</p>
                 <p className="text-sm text-muted-foreground mt-1">
                   Müşteri listesinden follow-up ekleyebilirsiniz
@@ -252,13 +252,13 @@ const Followups = () => {
                 {followups.visits.map((visit) => (
                   <Card 
                     key={visit.id} 
-                    className="border-border hover:shadow-md transition-shadow"
+                    className="border-border hover:shadow-none transition-shadow"
                     data-testid={`visit-followup-${visit.id}`}
                   >
                     <CardHeader className="pb-2">
                       <div className="flex items-start justify-between">
                         <div className="flex items-center gap-2">
-                          <div className="p-2 bg-blue-100 rounded-lg">
+                          <div className="p-2 bg-status-info-bg rounded-lg">
                             <Calendar className="w-4 h-4 text-primary" />
                           </div>
                           <div>
@@ -311,7 +311,7 @@ const Followups = () => {
 
                         {visit.next_visit_date && (
                           <div className="flex items-center gap-2 text-sm text-muted-foreground mt-2">
-                            <Bell className="w-4 h-4 text-amber-500" />
+                            <Bell className="w-4 h-4 text-status-warning-fg" />
                             <span>
                               Sonraki: {new Date(visit.next_visit_date).toLocaleDateString('tr-TR')}
                             </span>
@@ -330,7 +330,7 @@ const Followups = () => {
               </div>
             ) : (
               <div className="text-center py-16">
-                <Calendar className="w-12 h-12 mx-auto text-slate-300 mb-4" />
+                <Calendar className="w-12 h-12 mx-auto text-primary-foreground mb-4" />
                 <p className="text-lg font-medium text-muted-foreground">Ziyaret follow-up yok</p>
                 <p className="text-sm text-muted-foreground mt-1">
                   Ziyaret listesinden follow-up ekleyebilirsiniz

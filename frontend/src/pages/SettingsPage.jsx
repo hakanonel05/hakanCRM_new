@@ -443,7 +443,7 @@ const SettingsPage = () => {
     return (
       <div className="flex items-center justify-center h-[60vh]">
         <div className="text-center">
-          <Settings className="w-16 h-16 text-slate-300 mx-auto mb-4" />
+          <Settings className="w-16 h-16 text-primary-foreground mx-auto mb-4" />
           <h2 className="text-xl font-semibold text-foreground">Erişim Engellendi</h2>
           <p className="text-muted-foreground mt-2">Bu sayfayı görüntülemek için admin yetkisi gerekli</p>
         </div>
@@ -466,7 +466,7 @@ const SettingsPage = () => {
         {/* Email Notification Settings */}
         <div className="bg-card rounded-xl border border-border p-6">
           <div className="flex items-center gap-3 mb-4">
-            <div className="w-10 h-10 bg-emerald-100 rounded-lg flex items-center justify-center">
+            <div className="w-10 h-10 bg-status-success-bg rounded-lg flex items-center justify-center">
               <Bell className="w-5 h-5 text-primary" />
             </div>
             <div>
@@ -476,7 +476,7 @@ const SettingsPage = () => {
           </div>
           
           {/* Info box */}
-          <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+          <div className="mb-4 p-3 bg-status-info-bg border border-status-info-line rounded-lg">
             <p className="text-sm text-primary">
               📧 Tüm hatırlatma e-postaları <strong>{ADMIN_EMAIL}</strong> adresine gönderilecek.
             </p>
@@ -510,7 +510,7 @@ const SettingsPage = () => {
               Hatırlatma Gönder
             </Button>
           </div>
-          <p className="text-xs text-muted-foreground/70 mt-2 text-center">
+          <p className="text-xs text-muted-foreground mt-2 text-center">
             Not: Otomatik hatırlatmalar için sunucuda cron job kurulması gerekir
           </p>
         </div>
@@ -519,8 +519,8 @@ const SettingsPage = () => {
         {isAdmin && (
           <div className="bg-card rounded-xl border border-border p-6">
             <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
-                <Users className="w-5 h-5 text-purple-600" />
+              <div className="w-10 h-10 bg-status-info-bg rounded-lg flex items-center justify-center">
+                <Users className="w-5 h-5 text-status-info-fg" />
               </div>
               <div>
                 <h3 className="font-semibold text-foreground">İzinli Kullanıcılar</h3>
@@ -529,8 +529,8 @@ const SettingsPage = () => {
             </div>
             
             {/* Info box */}
-            <div className="mb-4 p-3 bg-purple-50 border border-purple-200 rounded-lg">
-              <p className="text-sm text-purple-700">
+            <div className="mb-4 p-3 bg-status-info-bg border border-status-info-line rounded-lg">
+              <p className="text-sm text-status-info-fg">
                 🔒 Sadece bu listedeki ve <strong>{ADMIN_EMAIL}</strong> giriş yapabilir.
               </p>
             </div>
@@ -551,7 +551,7 @@ const SettingsPage = () => {
                       variant="ghost"
                       size="sm"
                       onClick={() => removeAllowedUser(user.id)}
-                      className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                      className="text-status-danger-fg hover:text-status-danger-fg hover:bg-status-danger-bg"
                     >
                       <Trash2 className="w-4 h-4" />
                     </Button>
@@ -574,7 +574,7 @@ const SettingsPage = () => {
                 onChange={(e) => setNewAllowedName(e.target.value)}
                 className="w-40"
               />
-              <Button onClick={addAllowedUser} className="bg-purple-600 hover:bg-purple-700">
+              <Button onClick={addAllowedUser} className="bg-primary hover:bg-primary">
                 <Plus className="w-4 h-4" />
               </Button>
             </div>
@@ -584,8 +584,8 @@ const SettingsPage = () => {
         {/* In-app Notification Settings */}
         <div className="bg-card rounded-xl border border-border p-6">
           <div className="flex items-center gap-3 mb-4">
-            <div className="w-10 h-10 bg-amber-100 rounded-lg flex items-center justify-center">
-              <Bell className="w-5 h-5 text-amber-600" />
+            <div className="w-10 h-10 bg-status-warning-bg rounded-lg flex items-center justify-center">
+              <Bell className="w-5 h-5 text-status-warning-fg" />
             </div>
             <div>
               <h3 className="font-semibold text-foreground">Uygulama İçi Bildirimler</h3>
@@ -618,7 +618,7 @@ const SettingsPage = () => {
         {isAdmin && (
           <div className="bg-card rounded-xl border border-border p-6">
             <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+              <div className="w-10 h-10 bg-status-info-bg rounded-lg flex items-center justify-center">
                 <Database className="w-5 h-5 text-primary" />
               </div>
               <div>
@@ -629,13 +629,13 @@ const SettingsPage = () => {
 
             <div className="space-y-3">
               {/* Full Backup */}
-              <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-lg">
+              <div className="p-4 bg-status-success-bg border border-status-success-line rounded-lg">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <FileJson className="w-8 h-8 text-primary" />
                     <div>
-                      <p className="font-medium text-emerald-800">Tam Yedek (JSON)</p>
-                      <p className="text-sm text-emerald-600">Tüm müşteriler, ziyaretler ve ayarlar</p>
+                      <p className="font-medium text-status-success-fg">Tam Yedek (JSON)</p>
+                      <p className="text-sm text-status-success-fg">Tüm müşteriler, ziyaretler ve ayarlar</p>
                     </div>
                   </div>
                   <Button 
@@ -651,7 +651,7 @@ const SettingsPage = () => {
                     İndir
                   </Button>
                 </div>
-                <p className="text-xs text-emerald-600 mt-2">
+                <p className="text-xs text-status-success-fg mt-2">
                   💡 Bu dosyayı Google Drive veya OneDrive&apos;a yükleyerek yedek alabilirsiniz
                 </p>
               </div>
@@ -685,7 +685,7 @@ const SettingsPage = () => {
 
         {/* Info - Admin Only */}
         {isAdmin && (
-          <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+          <div className="bg-status-info-bg border border-status-info-line rounded-xl p-4">
             <p className="text-sm text-primary">
               <strong>Manuel Yedekleme İpucu:</strong> İndirdiğiniz JSON dosyasını Google Drive, 
               OneDrive veya Dropbox&apos;a yükleyerek verilerinizi güvende tutabilirsiniz. 
@@ -701,8 +701,8 @@ const SettingsPage = () => {
         {isAdmin && (
           <div className="bg-card rounded-xl border border-border p-6">
             <div className="flex items-center gap-3 mb-1">
-              <div className="w-10 h-10 bg-amber-100 rounded-lg flex items-center justify-center">
-                <Database className="w-5 h-5 text-amber-600" />
+              <div className="w-10 h-10 bg-status-warning-bg rounded-lg flex items-center justify-center">
+                <Database className="w-5 h-5 text-status-warning-fg" />
               </div>
               <div>
                 <h3 className="font-semibold text-foreground">Veri Birleştirme ve Düzeltme</h3>
@@ -736,7 +736,7 @@ const SettingsPage = () => {
 
             {mergeLoading ? (
               <div className="text-center py-6">
-                <Loader2 className="w-6 h-6 animate-spin mx-auto text-muted-foreground/70" />
+                <Loader2 className="w-6 h-6 animate-spin mx-auto text-muted-foreground" />
               </div>
             ) : (
               <>
@@ -748,13 +748,13 @@ const SettingsPage = () => {
                     <label
                       key={item.value}
                       className={`flex items-center justify-between px-3 py-2 cursor-pointer text-sm hover:bg-muted/50 ${
-                        mergeSelected.includes(item.value) ? "bg-amber-50" : ""
+                        mergeSelected.includes(item.value) ? "bg-status-warning-bg" : ""
                       }`}
                     >
                       <span className="flex items-center gap-2 min-w-0">
                         <input
                           type="checkbox"
-                          className="accent-amber-600 shrink-0"
+                          className="accent-status-warning-line shrink-0"
                           checked={mergeSelected.includes(item.value)}
                           onChange={() => toggleMergeValue(item.value)}
                         />
@@ -809,8 +809,8 @@ const SettingsPage = () => {
         {isAdmin && (
           <div className="bg-card rounded-xl border border-border p-6">
             <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
-                <List className="w-5 h-5 text-purple-600" />
+              <div className="w-10 h-10 bg-status-info-bg rounded-lg flex items-center justify-center">
+                <List className="w-5 h-5 text-status-info-fg" />
               </div>
               <div>
                 <h3 className="font-semibold text-foreground">Açılır Liste Seçenekleri</h3>
@@ -820,7 +820,7 @@ const SettingsPage = () => {
             
             {optionsLoading ? (
               <div className="text-center py-4">
-                <Loader2 className="w-6 h-6 animate-spin mx-auto text-muted-foreground/70" />
+                <Loader2 className="w-6 h-6 animate-spin mx-auto text-muted-foreground" />
               </div>
             ) : (
               <div className="space-y-3">
@@ -848,7 +848,7 @@ const SettingsPage = () => {
                           </Badge>
                         ))}
                         {fieldOptions.length > 10 && (
-                          <Badge className="bg-slate-200 text-muted-foreground text-xs">
+                          <Badge className="bg-muted text-muted-foreground text-xs">
                             +{fieldOptions.length - 10} daha
                           </Badge>
                         )}
@@ -939,7 +939,7 @@ const SettingsPage = () => {
                           <Button 
                             variant="ghost" 
                             size="icon" 
-                            className="h-7 w-7 text-red-500 hover:text-red-600 hover:bg-red-50"
+                            className="h-7 w-7 text-status-danger-fg hover:text-status-danger-fg hover:bg-status-danger-bg"
                             onClick={() => handleDeleteOption(opt.id, selectedField)}
                           >
                             <Trash2 className="w-3 h-3" />
@@ -951,7 +951,7 @@ const SettingsPage = () => {
                 ))}
                 
                 {(options[selectedField] || []).length === 0 && (
-                  <p className="text-center text-sm text-muted-foreground/70 py-4">
+                  <p className="text-center text-sm text-muted-foreground py-4">
                     Henüz seçenek yok
                   </p>
                 )}

@@ -139,7 +139,7 @@ const UsersPage = () => {
     return (
       <div className="flex items-center justify-center min-h-[400px]" data-testid="users-page-unauthorized">
         <div className="text-center">
-          <Shield className="w-16 h-16 text-slate-300 mx-auto mb-4" />
+          <Shield className="w-16 h-16 text-primary-foreground mx-auto mb-4" />
           <h2 className="text-xl font-semibold text-foreground">Yetkisiz Erişim</h2>
           <p className="text-muted-foreground mt-2">
             Bu sayfa yalnızca süper admin tarafından görüntülenebilir.
@@ -170,7 +170,7 @@ const UsersPage = () => {
         <Button
           onClick={handleCleanupUnauthorized}
           variant="destructive"
-          className="bg-red-600 hover:bg-red-700"
+          className="bg-destructive hover:bg-destructive"
           data-testid="cleanup-unauthorized-btn"
         >
           <Trash2 className="w-4 h-4 mr-2" />
@@ -205,8 +205,8 @@ const UsersPage = () => {
                       {u.picture ? (
                         <img src={u.picture} alt={u.name} className="w-10 h-10 rounded-full" />
                       ) : (
-                        <div className="w-10 h-10 bg-emerald-100 rounded-full flex items-center justify-center">
-                          <span className="text-emerald-700 font-semibold">
+                        <div className="w-10 h-10 bg-status-success-bg rounded-full flex items-center justify-center">
+                          <span className="text-status-success-fg font-semibold">
                             {u.name?.charAt(0) || "?"}
                           </span>
                         </div>
@@ -214,10 +214,10 @@ const UsersPage = () => {
                       <div>
                         <p className="font-medium text-foreground flex items-center gap-2">
                           {u.name}
-                          {isUserAdmin && <Crown className="w-4 h-4 text-amber-500" />}
+                          {isUserAdmin && <Crown className="w-4 h-4 text-status-warning-fg" />}
                         </p>
                         {isSelf && (
-                          <Badge className="bg-emerald-100 text-emerald-700 text-xs">
+                          <Badge className="bg-status-success-bg text-status-success-fg text-xs">
                             Siz
                           </Badge>
                         )}
@@ -232,7 +232,7 @@ const UsersPage = () => {
                   </TableCell>
                   <TableCell>
                     {isSelf || u.email?.toLowerCase() === ADMIN_EMAIL ? (
-                      <Badge className="bg-amber-100 text-amber-700">
+                      <Badge className="bg-status-warning-bg text-status-warning-fg">
                         <ShieldCheck className="w-3 h-3 mr-1" />
                         Admin
                       </Badge>
@@ -284,7 +284,7 @@ const UsersPage = () => {
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                        className="text-status-danger-fg hover:text-status-danger-fg hover:bg-status-danger-bg"
                         onClick={() => handleDeleteUser(u.user_id)}
                         data-testid={`delete-user-${u.email}`}
                       >
