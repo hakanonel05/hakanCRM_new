@@ -2,24 +2,24 @@ import { useState, useEffect, memo, useMemo } from "react";
 import { Outlet, NavLink, useLocation, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard,
-  Users,
-  Calendar,
-  Bell,
-  LogOut,
-  User,
-  Kanban,
+  Building2,
+  ListFilter,
+  Columns3,
   CalendarDays,
+  MapPin,
+  BellRing,
+  Users,
+  BarChart3,
+  Files,
+  Lightbulb,
+  UserCog,
   Settings,
+  LogOut,
   ChevronLeft,
-  Filter,
   Menu,
   X,
-  FileSpreadsheet,
-  Copy,
   Search,
   Plus,
-  UsersRound,
-  Sparkles,
 } from "lucide-react";
 import { useAuth } from "../App";
 import {
@@ -52,21 +52,24 @@ function LogoMark({ size = 36 }) {
 }
 
 const PUBLIC_NAV = [
+  /* İkon seçiminin ölçütü: 16 pikselde hiçbir iki satır aynı silueti
+     paylaşmasın. Eskiden üç insan ikonu (Users/UsersRound/User) ve iki
+     takvim vardı; küçük boyutta ayırt edilmiyorlardı. */
   { to: "/", icon: LayoutDashboard, label: "Dashboard", end: true },
-  { to: "/customers", icon: Users, label: "Müşteriler" },
-  { to: "/filters", icon: Filter, label: "Filtreler" },
-  { to: "/kanban", icon: Kanban, label: "Kanban" },
+  { to: "/customers", icon: Building2, label: "Müşteriler" },
+  { to: "/filters", icon: ListFilter, label: "Filtreler" },
+  { to: "/kanban", icon: Columns3, label: "Kanban" },
   { to: "/calendar", icon: CalendarDays, label: "Takvim" },
-  { to: "/visits", icon: Calendar, label: "Ziyaretler" },
-  { to: "/followups", icon: Bell, label: "Follow-up" },
-  { to: "/team", icon: UsersRound, label: "Ekip" },
+  { to: "/visits", icon: MapPin, label: "Ziyaretler" },
+  { to: "/followups", icon: BellRing, label: "Follow-up" },
+  { to: "/team", icon: Users, label: "Ekip" },
 ];
 
 const ADMIN_NAV = [
-  { to: "/reports", icon: FileSpreadsheet, label: "Raporlama" },
-  { to: "/duplicates", icon: Copy, label: "Yinelenenler" },
-  { to: "/suggestions", icon: Sparkles, label: "Öneriler" },
-  { to: "/users", icon: User, label: "Kullanıcılar" },
+  { to: "/reports", icon: BarChart3, label: "Raporlama" },
+  { to: "/duplicates", icon: Files, label: "Yinelenenler" },
+  { to: "/suggestions", icon: Lightbulb, label: "Öneriler" },
+  { to: "/users", icon: UserCog, label: "Kullanıcılar" },
   { to: "/settings", icon: Settings, label: "Ayarlar" },
 ];
 

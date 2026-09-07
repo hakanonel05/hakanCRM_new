@@ -48,36 +48,43 @@ import ProcessBoard from "./ProcessBoard";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
-// Dynamic column colors
+/* KANBAN SÜTUN RENKLERİ
+ *
+ * Sütun gövdesi her zaman düz kart: on ayrı zemin rengi panoyu okunmaz
+ * yapıyordu ve zaten hepsi "bg-white/20" idi — açık zeminde neredeyse
+ * görünmeyen bir cam kalıntısı.
+ *
+ * Renk YALNIZCA BAŞLIKTA ve yalnızca durum gerçekten iyi/kötü olduğunda:
+ *   Kazanıldı / Yüksek   -> yeşil
+ *   Kaybedildi           -> kırmızı
+ *   Beklemede / Orta     -> kehribar (bekliyor)
+ * Geri kalanı nötr. "Teklif Verildi" bir başarı değil, bir aşama.
+ *
+ * badge her zaman KOYU tonu kullanır, çünkü üstüne beyaz yazılıyor.
+ * Eskiden "Beklemede" ve "Orta" rozetleri açık kehribar zemine beyaz yazı
+ * koyuyordu: ölçülen kontrast 1.04, yani sayı görünmüyordu.
+ */
+const SUTUN_NOTR = { bg: "bg-card", border: "border-border", header: "bg-muted", text: "text-muted-foreground", badge: "bg-muted-foreground" };
+const SUTUN_IYI = { bg: "bg-card", border: "border-border", header: "bg-status-success-bg", text: "text-status-success-fg", badge: "bg-status-success-fg" };
+const SUTUN_KOTU = { bg: "bg-card", border: "border-border", header: "bg-status-danger-bg", text: "text-status-danger-fg", badge: "bg-destructive" };
+const SUTUN_BEKLIYOR = { bg: "bg-card", border: "border-border", header: "bg-status-warning-bg", text: "text-status-warning-fg", badge: "bg-status-warning-fg" };
+
 const COLUMN_COLORS = {
-  // Status colors — glass style
-  "Beklemede": { bg: "bg-white/20", border: "border-white/40", header: "bg-status-warning-bg/60", text: "text-status-warning-fg", badge: "bg-status-warning-bg" },
-  "İletişimde": { bg: "bg-white/20", border: "border-white/40", header: "bg-primary-fixed/50", text: "text-primary", badge: "bg-primary" },
-  "Teklif Verildi": { bg: "bg-white/20", border: "border-white/40", header: "bg-tertiary-fixed/50", text: "text-tertiary-md", badge: "bg-tertiary-md" },
-  "Çalışılıyor": { bg: "bg-white/20", border: "border-white/40", header: "bg-status-success-bg/60", text: "text-status-success-fg", badge: "bg-status-success-fg" },
-  "Kazanıldı": { bg: "bg-white/20", border: "border-white/40", header: "bg-secondary-container/60", text: "text-secondary-md", badge: "bg-secondary-md" },
-  "Kaybedildi": { bg: "bg-white/20", border: "border-white/40", header: "bg-status-danger-bg/60", text: "text-status-danger-fg", badge: "bg-destructive" },
-  // Potential level colors
-  "Yüksek": { bg: "bg-white/20", border: "border-white/40", header: "bg-status-success-bg/60", text: "text-status-success-fg", badge: "bg-status-success-fg" },
-  "Orta": { bg: "bg-white/20", border: "border-white/40", header: "bg-status-warning-bg/60", text: "text-status-warning-fg", badge: "bg-status-warning-bg" },
-  "Düşük": { bg: "bg-white/20", border: "border-white/40", header: "bg-surface-container/60", text: "text-on-surface-variant", badge: "bg-outline-md" },
-  // Default/fallback
-  "Atanmamış": { bg: "bg-white/20", border: "border-white/40", header: "bg-surface-container/60", text: "text-on-surface-variant", badge: "bg-outline-md" },
+  "Beklemede": SUTUN_BEKLIYOR,
+  "İletişimde": SUTUN_NOTR,
+  "Teklif Verildi": SUTUN_NOTR,
+  "Çalışılıyor": SUTUN_NOTR,
+  "Kazanıldı": SUTUN_IYI,
+  "Kaybedildi": SUTUN_KOTU,
+  "Yüksek": SUTUN_IYI,
+  "Orta": SUTUN_BEKLIYOR,
+  "Düşük": SUTUN_NOTR,
+  "Atanmamış": SUTUN_NOTR,
 };
 
-// Dynamic color palette for unknown columns — glass style
-const DYNAMIC_COLOR_PALETTE = [
-  { bg: "bg-white/20", border: "border-white/40", header: "bg-primary-fixed/50", text: "text-primary", badge: "bg-primary" },
-  { bg: "bg-white/20", border: "border-white/40", header: "bg-status-success-bg/60", text: "text-status-success-fg", badge: "bg-status-success-fg" },
-  { bg: "bg-white/20", border: "border-white/40", header: "bg-tertiary-fixed/50", text: "text-tertiary-md", badge: "bg-tertiary-md" },
-  { bg: "bg-white/20", border: "border-white/40", header: "bg-status-warning-bg/60", text: "text-status-warning-fg", badge: "bg-status-warning-bg" },
-  { bg: "bg-white/20", border: "border-white/40", header: "bg-status-danger-bg/60", text: "text-status-danger-fg", badge: "bg-destructive" },
-  { bg: "bg-white/20", border: "border-white/40", header: "bg-secondary-container/60", text: "text-secondary-md", badge: "bg-secondary-md" },
-  { bg: "bg-white/20", border: "border-white/40", header: "bg-primary-container/20", text: "text-primary", badge: "bg-primary-container" },
-  { bg: "bg-white/20", border: "border-white/40", header: "bg-status-warning-bg/60", text: "text-status-warning-fg", badge: "bg-status-warning-bg" },
-  { bg: "bg-white/20", border: "border-white/40", header: "bg-status-success-bg/60", text: "text-status-success-fg", badge: "bg-status-success-fg" },
-  { bg: "bg-white/20", border: "border-white/40", header: "bg-status-info-bg/60", text: "text-status-info-fg", badge: "bg-primary" },
-];
+/* Tanınmayan sütunlar (şehir, sorumlu, market ile gruplandığında) nötr.
+   Bunlar durum değil kategori; renklendirmek bilgi taşımaz. */
+const DYNAMIC_COLOR_PALETTE = [SUTUN_NOTR];
 
 const getColumnColors = (columnName, index) => {
   if (COLUMN_COLORS[columnName]) {
