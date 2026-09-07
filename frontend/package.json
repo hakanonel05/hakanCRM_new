@@ -68,7 +68,8 @@
     "start": "craco start",
     "build": "craco build",
     "test": "craco test",
-    "sahte-api": "node ../scripts/sahte-api.mjs"
+    "sahte-api": "node ../scripts/sahte-api.mjs",
+    "sahte-api-hacim": "node ../scripts/sahte-api-hacim.mjs"
   },
   "browserslist": {
     "production": [

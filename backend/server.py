@@ -703,6 +703,21 @@ def fetch_all_rows(table: str, select_cols: str = "*", page_size: int = 1000):
         offset += page_size
     return rows
 
+@api_router.get("/customers/lookup")
+async def get_customer_lookup():
+    """Sadece id + company_name döner.
+
+    Ziyaretler/Kanban gibi ekranlar firma adını göstermek için müşteri
+    listesine ihtiyaç duyuyor ama tam kayda değil. Tam liste 3150 kayıtta
+    5,4 MB; bu sözlük ~150 KB.
+    """
+    try:
+        rows = fetch_all_rows("customers", "id, company_name")
+        return {"data": rows, "total": len(rows)}
+    except Exception as e:
+        logging.error(f"Error fetching customer lookup: {e}")
+        return {"data": [], "total": 0}
+
 @api_router.get("/customers/filter-options")
 async def get_customer_filter_options():
     """Return unique filter values - cached for 60 seconds"""

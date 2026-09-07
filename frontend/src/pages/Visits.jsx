@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import Breadcrumb from "../components/Breadcrumb";
 import axios from "axios";
 import { useCustomerModal } from "../contexts/CustomerModalContext";
@@ -73,8 +73,9 @@ const Visits = () => {
 
   const fetchCustomers = async () => {
     try {
-      // Backend now handles internal pagination when limit > 1000
-      const response = await axios.get(`${API}/customers?limit=5000`);
+      /* Sadece id + company_name. Tam liste 3150 kayıtta 5,4 MB idi; bu
+         ekranın ihtiyacı yalnızca firma adı (~150 KB). */
+      const response = await axios.get(`${API}/customers/lookup`);
       const customersData = response.data?.data || response.data || [];
       setCustomers(Array.isArray(customersData) ? customersData : []);
     } catch (error) {
@@ -126,10 +127,19 @@ const Visits = () => {
     fetchVisits();
   };
 
-  const getCustomerName = (customerId) => {
-    const customer = customers.find(c => c.id === customerId);
-    return customer?.company_name || "Bilinmiyor";
-  };
+  /* id → firma adı sözlüğü. Önceden her çağrı 3150 kayıtlık dizide .find()
+     yapıyordu; süzgeç bunu her ziyaret için çağırdığından 1200 ziyarette
+     ~3,8 milyon karşılaştırma ediyordu. */
+  const musteriAdlari = useMemo(() => {
+    const m = new Map();
+    for (const c of customers) m.set(c.id, c.company_name);
+    return m;
+  }, [customers]);
+
+  const getCustomerName = useCallback(
+    (customerId) => musteriAdlari.get(customerId) || "Bilinmiyor",
+    [musteriAdlari]
+  );
 
   const getVisitTypeColor = (type) => {
     const colors = {
@@ -148,6 +158,27 @@ const Visits = () => {
   const hasActiveFilters = search || customerFilter;
 
   // Filter visits by search
+  /* Tablo sayfalama. Bütün ziyaretler tek seferde çiziliyordu; 1200
+     kayıtta bu 6.8 saniye ve 324 MB demekti. */
+  const SAYFA_BOYU = 100;
+  const [sayfa, setSayfa] = useState(1);
+
+  /* Müşteri süzgecinde yazılan metin. 3150 öğeyi birden çizmemek için
+     liste bununla daraltılıyor. */
+  const [musteriAra, setMusteriAra] = useState("");
+
+  /* Süzgeç listesi en fazla 50 satır çizer. Daha fazlası hem yavaş hem
+     kullanışsız: kimse 3150 satırlık bir açılır listede kaydırarak firma
+     aramaz, yazarak arar. */
+  const SUZGEC_LIMIT = 50;
+  const suzulenMusteriler = useMemo(() => {
+    const q = musteriAra.trim().toLocaleLowerCase("tr");
+    const kaynak = q
+      ? customers.filter((c) => (c.company_name || "").toLocaleLowerCase("tr").includes(q))
+      : customers;
+    return kaynak.slice(0, SUZGEC_LIMIT);
+  }, [customers, musteriAra]);
+
   const filteredVisits = visits.filter(visit => {
     if (!search) return true;
     const customerName = getCustomerName(visit.customer_id).toLowerCase();
@@ -158,6 +189,14 @@ const Visits = () => {
            notes.includes(searchLower) || 
            outcome.includes(searchLower);
   });
+
+  const toplamSayfa = Math.max(1, Math.ceil(filteredVisits.length / SAYFA_BOYU));
+
+  /* Süzgeç ya da arama değişince ilk sayfaya dön: yoksa 40 kayda düşen
+     bir sonuçta 7. sayfada kalıp boş ekran görülüyor. */
+  useEffect(() => {
+    setSayfa(1);
+  }, [search, customerFilter, visits.length]);
 
   if (loading) {
     return (
@@ -204,12 +243,27 @@ const Visits = () => {
             <SelectValue placeholder="Müşteri" />
           </SelectTrigger>
           <SelectContent>
+            {/* Arama kutusu listenin içinde: yazdıkça daraltıyor. */}
+            <div className="p-2">
+              <Input
+                value={musteriAra}
+                onChange={(e) => setMusteriAra(e.target.value)}
+                placeholder="Firma ara…"
+                className="h-8"
+                onKeyDown={(e) => e.stopPropagation()}
+              />
+            </div>
             <SelectItem value="all">Tümü</SelectItem>
-            {customers.map((customer) => (
+            {suzulenMusteriler.map((customer) => (
               <SelectItem key={customer.id} value={customer.id}>
                 {customer.company_name}
               </SelectItem>
             ))}
+            {customers.length > suzulenMusteriler.length && (
+              <p className="px-3 py-2 text-[11px] text-muted-foreground">
+                {customers.length - suzulenMusteriler.length} firma daha var — aramayı daraltın.
+              </p>
+            )}
           </SelectContent>
         </Select>
 
@@ -244,7 +298,7 @@ const Visits = () => {
           </TableHeader>
           <TableBody>
             {filteredVisits.length > 0 ? (
-              filteredVisits.map((visit, index) => (
+              filteredVisits.slice((sayfa - 1) * SAYFA_BOYU, sayfa * SAYFA_BOYU).map((visit, index) => (
                 <TableRow 
                   key={visit.id} 
                   className="airtable-row cursor-pointer"
@@ -359,6 +413,36 @@ const Visits = () => {
             )}
           </TableBody>
         </Table>
+
+        {/* Sayfalama. Tablo artık her seferde 100 kayıt çiziyor; kullanıcının
+            geri kalanına ulaşabilmesi için denetim şart. Tek sayfaya sığıyorsa
+            hiç gösterilmiyor. */}
+        {toplamSayfa > 1 && (
+          <div className="flex items-center justify-between gap-3 border-t border-border px-4 py-3 text-[12px]">
+            <span className="text-muted-foreground">
+              <span className="font-medium text-foreground tabular">{(sayfa - 1) * SAYFA_BOYU + 1}</span>
+              –
+              <span className="font-medium text-foreground tabular">
+                {Math.min(sayfa * SAYFA_BOYU, filteredVisits.length)}
+              </span>
+              {" / "}
+              <span className="font-medium text-foreground tabular">{filteredVisits.length}</span> kayıt
+            </span>
+            <div className="flex items-center gap-1">
+              <Button variant="ghost" size="sm" className="h-7 px-2"
+                onClick={() => setSayfa(1)} disabled={sayfa === 1}>İlk</Button>
+              <Button variant="ghost" size="sm" className="h-7 px-2"
+                onClick={() => setSayfa((p) => Math.max(1, p - 1))} disabled={sayfa === 1}>Önceki</Button>
+              <span className="px-2 text-muted-foreground tabular">
+                {sayfa} / {toplamSayfa}
+              </span>
+              <Button variant="ghost" size="sm" className="h-7 px-2"
+                onClick={() => setSayfa((p) => Math.min(toplamSayfa, p + 1))} disabled={sayfa === toplamSayfa}>Sonraki</Button>
+              <Button variant="ghost" size="sm" className="h-7 px-2"
+                onClick={() => setSayfa(toplamSayfa)} disabled={sayfa === toplamSayfa}>Son</Button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Visit Modal */}
