@@ -112,18 +112,48 @@ function normKey(s) {
   return x;
 }
 
+/* Rampanın iki ucu paletten okunur, koda gömülmez. Gömüldüğünde sessizce
+   paletten kopuyor: bu dosyada tam olarak o oldu — uçlar turkuaz kalmış,
+   altındaki gösterge çubuğuysa turuncuydu. */
+let _rampaUclari = null;
+function rampaUclari() {
+  if (_rampaUclari) return _rampaUclari;
+  const oku = (ad, yedek) => {
+    if (typeof window === "undefined") return yedek;
+    const v = getComputedStyle(document.documentElement).getPropertyValue(ad).trim();
+    return v || yedek;
+  };
+  _rampaUclari = {
+    az: oku("--brand-soft", "22 100% 96.3%"),
+    cok: oku("--brand", "17 88.3% 40.4%"),
+  };
+  return _rampaUclari;
+}
+
+const _hsl = (v) => v.split(/[\s%]+/).filter(Boolean).map(Number);
+
+/* t: 0..1 arası konum. Hem harita hem gösterge çubuğu bunu kullanıyor. */
+function rampaRengi(t) {
+  const { az, cok } = rampaUclari();
+  const a = _hsl(az);
+  const b = _hsl(cok);
+  const h = a[0] + (b[0] - a[0]) * t;
+  const sa = a[1] + (b[1] - a[1]) * t;
+  const l = a[2] + (b[2] - a[2]) * t;
+  return `hsl(${h.toFixed(1)} ${sa.toFixed(1)}% ${l.toFixed(1)}%)`;
+}
+
 function colorFor(count, max) {
   /* Veri yoksa nötr yüzey; varsa marka tonunun açıklık merdiveni.
      Yoğunluğu TEK tonun koyuluğu anlatır — çok renkli bir ısı ölçeği
      "daha çok"un hangisi olduğunu söylemez. */
   if (!count) return "hsl(var(--muted))";
+  /* Logaritmik: müşterinin büyük kısmı birkaç ilde toplanıyor, doğrusal
+     ölçekte geri kalan 30 il tek renge düşüyor. */
   const t = Math.min(1, Math.log(count + 1) / Math.log(max + 1));
-  const c1 = [167, 243, 208];
-  const c2 = [15, 118, 110];
-  const r = Math.round(c1[0] + (c2[0] - c1[0]) * t);
-  const g = Math.round(c1[1] + (c2[1] - c1[1]) * t);
-  const b = Math.round(c1[2] + (c2[2] - c1[2]) * t);
-  return "rgb(" + r + "," + g + "," + b + ")";
+  /* Taban 0.18: tek müşterili il bile "veri yok" grisinden ayrılsın.
+     brand-soft neredeyse beyaz, doğrudan kullanılırsa ikisi karışıyor. */
+  return rampaRengi(0.18 + t * 0.82);
 }
 
 // Tamamen büyük harfli firma isimlerini okunaklı hale getirir (ör. "ZORLU
@@ -443,7 +473,11 @@ export default function TurkeyMap() {
         </div>
         <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
           <span>Az</span>
-          <span className="inline-block w-16 h-2 rounded-full" style={{ background: "linear-gradient(90deg, hsl(var(--brand-soft)), hsl(var(--brand)))" }} />
+          <span className="inline-block w-16 h-2 rounded-full" /* Haritayla aynı fonksiyondan üretiliyor; ikisinin ayrışması artık
+                       tek bir yeri değiştirmekle olmaz. */
+                    style={{
+                      background: `linear-gradient(90deg, ${rampaRengi(0.18)}, ${rampaRengi(0.6)}, ${rampaRengi(1)})`,
+                    }} />
           <span>Çok</span>
         </div>
       </div>
