@@ -30,8 +30,7 @@ import {
   SlidersHorizontal,
   Sparkles,
   Pencil,
-  Loader2
-} from "lucide-react";
+  Loader2, FileSpreadsheet } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
@@ -71,6 +70,7 @@ import SearchInput from "../components/SearchInput";
 import Breadcrumb from "../components/Breadcrumb";
 import { normalize, computeMatchInfo, highlightMatch, FIELD_LABELS } from "../utils/searchHelpers";
 import { swrCache } from "../utils/swrCache";
+import CokluFiltre from "../components/CokluFiltre";
 import InlineTextEdit from "../components/InlineTextEdit";
 import MobileCustomerList from "../components/MobileCustomerList";
 import { toast } from "sonner";
@@ -494,12 +494,31 @@ const Customers = () => {
   // parametrelerden okunur — böylece başka bir sayfadan (ör. Türkiye
   // haritasındaki "Müşterilerde Aç" butonu) gelen bağlantılar, ilgili
   // filtreleri otomatik uygulamış olarak açılır.
-  const [marketFilter, setMarketFilter] = useState(() => new URLSearchParams(window.location.search).get("market") || "");
-  const [statusFilter, setStatusFilter] = useState(() => new URLSearchParams(window.location.search).get("status") || "");
-  const [cityFilter, setCityFilter] = useState(() => new URLSearchParams(window.location.search).get("city") || "");
-  const [applicationFilter, setApplicationFilter] = useState(() => new URLSearchParams(window.location.search).get("application") || "");
-  const [competitorFilter, setCompetitorFilter] = useState(() => new URLSearchParams(window.location.search).get("competitor") || "");
-  const [partnerFilter, setPartnerFilter] = useState(() => new URLSearchParams(window.location.search).get("partner") || "");
+  /* Süzgeçler artık DİZİ: her alanda birden çok değer seçilebiliyor.
+     Adres çubuğundan gelen tek değer de diziye sarılıyor, böylece
+     haritadan "Müşterilerde Aç" bağlantısı eskisi gibi çalışmaya devam
+     ediyor. */
+  const ilkDizi = (ad) => {
+    const v = new URLSearchParams(window.location.search).get(ad);
+    return v ? v.split(",").filter(Boolean) : [];
+  };
+  const [marketFilter, setMarketFilter] = useState(() => ilkDizi("market"));
+  const [statusFilter, setStatusFilter] = useState(() => ilkDizi("status"));
+  const [cityFilter, setCityFilter] = useState(() => ilkDizi("city"));
+  const [districtFilter, setDistrictFilter] = useState(() => ilkDizi("district"));
+  const [applicationFilter, setApplicationFilter] = useState(() => ilkDizi("application"));
+  const [competitorFilter, setCompetitorFilter] = useState(() => ilkDizi("competitor"));
+  const [partnerFilter, setPartnerFilter] = useState(() => ilkDizi("partner"));
+
+  /* "İçerir" süzgeçleri: listede olmayan bir kalıbı elle yazmak için.
+     Örnek: uygulamaya "Paketleme" yazılınca içinde paketleme geçen her
+     müşteri geliyor. Listeden seçmekle aynı anda kullanılmıyor. */
+  const [icerir, setIcerir] = useState({
+    market: "", application: "", city: "", district: "",
+    status: "", competitor: "", partner: "",
+  });
+  const icerirAyarla = (alan, deger) =>
+    setIcerir((o) => ({ ...o, [alan]: deger }));
   const [callFilter, setCallFilter] = useState("");
   
   // Debounce handled inside SearchInput component now. `search` is already debounced.
@@ -514,6 +533,7 @@ const Customers = () => {
     applications: [],
     competitors: [],
     partners: [],
+    districts: [],
     assigned_to: []
   });
   
@@ -553,12 +573,20 @@ const Customers = () => {
 
     const params = new URLSearchParams();
     if (search) params.append("search", search);
-    if (marketFilter && marketFilter !== "all") params.append("market", marketFilter);
-    if (statusFilter && statusFilter !== "all") params.append("status", statusFilter);
-    if (cityFilter && cityFilter !== "all") params.append("city", cityFilter);
-    if (applicationFilter && applicationFilter !== "all") params.append("application", applicationFilter);
-    if (competitorFilter && competitorFilter !== "all") params.append("competitor", competitorFilter);
-    if (partnerFilter && partnerFilter !== "all") params.append("partner", partnerFilter);
+    /* Çoklu seçim virgülle ayrılmış gidiyor; arka uç in_() ile arıyor. */
+    const ekleCoklu = (ad, dizi) => {
+      if (dizi && dizi.length) params.append(ad, dizi.join(","));
+    };
+    ekleCoklu("market", marketFilter);
+    ekleCoklu("status", statusFilter);
+    ekleCoklu("city", cityFilter);
+    ekleCoklu("district", districtFilter);
+    ekleCoklu("application", applicationFilter);
+    ekleCoklu("competitor", competitorFilter);
+    ekleCoklu("partner", partnerFilter);
+    for (const [alan, metin] of Object.entries(icerir)) {
+      if (metin && metin.trim()) params.append(alan + "_contains", metin.trim());
+    }
     params.append("page", currentPage.toString());
     params.append("limit", itemsPerPage.toString());
     params.append("sort_by", sortBy);
@@ -617,7 +645,7 @@ const Customers = () => {
         setLoading(false);
       }
     }
-  }, [search, marketFilter, statusFilter, cityFilter, applicationFilter, competitorFilter, partnerFilter, currentPage, itemsPerPage, sortBy, sortOrder]);
+  }, [search, marketFilter, statusFilter, cityFilter, districtFilter, applicationFilter, competitorFilter, partnerFilter, icerir, currentPage, itemsPerPage, sortBy, sortOrder]);
 
   // Fetch latest call outcomes per customer (lightweight endpoint)
   const fetchCalls = useCallback(async () => {
@@ -639,7 +667,7 @@ const Customers = () => {
   useEffect(() => {
     fetchCustomers();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [search, marketFilter, statusFilter, cityFilter, applicationFilter, competitorFilter, partnerFilter, currentPage, sortBy, sortOrder]);
+  }, [search, marketFilter, statusFilter, cityFilter, districtFilter, applicationFilter, competitorFilter, partnerFilter, icerir, currentPage, sortBy, sortOrder]);
 
   // Fetch calls once on mount
   useEffect(() => {
@@ -706,6 +734,7 @@ const Customers = () => {
         applications: data.application || [],
         competitors: data.competitor || [],
         partners: data.partner || [],
+        districts: data.district || [],
         assigned_to: data.assigned_to || []
       });
     } catch (error) {
@@ -872,10 +901,21 @@ const Customers = () => {
     : customers;
 
   // Apply quick filters (frontend-side for instant filtering)
+  /* Uygulama / Rakip / Partner artık YALNIZCA sunucuda süzülüyor.
+   *
+   * Burada bir kopyası vardı ve süzgeçler diziye çevrilince sessizce her
+   * satırı eliyordu: boş dizi [] JavaScript'te "truthy", "all" değil ve
+   * hiçbir metne eşit değil — yani üçü de "eşleşmiyor" diyordu. Ekranda
+   * "240 kayıt" yazıyor ama tablo boş kalıyordu.
+   *
+   * Kopyayı düzeltmek yerine kaldırmak doğru: "içerir" süzgecini istemci
+   * tarafında zaten uygulayamayız, elimizde o sayfanın 50 kaydı var.
+   * Sunucu bütün kümeyi süzüyor; ikinci bir süzgeç yalnızca ikisinin
+   * ayrı düşme riskini taşıyor.
+   *
+   * callFilter kalıyor: o gerçekten istemci tarafında, ayrı yüklenen arama
+   * sonuçlarından hesaplanıyor. */
   const quickFilteredCustomers = filteredCustomers.filter(customer => {
-    if (applicationFilter && applicationFilter !== "all" && customer.application !== applicationFilter) return false;
-    if (competitorFilter && competitorFilter !== "all" && customer.competitor !== competitorFilter) return false;
-    if (partnerFilter && partnerFilter !== "all" && customer.partner !== partnerFilter) return false;
     if (callFilter && callFilter !== "all" && customerCalls[customer.id] !== callFilter) return false;
     return true;
   });
@@ -908,7 +948,7 @@ const Customers = () => {
   // Reset to page 1 when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [search, marketFilter, statusFilter, cityFilter, applicationFilter, competitorFilter, partnerFilter, callFilter, activeFilters]);
+  }, [search, marketFilter, statusFilter, cityFilter, districtFilter, applicationFilter, competitorFilter, partnerFilter, icerir, callFilter, activeFilters]);
 
   // Inline editing handlers
   const startEditing = (rowId, field, currentValue) => {
@@ -1111,19 +1151,80 @@ const Customers = () => {
   const uniqueApplications = allFilterOptions.applications;
   const uniqueCompetitors = allFilterOptions.competitors;
   const uniquePartners = allFilterOptions.partners;
+  const uniqueDistricts = allFilterOptions.districts;
   const uniqueCallOutcomes = ["Olumlu", "Olumsuz", "Aranacak", "Beklemede", "Görüşüldü", "İlgileniyor", "Teklif Verildi"];
   
-  const hasActiveFilters = search || marketFilter || statusFilter || cityFilter || applicationFilter || competitorFilter || partnerFilter || callFilter;
+  /* Diziler her zaman "truthy" olduğu için uzunluğa bakılıyor — eskiden
+     metin oldukları için doğrudan kullanılıyordu. */
+  const hasActiveFilters = Boolean(
+    search || callFilter ||
+    marketFilter.length || statusFilter.length || cityFilter.length ||
+    districtFilter.length || applicationFilter.length ||
+    competitorFilter.length || partnerFilter.length ||
+    Object.values(icerir).some((v) => v && v.trim())
+  );
+
+  /* Sunucuya gidecek süzgeç parametreleri. Hem liste çağrısı hem Excel
+     aktarımı aynı yerden üretiliyor ki ikisi birbirinden ayrı düşmesin —
+     indirilen dosya ekrandaki listeyle aynı olmalı. */
+  const suzgecParametreleri = useCallback(() => {
+    const p = new URLSearchParams();
+    if (search) p.append("search", search);
+    const coklu = (ad, dizi) => { if (dizi && dizi.length) p.append(ad, dizi.join(",")); };
+    coklu("market", marketFilter);
+    coklu("status", statusFilter);
+    coklu("city", cityFilter);
+    coklu("district", districtFilter);
+    coklu("application", applicationFilter);
+    coklu("competitor", competitorFilter);
+    coklu("partner", partnerFilter);
+    for (const [alan, metin] of Object.entries(icerir)) {
+      if (metin && metin.trim()) p.append(alan + "_contains", metin.trim());
+    }
+    return p;
+  }, [search, marketFilter, statusFilter, cityFilter, districtFilter,
+      applicationFilter, competitorFilter, partnerFilter, icerir]);
+
+  const [exportLoading, setExportLoading] = useState(false);
+
+  const excelIndir = async () => {
+    setExportLoading(true);
+    try {
+      const response = await axios.get(
+        `${API}/customers-export?${suzgecParametreleri().toString()}`,
+        { responseType: "blob" }
+      );
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `musteriler_${new Date().toISOString().split("T")[0]}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+      toast.success("Excel indirildi");
+    } catch (error) {
+      console.error("Excel aktarımı hatası:", error);
+      toast.error("Excel indirilemedi");
+    } finally {
+      setExportLoading(false);
+    }
+  };
 
   const clearFilters = () => {
     setSearch("");
-    setMarketFilter("");
-    setStatusFilter("");
-    setCityFilter("");
-    setApplicationFilter("");
-    setCompetitorFilter("");
-    setPartnerFilter("");
+    setMarketFilter([]);
+    setStatusFilter([]);
+    setCityFilter([]);
+    setDistrictFilter([]);
+    setApplicationFilter([]);
+    setCompetitorFilter([]);
+    setPartnerFilter([]);
     setCallFilter("");
+    setIcerir({
+      market: "", application: "", city: "", district: "",
+      status: "", competitor: "", partner: "",
+    });
   };
 
   // Render editable cell
@@ -1340,6 +1441,22 @@ const Customers = () => {
                 <Upload className="w-4 h-4 sm:mr-1.5" />
                 <span className="hidden sm:inline">İçe Aktar</span>
               </Button>
+              {/* Süzgeçli listenin TAMAMINI indirir — ekranda 50 kayıt
+                  görünürken 1700 kaydın hepsi iner. */}
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-muted-foreground hover:text-foreground hover:bg-muted px-2 sm:px-3 h-8 rounded-lg"
+                onClick={excelIndir}
+                disabled={exportLoading}
+                title={hasActiveFilters ? "Süzgeçli listeyi Excel'e aktar" : "Tüm listeyi Excel'e aktar"}
+                data-testid="excel-export-btn"
+              >
+                <FileSpreadsheet className="w-4 h-4 sm:mr-1.5" />
+                <span className="hidden sm:inline">
+                  {exportLoading ? "Hazırlanıyor…" : "Excel"}
+                </span>
+              </Button>
               <Button
                 className="bg-primary hover:opacity-90 text-white transition-all px-3 sm:px-4 h-8 rounded-lg font-medium shadow-none"
                 size="sm"
@@ -1528,80 +1645,73 @@ const Customers = () => {
             </PopoverContent>
           </Popover>
 
-          {/* Quick Filters */}
-          <Select value={marketFilter} onValueChange={setMarketFilter}>
-            <SelectTrigger className="w-[120px] h-8 text-xs rounded-full border-border">
-              <SelectValue placeholder="Market" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Tüm Market</SelectItem>
-              {uniqueMarkets.map(m => (
-                <SelectItem key={m} value={m}>{m}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          {/* Hızlı süzgeçler — hepsi çoklu seçim, hepsinde "içerir" biçimi var. */}
+          <CokluFiltre
+            etiket="Market"
+            secenekler={uniqueMarkets}
+            secili={marketFilter}
+            onSeciliDegisti={setMarketFilter}
+            icerir={icerir.market}
+            onIcerirDegisti={(v) => icerirAyarla("market", v)}
+          />
 
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-[120px] h-8 text-xs rounded-full border-border">
-              <SelectValue placeholder="Durum" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Tüm Durum</SelectItem>
-              {STATUS_OPTIONS.map(s => (
-                <SelectItem key={s.value} value={s.value}>
-                  <span className={`px-1.5 py-0.5 rounded text-xs ${s.bg} ${s.text}`}>{s.label}</span>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <CokluFiltre
+            etiket="Durum"
+            secenekler={STATUS_OPTIONS.map((o) => o.value)}
+            secili={statusFilter}
+            onSeciliDegisti={setStatusFilter}
+            icerir={icerir.status}
+            onIcerirDegisti={(v) => icerirAyarla("status", v)}
+          />
 
-          <Select value={cityFilter} onValueChange={setCityFilter}>
-            <SelectTrigger className="w-[100px] h-8 text-xs rounded-full border-border">
-              <SelectValue placeholder="Şehir" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Tüm Şehir</SelectItem>
-              {uniqueCities.map(c => (
-                <SelectItem key={c} value={c}>{c}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <CokluFiltre
+            etiket="Şehir"
+            secenekler={uniqueCities}
+            secili={cityFilter}
+            onSeciliDegisti={setCityFilter}
+            icerir={icerir.city}
+            onIcerirDegisti={(v) => icerirAyarla("city", v)}
+            genislik="w-[120px]"
+          />
 
-          <Select value={applicationFilter} onValueChange={setApplicationFilter}>
-            <SelectTrigger className="w-[120px] h-8 text-xs rounded-full border-border">
-              <SelectValue placeholder="Uygulama" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Tüm Uygulama</SelectItem>
-              {uniqueApplications.map(a => (
-                <SelectItem key={a} value={a}>{a}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <CokluFiltre
+            etiket="İlçe"
+            secenekler={uniqueDistricts}
+            secili={districtFilter}
+            onSeciliDegisti={setDistrictFilter}
+            icerir={icerir.district}
+            onIcerirDegisti={(v) => icerirAyarla("district", v)}
+            genislik="w-[120px]"
+          />
 
-          <Select value={competitorFilter} onValueChange={setCompetitorFilter}>
-            <SelectTrigger className="w-[100px] h-8 text-xs rounded-full border-border">
-              <SelectValue placeholder="Rakip" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Tüm Rakip</SelectItem>
-              {uniqueCompetitors.map(c => (
-                <SelectItem key={c} value={c}>{c}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <CokluFiltre
+            etiket="Uygulama"
+            secenekler={uniqueApplications}
+            secili={applicationFilter}
+            onSeciliDegisti={setApplicationFilter}
+            icerir={icerir.application}
+            onIcerirDegisti={(v) => icerirAyarla("application", v)}
+          />
 
-          <Select value={partnerFilter} onValueChange={setPartnerFilter}>
-            <SelectTrigger className="w-[100px] h-8 text-xs rounded-full border-border">
-              <SelectValue placeholder="Partner" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Tüm Partner</SelectItem>
-              {uniquePartners.map(p => (
-                <SelectItem key={p} value={p}>{p}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <CokluFiltre
+            etiket="Rakip"
+            secenekler={uniqueCompetitors}
+            secili={competitorFilter}
+            onSeciliDegisti={setCompetitorFilter}
+            icerir={icerir.competitor}
+            onIcerirDegisti={(v) => icerirAyarla("competitor", v)}
+            genislik="w-[110px]"
+          />
+
+          <CokluFiltre
+            etiket="Partner"
+            secenekler={uniquePartners}
+            secili={partnerFilter}
+            onSeciliDegisti={setPartnerFilter}
+            icerir={icerir.partner}
+            onIcerirDegisti={(v) => icerirAyarla("partner", v)}
+            genislik="w-[110px]"
+          />
 
           <Select value={callFilter} onValueChange={setCallFilter}>
             <SelectTrigger className="w-[100px] h-8 text-xs rounded-full border-border">
