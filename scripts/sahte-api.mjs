@@ -79,7 +79,13 @@ const MUSTERILER = Array.from({ length: 240 }, (_, i) => ({
   company_name: sirketAdi(i),
   market: sec(PAZAR, i, 1),
   application: sec(UYGULAMA, i, 2),
-  city: sec(SEHIR, i, 3),
+  /* KULLANICININ BULDUĞU HATA BURADA YENİDEN ÜRETİLİYOR: aynı ilin iki
+     yazımı. Süzgeç düzeltmesi çalışıyorsa hangisi seçilirse seçilsin
+     ikisi birden bulunmalı. */
+  city: (() => {
+    const il = sec(SEHIR, i, 3);
+    return (il === "İstanbul" && i % 40 === 0) ? "Istanbul" : il;
+  })(),
   district: ILCE[i % ILCE.length],
   website: 'www.' + ['anadolu', 'ege', 'marmara', 'toros', 'kuzey'][i % 5] + i + '.com.tr',
   status: sec(DURUM, i, 4),
@@ -226,6 +232,49 @@ const surecTamPano = (panoId) => {
   };
 };
 
+/* Arka uçtaki _tr_varyantlar ile aynı iş: "Istanbul" seçimi "İstanbul"
+   kayıtlarını da bulmalı. */
+const _tr_varyant = (deger) => {
+  if (!deger) return [];
+  const esler = [['I', 'İ'], ['i', 'ı'], ['İ', 'I'], ['ı', 'i']];
+  let sonuc = new Set([deger]);
+  const konumlar = [...deger].map((c, i) => ('Iİiı'.includes(c) ? i : -1)).filter((i) => i >= 0).slice(0, 4);
+  for (const k of konumlar) {
+    const yeni = new Set();
+    for (const v of sonuc) {
+      for (const [a, b] of esler) if (v[k] === a) yeni.add(v.slice(0, k) + b + v.slice(k + 1));
+    }
+    for (const v of yeni) sonuc.add(v);
+  }
+  for (const v of [...sonuc]) { sonuc.add(v.toLocaleUpperCase('tr')); sonuc.add(v.toLocaleLowerCase('tr')); }
+  return [...sonuc];
+};
+
+const _coklu = (deger) => (deger ? String(deger).split(',').map((x) => x.trim()).filter((x) => x && x !== 'all') : []);
+
+/* Bir kayıt, verilen sorgu parametrelerine uyuyor mu. */
+const _uyuyor = (x, q) => {
+  const alanlar = ['market', 'application', 'city', 'district', 'status', 'competitor', 'partner', 'assigned_to'];
+  for (const alan of alanlar) {
+    const secilenler = _coklu(q.get(alan));
+    if (secilenler.length) {
+      const hepsi = new Set(secilenler.flatMap(_tr_varyant));
+      if (!hepsi.has(x[alan] || '')) return false;
+    }
+    const metin = (q.get(alan + '_contains') || '').trim().toLocaleLowerCase('tr');
+    if (metin && !String(x[alan] || '').toLocaleLowerCase('tr').includes(metin)) return false;
+  }
+  const ad = (q.get('company_name_contains') || '').trim().toLocaleLowerCase('tr');
+  if (ad && !String(x.company_name || '').toLocaleLowerCase('tr').includes(ad)) return false;
+  const ara = (q.get('search') || '').trim().toLocaleLowerCase('tr');
+  if (ara) {
+    const havuz = ['company_name', 'city', 'district', 'market', 'application', 'status', 'partner', 'competitor', 'assigned_to']
+      .map((k) => String(x[k] || '')).join(' ').toLocaleLowerCase('tr');
+    if (!havuz.includes(ara)) return false;
+  }
+  return true;
+};
+
 const say = (alan) => {
   const m = {};
   for (const x of MUSTERILER) { const k = x[alan] || '—'; m[k] = (m[k] || 0) + 1; }
@@ -237,34 +286,39 @@ const YOLLAR = [
   ['GET', /^\/api\/auth\/me$/, () => ({ id: 'u1', email: 'hakan@crmaster.net', name: 'Hakan Önel', role: 'admin', picture: '' })],
   /* Gerçek arka uçtaki /customers/lookup ile aynı: yalnızca id + ad.
      /customers/{id} rotasından ÖNCE gelmeli. */
+  /* Gerçek arka uç XLSX döndürüyor. Taklitte amaç indirme akışının
+     çalıştığını görmek; içerik olarak eşleşen kayıt sayısını yazıyoruz. */
+  ['GET', /^\/api\/customers-export$/, (m, q) => ({
+    _taklit: true,
+    eslesen: MUSTERILER.filter((x) => _uyuyor(x, q)).length,
+  })],
   ['GET', /^\/api\/customers\/lookup$/, () => ({
     data: MUSTERILER.map((m) => ({ id: m.id, company_name: m.company_name })),
     total: MUSTERILER.length,
   })],
-  ['GET', /^\/api\/customers\/filter-options$/, () => ({
-    cities: [...new Set(MUSTERILER.map((m) => m.city))],
-    markets: [...new Set(MUSTERILER.map((m) => m.market))],
-    statuses: DURUM, potential_levels: SEVIYE,
-    assigned_to: [...new Set(MUSTERILER.map((m) => m.assigned_to))],
-  })],
+  /* Anahtarlar ALAN ADLARIYLA aynı — gerçek arka uç da öyle döndürüyor
+     (server.py: result[field] = ...). Önce "cities"/"markets" gibi çoğul
+     adlar vardı ve ekran hiçbirini okuyamıyordu: bütün açılırlar boştu. */
+  ['GET', /^\/api\/customers\/filter-options$/, () => {
+    const benzersiz = (alan) =>
+      [...new Set(MUSTERILER.map((m) => m[alan]))].filter(Boolean).sort((x, y) => x.localeCompare(y, 'tr'));
+    return {
+      market: benzersiz('market'),
+      application: benzersiz('application'),
+      city: benzersiz('city'),
+      district: benzersiz('district'),
+      competitor: benzersiz('competitor'),
+      partner: benzersiz('partner'),
+      assigned_to: benzersiz('assigned_to'),
+    };
+  }],
   ['GET', /^\/api\/customers\/([^/]+)\/similar$/, () => []],
   ['GET', /^\/api\/customers\/([^/]+)$/, (m) => MUSTERILER.find((x) => x.id === m[1]) || MUSTERILER[0]],
   /* SUNUCU TARAFI SAYFALAMA — gerçek uçtaki sözleşmenin aynısı
      ({data, total, page, limit, total_pages}, bkz. backend/server.py).
      Süzme ve sıralama da burada, çünkü uygulama onları sunucudan bekliyor. */
   ['GET', /^\/api\/customers$/, (m, q) => {
-    const kucult = (x) => String(x || '').toLocaleLowerCase('tr');
-    const ara = kucult(q.get('search'));
-    const alanEsle = (x, ad) => {
-      const v = q.get(ad);
-      return !v || v === 'all' || x[ad] === v;
-    };
-    let liste = MUSTERILER.filter((x) =>
-      alanEsle(x, 'market') && alanEsle(x, 'status') && alanEsle(x, 'city') &&
-      alanEsle(x, 'application') && alanEsle(x, 'competitor') && alanEsle(x, 'partner') &&
-      alanEsle(x, 'assigned_to') &&
-      (!ara || kucult(x.company_name).includes(ara) || kucult(x.city).includes(ara) ||
-        kucult(x.market).includes(ara)));
+    let liste = MUSTERILER.filter((x) => _uyuyor(x, q));
 
     const alan = q.get('sort_by') || 'created_at';
     const yon = q.get('sort_order') === 'asc' ? 1 : -1;

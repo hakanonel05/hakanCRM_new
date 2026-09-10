@@ -410,6 +410,54 @@ async def create_customer(customer: CustomerCreate):
     
     return customer_obj
 
+# Türkçe'de I/İ ve i/ı çiftleri, ASCII küçültme kurallarıyla birbirine
+# dönüşmüyor: lower("İstanbul") standart collation'da "i̇stanbul" (i +
+# birleşik nokta) veriyor ve "istanbul" ile eşleşmiyor. Bu yüzden ILIKE tek
+# başına yetmiyor.
+#
+# Veride aynı ilin iki yazımı birden bulunabiliyor ("Istanbul" / "İstanbul").
+# Kullanıcı süzgeçten birini seçtiğinde ötekini de bulmalı — yoksa 1700
+# kayıtlık il 3 kayıt görünüyor. Gerçekte olan buydu.
+_TR_ESLER = [("I", "İ"), ("i", "ı"), ("İ", "I"), ("ı", "i")]
+
+
+def _tr_varyantlar(deger: str) -> List[str]:
+    """Bir değerin Türkçe yazım varyantlarını üretir.
+
+    Yalnızca I/İ/i/ı harfleri değiştiriliyor; başka harfe dokunulmuyor.
+    Kombinasyon patlamasını önlemek için en fazla 4 nokta değiştiriliyor
+    (4 harften fazla I/i içeren il adı yok).
+    """
+    if not deger:
+        return []
+    sonuc = {deger}
+    konumlar = [i for i, ch in enumerate(deger) if ch in "Iİiı"][:4]
+    for k in konumlar:
+        yeni = set()
+        for v in sonuc:
+            for a, b in _TR_ESLER:
+                if v[k] == a:
+                    yeni.add(v[:k] + b + v[k + 1:])
+        sonuc |= yeni
+    # Tamamen büyük/küçük yazılmış hâlleri de ekle.
+    for v in list(sonuc):
+        sonuc.add(v.upper())
+        sonuc.add(v.lower())
+    return list(sonuc)
+
+
+def _coklu(deger: Optional[str]) -> List[str]:
+    """Virgülle ayrılmış çoklu seçimi listeye çevirir.
+
+    Ön yüz "Istanbul,Ankara" gönderiyor. "all" ve boş değerler eleniyor;
+    değerin kendisinde virgül olma ihtimali yok (süzgeç listesi tek tek
+    değerlerden geliyor).
+    """
+    if not deger:
+        return []
+    return [p.strip() for p in deger.split(",") if p.strip() and p.strip() != "all"]
+
+
 @api_router.get("/customers")
 async def get_customers(
     search: Optional[str] = None,
@@ -422,6 +470,19 @@ async def get_customers(
     partner: Optional[str] = None,
     assigned_to: Optional[str] = None,
     is_followup: Optional[bool] = None,
+    # "İçerir" süzgeçleri: listeden seçmek yerine serbest metin. Örneğin
+    # application_contains=Paketleme → uygulamasında "paketleme" geçen her
+    # müşteri. Listeden seçmekle birleşebilir (ikisi de verilirse ikisi de
+    # uygulanır).
+    market_contains: Optional[str] = None,
+    application_contains: Optional[str] = None,
+    city_contains: Optional[str] = None,
+    district_contains: Optional[str] = None,
+    status_contains: Optional[str] = None,
+    competitor_contains: Optional[str] = None,
+    partner_contains: Optional[str] = None,
+    assigned_to_contains: Optional[str] = None,
+    company_name_contains: Optional[str] = None,
     page: Optional[int] = 1,
     limit: Optional[int] = 50,
     sort_by: Optional[str] = "created_at",
@@ -442,16 +503,47 @@ async def get_customers(
         sort_field = sort_by if sort_by in allowed_sort else "created_at"
         is_desc = (sort_order or "desc").lower() == "desc"
 
+        def _secim(q, alan, deger):
+            """Listeden seçim: çoklu değer + Türkçe yazım varyantları.
+
+            eq() yerine in_(): hem birden çok değer seçilebiliyor, hem de
+            "Istanbul" seçimi "İstanbul" kayıtlarını da buluyor. Önceden
+            eq() ile tam eşleşme yapılıyordu ve 1700 kayıtlık il 3 kayıt
+            görünüyordu.
+            """
+            secilenler = _coklu(deger)
+            if not secilenler:
+                return q
+            hepsi = []
+            for v in secilenler:
+                hepsi.extend(_tr_varyantlar(v))
+            return q.in_(alan, list(dict.fromkeys(hepsi)))
+
+        def _icerir(q, alan, metin):
+            """Serbest metin: alanın içinde geçiyor mu."""
+            if not metin or not metin.strip():
+                return q
+            return q.ilike(alan, f"%{metin.strip()}%")
+
         def _apply_filters(q):
-            if market: q = q.eq("market", market)
-            if application: q = q.eq("application", application)
-            if city: q = q.eq("city", city)
-            if district: q = q.eq("district", district)
-            if status: q = q.eq("status", status)
-            if competitor: q = q.eq("competitor", competitor)
-            if partner: q = q.eq("partner", partner)
+            q = _secim(q, "market", market)
+            q = _secim(q, "application", application)
+            q = _secim(q, "city", city)
+            q = _secim(q, "district", district)
+            q = _secim(q, "status", status)
+            q = _secim(q, "competitor", competitor)
+            q = _secim(q, "partner", partner)
+            q = _secim(q, "assigned_to", assigned_to)
+            q = _icerir(q, "market", market_contains)
+            q = _icerir(q, "application", application_contains)
+            q = _icerir(q, "city", city_contains)
+            q = _icerir(q, "district", district_contains)
+            q = _icerir(q, "status", status_contains)
+            q = _icerir(q, "competitor", competitor_contains)
+            q = _icerir(q, "partner", partner_contains)
+            q = _icerir(q, "assigned_to", assigned_to_contains)
+            q = _icerir(q, "company_name", company_name_contains)
             if is_followup is not None: q = q.eq("is_followup", is_followup)
-            if assigned_to: q = q.ilike("assigned_to", f"%{assigned_to}%")
             if search:
                 search_term = search.strip()
                 if search_term:
@@ -530,9 +622,16 @@ async def get_customers(
             # OPTIMIZATION: if there are no filters/search, we already have
             # every customer's score in the cache. Skip the extra round-trip
             # and use the cached map directly. Saves ~500ms on warm calls.
+            # "İçerir" süzgeçleri de sayılmalı. Sayılmazsa bu yol "hiç
+            # süzgeç yok" sanıp önbellekteki tüm müşteri listesini
+            # kullanıyor ve içerir süzgeci sessizce yok sayılıyor.
             has_filters = bool(
                 market or application or city or district or status or
                 competitor or partner or assigned_to or search or
+                market_contains or application_contains or city_contains or
+                district_contains or status_contains or competitor_contains or
+                partner_contains or assigned_to_contains or
+                company_name_contains or
                 is_followup is not None
             )
             if not has_filters:
@@ -725,7 +824,8 @@ async def get_customer_filter_options():
     if _filter_options_cache["data"] and (now - _filter_options_cache["timestamp"]) < _FILTER_CACHE_TTL:
         return _filter_options_cache["data"]
     
-    fields = ["market", "application", "city", "competitor", "partner", "assigned_to"]
+    # district eklendi: süzgeçlerde ilçe de seçilebiliyor.
+    fields = ["market", "application", "city", "district", "competitor", "partner", "assigned_to"]
     select_str = ", ".join(fields)
     
     # Single query with high limit
@@ -1652,6 +1752,108 @@ async def bulk_delete_customers(payload: BulkDeleteRequest, request: Request,
     return {"ok": True, "deleted": deleted}
 
 
+@api_router.get("/customers-export")
+async def export_filtered_customers(
+    request: Request,
+    session_token: Optional[str] = Cookie(None),
+    search: Optional[str] = None,
+    market: Optional[str] = None,
+    application: Optional[str] = None,
+    city: Optional[str] = None,
+    district: Optional[str] = None,
+    status: Optional[str] = None,
+    competitor: Optional[str] = None,
+    partner: Optional[str] = None,
+    assigned_to: Optional[str] = None,
+    is_followup: Optional[bool] = None,
+    market_contains: Optional[str] = None,
+    application_contains: Optional[str] = None,
+    city_contains: Optional[str] = None,
+    district_contains: Optional[str] = None,
+    status_contains: Optional[str] = None,
+    competitor_contains: Optional[str] = None,
+    partner_contains: Optional[str] = None,
+    assigned_to_contains: Optional[str] = None,
+    company_name_contains: Optional[str] = None,
+):
+    """Süzgeçlerle eşleşen TÜM müşterileri XLSX olarak indirir.
+
+    /customers ile aynı süzgeç parametrelerini alıyor; fark, sayfalama
+    olmaması. Ekranda 50 kayıt görünürken 1700 kaydın hepsi iniyor.
+
+    Yetki: /customers'ı görebilen herkes onun dışa aktarımını da alabilir.
+    Seçili kayıt aktarımı (bulk-export) admin'e kapalıydı çünkü o uç toplu
+    işlem menüsünün parçası; bu uç yalnızca ekrandaki listeyi indiriyor.
+    """
+    await get_current_user_from_request(request, session_token)
+
+    def _secim(q, alan, deger):
+        secilenler = _coklu(deger)
+        if not secilenler:
+            return q
+        hepsi = []
+        for v in secilenler:
+            hepsi.extend(_tr_varyantlar(v))
+        return q.in_(alan, list(dict.fromkeys(hepsi)))
+
+    def _icerir(q, alan, metin):
+        if not metin or not metin.strip():
+            return q
+        return q.ilike(alan, f"%{metin.strip()}%")
+
+    rows = []
+    page_size = 1000
+    offset = 0
+    while True:
+        q = supabase.table("customers").select("*")
+        q = _secim(q, "market", market)
+        q = _secim(q, "application", application)
+        q = _secim(q, "city", city)
+        q = _secim(q, "district", district)
+        q = _secim(q, "status", status)
+        q = _secim(q, "competitor", competitor)
+        q = _secim(q, "partner", partner)
+        q = _secim(q, "assigned_to", assigned_to)
+        q = _icerir(q, "market", market_contains)
+        q = _icerir(q, "application", application_contains)
+        q = _icerir(q, "city", city_contains)
+        q = _icerir(q, "district", district_contains)
+        q = _icerir(q, "status", status_contains)
+        q = _icerir(q, "competitor", competitor_contains)
+        q = _icerir(q, "partner", partner_contains)
+        q = _icerir(q, "assigned_to", assigned_to_contains)
+        q = _icerir(q, "company_name", company_name_contains)
+        if is_followup is not None:
+            q = q.eq("is_followup", is_followup)
+        if search and search.strip():
+            desen = f"*{search.strip()}*"
+            q = q.or_(",".join([
+                f"company_name.ilike.{desen}",
+                f"market.ilike.{desen}",
+                f"application.ilike.{desen}",
+                f"city.ilike.{desen}",
+                f"district.ilike.{desen}",
+                f"partner.ilike.{desen}",
+                f"competitor.ilike.{desen}",
+                f"assigned_to.ilike.{desen}",
+                f"status.ilike.{desen}",
+                f"description.ilike.{desen}",
+                f"notes.ilike.{desen}",
+                f"website.ilike.{desen}",
+            ]))
+        resp = q.order("company_name").range(offset, offset + page_size - 1).execute()
+        parca = resp.data or []
+        rows.extend(parca)
+        if len(parca) < page_size:
+            break
+        offset += page_size
+        # Güvenlik freni: beklenmedik bir durumda sonsuz döngüye girmesin.
+        if offset > 100000:
+            break
+
+    return _musteri_excel(rows, "musteriler")
+
+
 @api_router.post("/customers-bulk-update")
 async def bulk_update_customers(payload: BulkUpdateRequest, request: Request,
                                 session_token: Optional[str] = Cookie(None)):
@@ -1713,7 +1915,16 @@ async def bulk_export_customers(payload: BulkExportRequest, request: Request,
         r = supabase.table("customers").select("*").in_("id", batch).execute()
         rows.extend(r.data or [])
 
-    # Build Excel
+    # Excel'i ortak yardımcı kuruyor (aşağıdaki _musteri_excel).
+    return _musteri_excel(rows, "musteriler_secili")
+
+
+def _musteri_excel(rows, dosya_oneki: str):
+    """Müşteri listesinden XLSX üretir ve indirilebilir yanıt döndürür.
+
+    Hem seçili kayıtları aktaran uç hem de süzgeçli listenin tamamını
+    aktaran uç bunu kullanıyor; başlıklar ve sütun düzeni tek yerde.
+    """
     from openpyxl import Workbook
     from openpyxl.styles import Font, PatternFill
     wb = Workbook()
@@ -1763,7 +1974,7 @@ async def bulk_export_customers(payload: BulkExportRequest, request: Request,
     buf = io.BytesIO()
     wb.save(buf)
     buf.seek(0)
-    filename = f"musteriler_secili_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+    filename = f"{dosya_oneki}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
     return StreamingResponse(
         buf,
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
