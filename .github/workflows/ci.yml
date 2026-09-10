@@ -7,10 +7,7 @@ name: Kontrol (CI)
 
 on:
   push:
-    # filtre-gelistirmeleri GECICI: arka uc degisikligi bu makinede
-    # derlenemiyor (yerel Python yok), CI derlesin diye eklendi.
-    # main e birlestirilirken cikarilacak.
-    branches: [main, master, filtre-gelistirmeleri]
+    branches: [main, master]
   pull_request:
 
 jobs:
