@@ -454,16 +454,36 @@ def _tr_varyantlar(deger: str) -> List[str]:
 # Yani "nidapack" araması "NİDAPACK" kaydını bulamıyordu; kullanıcının
 # aradığını bulmak için "NİDAPACK" yazması gerekiyordu.
 #
-# Desendeki her I/İ/i/ı harfini LIKE'ın tek karakterlik joker'i "_" ile
-# değiştiriyoruz: tek sorguda dört yazım da eşleşiyor. Varyantları tek tek
-# OR'lamak yerine bunu seçtim — iki "i" içeren bir kelime 16 varyant
-# üretiyor, 13 sütunla çarpılınca sorgu adresi taşıyor.
+# LIKE ile çözülemiyor: LIKE'ın tek karakterlik joker'i "_" HERHANGİ bir
+# harfi kabul ediyor. Bir ara "nida" için "%n_da%" üretmiştim; arama
+# "nXda" geçen her kaydı getirdi, açıklama/not alanları yüzünden 13 alakasız
+# sonuç çıktı. Bize gereken "herhangi bir harf" değil, "şu dört harften
+# biri" — yani karakter sınıfı.
 #
-# Öteki Türkçe harfler (ş/Ş, ğ/Ğ, ü/Ü, ö/Ö, ç/Ç) ILIKE ile zaten doğru
+# Bu yüzden LIKE yerine Postgres'in büyük/küçük harf duyarsız düzenli ifade
+# operatörü kullanılıyor (~*, PostgREST adıyla "imatch"): "nida" → "n[Iİiı]da".
+# Sütun başına tek koşul yetiyor; varyantları tek tek OR'lamak ise "iletişim"
+# gibi üç "i" içeren bir kelimede 27 varyant × 13 sütun üretip sorgu adresini
+# taşırıyordu.
+#
+# Öteki Türkçe harfler (ş/Ş, ğ/Ğ, ü/Ü, ö/Ö, ç/Ç) ~* ile zaten doğru
 # eşleşiyor; desen gereksiz genişlemesin diye onlara dokunulmuyor.
-def _tr_desen(metin: str) -> str:
-    """Türkçe'de büyük/küçük harf duyarsız ILIKE deseni üretir."""
-    return "".join("_" if ch in "Iİiı" else ch for ch in (metin or ""))
+_REGEX_KACIS = set(r"\.^$|()[]{}*+?")
+
+
+def _tr_regex(metin: str) -> str:
+    """Türkçe'de büyük/küçük harf duyarsız ~* (imatch) deseni üretir."""
+    parcalar = []
+    for ch in (metin or ""):
+        if ch in "Iİiı":
+            parcalar.append("[Iİiı]")
+        elif ch in _REGEX_KACIS:
+            # Kullanıcının yazdığı metin desen değil, düz metin: regex
+            # anlamı olan karakterler kaçırılıyor.
+            parcalar.append("\\" + ch)
+        else:
+            parcalar.append(ch)
+    return "".join(parcalar)
 
 
 def _coklu(deger: Optional[str]) -> List[str]:
@@ -543,7 +563,9 @@ async def get_customers(
             """Serbest metin: alanın içinde geçiyor mu (Türkçe harf duyarsız)."""
             if not metin or not metin.strip():
                 return q
-            return q.ilike(alan, f"%{_tr_desen(metin.strip())}%")
+            # imatch (~*) çapasız çalışıyor, yani ILIKE '%...%' ile aynı
+            # "içinde geçiyor mu" anlamı.
+            return q.filter(alan, "imatch", _tr_regex(metin.strip()))
 
         def _apply_filters(q):
             q = _secim(q, "market", market)
@@ -574,26 +596,28 @@ async def get_customers(
             if search:
                 search_term = search.strip()
                 if search_term:
+                    # Virgül ve parantez PostgREST'in or=() ayrıştırıcısında
+                    # anlamlı; desene girmeden önce boşluğa çevriliyor.
                     escaped = search_term.replace(",", " ").replace("(", " ").replace(")", " ")
-                    pattern = f"*{_tr_desen(escaped)}*"
+                    pattern = _tr_regex(escaped)
                     # Search across text columns only. Array/JSON columns (tags,
                     # products, notes_list) are matched client-side via the
                     # _matchInfo helper — Supabase's `::text` cast inside or_()
                     # was returning 0 rows even when total>0 (silent failure).
                     or_filter = ",".join([
-                        f"company_name.ilike.{pattern}",
-                        f"market.ilike.{pattern}",
-                        f"application.ilike.{pattern}",
-                        f"city.ilike.{pattern}",
-                        f"district.ilike.{pattern}",
-                        f"partner.ilike.{pattern}",
-                        f"competitor.ilike.{pattern}",
-                        f"assigned_to.ilike.{pattern}",
-                        f"status.ilike.{pattern}",
-                        f"potential_level.ilike.{pattern}",
-                        f"description.ilike.{pattern}",
-                        f"notes.ilike.{pattern}",
-                        f"website.ilike.{pattern}",
+                        f"company_name.imatch.{pattern}",
+                        f"market.imatch.{pattern}",
+                        f"application.imatch.{pattern}",
+                        f"city.imatch.{pattern}",
+                        f"district.imatch.{pattern}",
+                        f"partner.imatch.{pattern}",
+                        f"competitor.imatch.{pattern}",
+                        f"assigned_to.imatch.{pattern}",
+                        f"status.imatch.{pattern}",
+                        f"potential_level.imatch.{pattern}",
+                        f"description.imatch.{pattern}",
+                        f"notes.imatch.{pattern}",
+                        f"website.imatch.{pattern}",
                     ])
                     q = q.or_(or_filter)
             return q
@@ -1826,7 +1850,7 @@ async def export_filtered_customers(
     def _icerir(q, alan, metin):
         if not metin or not metin.strip():
             return q
-        return q.ilike(alan, f"%{_tr_desen(metin.strip())}%")
+        return q.filter(alan, "imatch", _tr_regex(metin.strip()))
 
     rows = []
     page_size = 1000
@@ -1854,20 +1878,21 @@ async def export_filtered_customers(
         if is_followup is not None:
             q = q.eq("is_followup", is_followup)
         if search and search.strip():
-            desen = f"*{_tr_desen(search.strip())}*"
+            temiz = search.strip().replace(",", " ").replace("(", " ").replace(")", " ")
+            desen = _tr_regex(temiz)
             q = q.or_(",".join([
-                f"company_name.ilike.{desen}",
-                f"market.ilike.{desen}",
-                f"application.ilike.{desen}",
-                f"city.ilike.{desen}",
-                f"district.ilike.{desen}",
-                f"partner.ilike.{desen}",
-                f"competitor.ilike.{desen}",
-                f"assigned_to.ilike.{desen}",
-                f"status.ilike.{desen}",
-                f"description.ilike.{desen}",
-                f"notes.ilike.{desen}",
-                f"website.ilike.{desen}",
+                f"company_name.imatch.{desen}",
+                f"market.imatch.{desen}",
+                f"application.imatch.{desen}",
+                f"city.imatch.{desen}",
+                f"district.imatch.{desen}",
+                f"partner.imatch.{desen}",
+                f"competitor.imatch.{desen}",
+                f"assigned_to.imatch.{desen}",
+                f"status.imatch.{desen}",
+                f"description.imatch.{desen}",
+                f"notes.imatch.{desen}",
+                f"website.imatch.{desen}",
             ]))
         resp = q.order("company_name").range(offset, offset + page_size - 1).execute()
         parca = resp.data or []
@@ -3413,7 +3438,16 @@ async def get_team_member_profile(name: str, days: int = 90, activity_limit: int
 # without hitting the DB, so it's safe to ping every few minutes.
 @api_router.api_route("/health", methods=["GET", "HEAD"])
 async def health():
-    return {"status": "ok", "service": "crmaster-backend", "ts": int(_time.time())}
+    # commit: hangi sürümün canlıda olduğunu dışarıdan görebilmek için.
+    # Render her dağıtımda RENDER_GIT_COMMIT değişkenini kendisi veriyor;
+    # yereldeyken boş kalıyor. Bu olmadan "dağıtım indi mi" sorusunu
+    # yanıtlamanın tek yolu panele bakmaktı.
+    return {
+        "status": "ok",
+        "service": "crmaster-backend",
+        "ts": int(_time.time()),
+        "commit": (os.environ.get("RENDER_GIT_COMMIT") or "local")[:7],
+    }
 
 # ============ AUTH ENDPOINTS ============
 
