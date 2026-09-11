@@ -70,7 +70,7 @@ import SearchInput from "../components/SearchInput";
 import Breadcrumb from "../components/Breadcrumb";
 import { normalize, computeMatchInfo, highlightMatch, FIELD_LABELS } from "../utils/searchHelpers";
 import { swrCache } from "../utils/swrCache";
-import CokluFiltre from "../components/CokluFiltre";
+import MetinFiltre from "../components/MetinFiltre";
 import InlineTextEdit from "../components/InlineTextEdit";
 import MobileCustomerList from "../components/MobileCustomerList";
 import { toast } from "sonner";
@@ -525,18 +525,6 @@ const Customers = () => {
   // Keep `debouncedSearch` name for backward compat (read-only mirror of search).
   const debouncedSearch = search;
   
-  // All unique filter values (from all data, not just current page)
-  const [allFilterOptions, setAllFilterOptions] = useState({
-    markets: [],
-    statuses: [],
-    cities: [],
-    applications: [],
-    competitors: [],
-    partners: [],
-    districts: [],
-    assigned_to: []
-  });
-  
   // Advanced filter panel
   const [filterPanelOpen, setFilterPanelOpen] = useState(false);
   const [filterConditions, setFilterConditions] = useState([
@@ -721,69 +709,17 @@ const Customers = () => {
     }
   }, []);
 
-  // Fetch all unique values for filters (lightweight endpoint)
-  const fetchAllFilterOptions = useCallback(async () => {
-    try {
-      const response = await axios.get(`${API}/customers/filter-options`);
-      const data = response.data;
-      
-      setAllFilterOptions({
-        markets: data.market || [],
-        statuses: STATUS_OPTIONS.map(s => s.value),
-        cities: data.city || [],
-        applications: data.application || [],
-        competitors: data.competitor || [],
-        partners: data.partner || [],
-        districts: data.district || [],
-        assigned_to: data.assigned_to || []
-      });
-    } catch (error) {
-      console.error("Filter options yüklenirken hata:", error);
-    }
-  }, []);
-
-  // Mount-only: load options, saved filters, filter options once.
-  // fetchCustomers is handled by the dedicated effect above (search/filter deps).
+  /* Açılışta bir kez. filter-options çağrısı kaldırıldı: süzgeçlerde artık
+     listeden seçim yok, o listeleri kimse okumuyordu. */
   useEffect(() => {
     fetchOptions();
     fetchSavedFilters();
-    fetchAllFilterOptions();
     // Listen for "open new customer" event from Command Palette
     const onNewCustomer = () => setAddModalOpen(true);
     window.addEventListener("crm:open-new-customer", onNewCustomer);
     return () => window.removeEventListener("crm:open-new-customer", onNewCustomer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  // Get unique values for select fields (uses allFilterOptions + options from backend)
-  const getUniqueValues = (field) => {
-    const values = new Set();
-    
-    // Add from allFilterOptions based on field mapping
-    const fieldMapping = {
-      market: 'markets',
-      status: 'statuses', 
-      city: 'cities',
-      application: 'applications',
-      competitor: 'competitors',
-      partner: 'partners',
-      assigned_to: 'assigned_to'
-    };
-    
-    const optionsKey = fieldMapping[field];
-    if (optionsKey && allFilterOptions[optionsKey]) {
-      allFilterOptions[optionsKey].forEach(v => values.add(v));
-    }
-    
-    // Also add from options if available
-    if (options[field]) {
-      options[field].forEach(opt => {
-        if (opt.value) values.add(opt.value);
-      });
-    }
-    
-    return Array.from(values).sort();
-  };
 
   // Filter condition handlers
   const addFilterCondition = () => {
@@ -1144,14 +1080,8 @@ const Customers = () => {
     }
   };
 
-  // Filter helpers - use allFilterOptions for dropdowns (all data, not just current page)
-  const uniqueMarkets = allFilterOptions.markets;
-  const uniqueStatuses = allFilterOptions.statuses;
-  const uniqueCities = allFilterOptions.cities;
-  const uniqueApplications = allFilterOptions.applications;
-  const uniqueCompetitors = allFilterOptions.competitors;
-  const uniquePartners = allFilterOptions.partners;
-  const uniqueDistricts = allFilterOptions.districts;
+  /* Market/Şehir/Uygulama… listeleri kaldırıldı: süzgeçlerde artık elle
+     yazılıyor, listeden seçim yok. */
   const uniqueCallOutcomes = ["Olumlu", "Olumsuz", "Aranacak", "Beklemede", "Görüşüldü", "İlgileniyor", "Teklif Verildi"];
   
   /* Diziler her zaman "truthy" olduğu için uzunluğa bakılıyor — eskiden
@@ -1526,8 +1456,6 @@ const Customers = () => {
                 <div className="space-y-2 max-h-[300px] overflow-y-auto">
                   {filterConditions.map((condition, index) => {
                     const fieldConfig = FILTER_FIELDS.find(f => f.value === condition.field);
-                    const isSelectField = fieldConfig?.type === "select";
-                    const fieldValues = isSelectField ? getUniqueValues(condition.field) : [];
                     
                     return (
                       <div key={index} className="flex items-center gap-2 p-2 bg-muted/30 rounded-lg">
@@ -1565,33 +1493,19 @@ const Customers = () => {
                           </SelectContent>
                         </Select>
 
-                        {/* Value - Select or Input based on field type */}
+                        {/* DEĞER: her zaman metin kutusu.
+                            Önce "seçilebilir" alanlarda (market, şehir, uygulama…)
+                            açılır liste çiziliyordu; "İçerir" seçilmiş olsa bile
+                            değer listeden seçiliyordu, yani içerir işe yaramıyordu.
+                            Artık her alanda elle yazılıyor. */}
                         {!["is_empty", "is_not_empty"].includes(condition.operator) && (
-                          isSelectField && fieldValues.length > 0 ? (
-                            <Select
-                              value={condition.value}
-                              onValueChange={(v) => updateFilterCondition(index, "value", v)}
-                            >
-                              <SelectTrigger className="flex-1 h-8 text-sm">
-                                <SelectValue placeholder="Seç..." />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {fieldValues.map((val) => (
-                                  <SelectItem key={val} value={val}>
-                                    {val}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          ) : (
-                            <Input
-                              value={condition.value}
-                              onChange={(e) => updateFilterCondition(index, "value", e.target.value)}
-                              placeholder={fieldConfig?.type === "number" ? "Örn: 100" : "Değer..."}
-                              type={fieldConfig?.type === "number" ? "number" : "text"}
-                              className="flex-1 h-8 text-sm"
-                            />
-                          )
+                          <Input
+                            value={condition.value}
+                            onChange={(e) => updateFilterCondition(index, "value", e.target.value)}
+                            placeholder={fieldConfig?.type === "number" ? "Örn: 100" : "Yazın…"}
+                            type={fieldConfig?.type === "number" ? "number" : "text"}
+                            className="flex-1 h-8 text-sm"
+                          />
                         )}
 
                         {/* Remove Condition */}
@@ -1645,28 +1559,27 @@ const Customers = () => {
             </PopoverContent>
           </Popover>
 
-          {/* Hızlı süzgeçler — hepsi çoklu seçim, hepsinde "içerir" biçimi var. */}
-          <CokluFiltre
+          {/* Hızlı süzgeçler — hepsinde elle yazılıyor, listeden seçim yok.
+              3.122 kayıtta "Uygulama" alanının yüzlerce farklı değeri var;
+              aradığını listede bulmak hem yavaş hem eksik kalıyordu. */}
+          <MetinFiltre
             etiket="Market"
-            secenekler={uniqueMarkets}
             secili={marketFilter}
             onSeciliDegisti={setMarketFilter}
             icerir={icerir.market}
             onIcerirDegisti={(v) => icerirAyarla("market", v)}
           />
 
-          <CokluFiltre
+          <MetinFiltre
             etiket="Durum"
-            secenekler={STATUS_OPTIONS.map((o) => o.value)}
             secili={statusFilter}
             onSeciliDegisti={setStatusFilter}
             icerir={icerir.status}
             onIcerirDegisti={(v) => icerirAyarla("status", v)}
           />
 
-          <CokluFiltre
+          <MetinFiltre
             etiket="Şehir"
-            secenekler={uniqueCities}
             secili={cityFilter}
             onSeciliDegisti={setCityFilter}
             icerir={icerir.city}
@@ -1674,9 +1587,8 @@ const Customers = () => {
             genislik="w-[120px]"
           />
 
-          <CokluFiltre
+          <MetinFiltre
             etiket="İlçe"
-            secenekler={uniqueDistricts}
             secili={districtFilter}
             onSeciliDegisti={setDistrictFilter}
             icerir={icerir.district}
@@ -1684,18 +1596,16 @@ const Customers = () => {
             genislik="w-[120px]"
           />
 
-          <CokluFiltre
+          <MetinFiltre
             etiket="Uygulama"
-            secenekler={uniqueApplications}
             secili={applicationFilter}
             onSeciliDegisti={setApplicationFilter}
             icerir={icerir.application}
             onIcerirDegisti={(v) => icerirAyarla("application", v)}
           />
 
-          <CokluFiltre
+          <MetinFiltre
             etiket="Rakip"
-            secenekler={uniqueCompetitors}
             secili={competitorFilter}
             onSeciliDegisti={setCompetitorFilter}
             icerir={icerir.competitor}
@@ -1703,9 +1613,8 @@ const Customers = () => {
             genislik="w-[110px]"
           />
 
-          <CokluFiltre
+          <MetinFiltre
             etiket="Partner"
-            secenekler={uniquePartners}
             secili={partnerFilter}
             onSeciliDegisti={setPartnerFilter}
             icerir={icerir.partner}
