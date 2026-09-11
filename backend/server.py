@@ -449,6 +449,23 @@ def _tr_varyantlar(deger: str) -> List[str]:
     return list(sonuc)
 
 
+# ILIKE'ın kendisi de Türkçe I/İ/i/ı çiftlerini eşleştiremiyor. Postgres
+# lower("İ") için "i̇" (i + birleşik nokta) üretiyor, lower("I") için "i".
+# Yani "nidapack" araması "NİDAPACK" kaydını bulamıyordu; kullanıcının
+# aradığını bulmak için "NİDAPACK" yazması gerekiyordu.
+#
+# Desendeki her I/İ/i/ı harfini LIKE'ın tek karakterlik joker'i "_" ile
+# değiştiriyoruz: tek sorguda dört yazım da eşleşiyor. Varyantları tek tek
+# OR'lamak yerine bunu seçtim — iki "i" içeren bir kelime 16 varyant
+# üretiyor, 13 sütunla çarpılınca sorgu adresi taşıyor.
+#
+# Öteki Türkçe harfler (ş/Ş, ğ/Ğ, ü/Ü, ö/Ö, ç/Ç) ILIKE ile zaten doğru
+# eşleşiyor; desen gereksiz genişlemesin diye onlara dokunulmuyor.
+def _tr_desen(metin: str) -> str:
+    """Türkçe'de büyük/küçük harf duyarsız ILIKE deseni üretir."""
+    return "".join("_" if ch in "Iİiı" else ch for ch in (metin or ""))
+
+
 def _coklu(deger: Optional[str]) -> List[str]:
     """Virgülle ayrılmış çoklu seçimi listeye çevirir.
 
@@ -523,10 +540,10 @@ async def get_customers(
             return q.in_(alan, list(dict.fromkeys(hepsi)))
 
         def _icerir(q, alan, metin):
-            """Serbest metin: alanın içinde geçiyor mu."""
+            """Serbest metin: alanın içinde geçiyor mu (Türkçe harf duyarsız)."""
             if not metin or not metin.strip():
                 return q
-            return q.ilike(alan, f"%{metin.strip()}%")
+            return q.ilike(alan, f"%{_tr_desen(metin.strip())}%")
 
         def _apply_filters(q):
             q = _secim(q, "market", market)
@@ -558,7 +575,7 @@ async def get_customers(
                 search_term = search.strip()
                 if search_term:
                     escaped = search_term.replace(",", " ").replace("(", " ").replace(")", " ")
-                    pattern = f"*{escaped}*"
+                    pattern = f"*{_tr_desen(escaped)}*"
                     # Search across text columns only. Array/JSON columns (tags,
                     # products, notes_list) are matched client-side via the
                     # _matchInfo helper — Supabase's `::text` cast inside or_()
@@ -1809,7 +1826,7 @@ async def export_filtered_customers(
     def _icerir(q, alan, metin):
         if not metin or not metin.strip():
             return q
-        return q.ilike(alan, f"%{metin.strip()}%")
+        return q.ilike(alan, f"%{_tr_desen(metin.strip())}%")
 
     rows = []
     page_size = 1000
@@ -1837,7 +1854,7 @@ async def export_filtered_customers(
         if is_followup is not None:
             q = q.eq("is_followup", is_followup)
         if search and search.strip():
-            desen = f"*{search.strip()}*"
+            desen = f"*{_tr_desen(search.strip())}*"
             q = q.or_(",".join([
                 f"company_name.ilike.{desen}",
                 f"market.ilike.{desen}",

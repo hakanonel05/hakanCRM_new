@@ -34,6 +34,7 @@ import {
   DialogDescription,
 } from "../components/ui/dialog";
 import { toast } from "sonner";
+import { normalize } from "../utils/searchHelpers";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -169,14 +170,20 @@ const FiltersPage = () => {
       const results = conditions.map(condition => {
         const { field, operator, value } = condition;
         const customerValue = customer[field] || "";
-        
+        /* Müşteriler sayfasıyla aynı karşılaştırma: normalize() Türkçe
+         * harfleri sadeleştirdiği için "NİDAPACK" = "nidapack",
+         * "İSTANBUL" = "istanbul" = "ISTANBUL". Düz toLowerCase() bunu
+         * yapamıyordu ("İ" küçüldüğünde birleşik nokta bırakıyor). */
+        const a = normalize(customerValue);
+        const b = normalize(value);
+
         switch (operator) {
           case "equals":
-            return String(customerValue).toLowerCase() === String(value).toLowerCase();
+            return a === b;
           case "contains":
-            return String(customerValue).toLowerCase().includes(String(value).toLowerCase());
+            return a.includes(b);
           case "not_equals":
-            return String(customerValue).toLowerCase() !== String(value).toLowerCase();
+            return a !== b;
           case "is_empty":
             return !customerValue || customerValue === "";
           case "is_not_empty":

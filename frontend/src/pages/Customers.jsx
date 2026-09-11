@@ -812,14 +812,20 @@ const Customers = () => {
         const results = activeFilters.map(condition => {
           const { field, operator, value } = condition;
           const customerValue = customer[field] || "";
-          
+          /* normalize(), toLowerCase()'in yerini aldı: "NİDAPACK".toLowerCase()
+           * "ni̇dapack" (i + birleşik nokta) veriyor ve "nidapack" ile
+           * eşleşmiyordu. normalize() Türkçe harfleri de sadeleştiriyor,
+           * yani "İSTANBUL" = "istanbul" = "ISTANBUL". */
+          const a = normalize(customerValue);
+          const b = normalize(value);
+
           switch (operator) {
             case "equals":
-              return customerValue.toLowerCase() === value.toLowerCase();
+              return a === b;
             case "contains":
-              return customerValue.toLowerCase().includes(value.toLowerCase());
+              return a.includes(b);
             case "not_equals":
-              return customerValue.toLowerCase() !== value.toLowerCase();
+              return a !== b;
             case "is_empty":
               return !customerValue || customerValue === "";
             case "is_not_empty":
