@@ -429,6 +429,17 @@ const CustomerEditModal = ({ open, onClose, customer }) => {
                 </div>
 
                 <div>
+                  <Label htmlFor="contact_title">İletişim Kişisi Unvanı</Label>
+                  <Input
+                    id="contact_title"
+                    value={formData.contact_info?.contact_title || ""}
+                    onChange={(e) => handleContactChange("contact_title", e.target.value)}
+                    placeholder="Satın Alma Müdürü"
+                    className="mt-1"
+                  />
+                </div>
+
+                <div>
                   <Label htmlFor="email">E-posta</Label>
                   <Input
                     id="email"

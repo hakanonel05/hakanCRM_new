@@ -125,6 +125,9 @@ class ContactPerson(BaseModel):
 
 class ContactInfo(BaseModel):
     contact_person: Optional[str] = ""
+    # Ek kişilerde (ContactPerson) "role" var ama ana iletişim kişisinde
+    # karşılığı yoktu; ekranda unvan alanı bu yüzden hiç çizilmiyordu.
+    contact_title: Optional[str] = ""
     email: Optional[str] = ""
     phone: Optional[str] = ""
 
@@ -533,7 +536,14 @@ async def get_customers(
             q = _secim(q, "status", status)
             q = _secim(q, "competitor", competitor)
             q = _secim(q, "partner", partner)
-            q = _secim(q, "assigned_to", assigned_to)
+            # assigned_to TAM EŞLEŞME DEĞİL, İÇERİR.
+            #
+            # Bu bir kişi adı alanı; Filtreler sayfası "Takip Eden içerir
+            # Furkan" koşulunu ?assigned_to=Furkan olarak gönderiyor ve
+            # kısmi eşleşme bekliyor. Bir ara ötekilerle aynı kefeye koyup
+            # in_() yapmıştım: veride "Furkan Çelik" yazdığı için liste boş
+            # kalıyordu.
+            q = _icerir(q, "assigned_to", assigned_to)
             q = _icerir(q, "market", market_contains)
             q = _icerir(q, "application", application_contains)
             q = _icerir(q, "city", city_contains)
@@ -1813,7 +1823,8 @@ async def export_filtered_customers(
         q = _secim(q, "status", status)
         q = _secim(q, "competitor", competitor)
         q = _secim(q, "partner", partner)
-        q = _secim(q, "assigned_to", assigned_to)
+        # Listedeki davranışın aynısı: kişi adında kısmi eşleşme.
+        q = _icerir(q, "assigned_to", assigned_to)
         q = _icerir(q, "market", market_contains)
         q = _icerir(q, "application", application_contains)
         q = _icerir(q, "city", city_contains)

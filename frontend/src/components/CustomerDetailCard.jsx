@@ -462,7 +462,7 @@ const CustomerDetailCard = ({ open, onClose, customer, onUpdate }) => {
                             </div>
                             <div>
                               <p className="font-medium text-foreground">{customer.contact_info.contact_person}</p>
-                              <p className="text-sm text-muted-foreground">Ana İletişim</p>
+                              <p className="text-sm text-muted-foreground">{customer.contact_info.contact_title || "Ana İletişim"}</p>
                             </div>
                           </div>
                           <Badge className="bg-status-warning-bg text-status-warning-fg">
@@ -497,7 +497,7 @@ const CustomerDetailCard = ({ open, onClose, customer, onUpdate }) => {
                             </div>
                             <div>
                               <p className="font-medium text-foreground">{contact.name}</p>
-                              {contact.role && <p className="text-sm text-muted-foreground">{contact.role}</p>}
+                              {(contact.role || contact.title) && <p className="text-sm text-muted-foreground">{contact.role || contact.title}</p>}
                             </div>
                           </div>
                           <div className="flex items-center gap-2">

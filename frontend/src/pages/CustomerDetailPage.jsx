@@ -577,7 +577,7 @@ const CustomerDetailPage = ({ customerId: propCustomerId, isModal = false, onClo
     const contactObj = {
       id: crypto.randomUUID(),
       name: newContact.name,
-      title: newContact.title,
+      role: newContact.role,
       email: newContact.email,
       phone: newContact.phone,
       is_primary: newContact.is_primary
@@ -591,7 +591,7 @@ const CustomerDetailPage = ({ customerId: propCustomerId, isModal = false, onClo
         contacts: updatedContacts
       });
       fetchCustomer();
-      setNewContact({ name: "", title: "", email: "", phone: "", is_primary: false });
+      setNewContact({ name: "", role: "", email: "", phone: "", is_primary: false });
       setAddContactOpen(false);
       toast.success("Kişi eklendi");
     } catch (error) {
@@ -1439,6 +1439,9 @@ const CustomerDetailPage = ({ customerId: propCustomerId, isModal = false, onClo
                       <div className="flex items-center gap-2 text-sm">
                         <Users className="w-3 h-3 text-muted-foreground" />
                         <span className="font-medium">{customer.contact_info.contact_person}</span>
+                          {customer.contact_info.contact_title && (
+                            <span className="text-muted-foreground"> · {customer.contact_info.contact_title}</span>
+                          )}
                       </div>
                     )}
                     {customer.contact_info.phone && (
@@ -1483,7 +1486,7 @@ const CustomerDetailPage = ({ customerId: propCustomerId, isModal = false, onClo
                           <span className="font-medium text-sm">{contact.name}</span>
                           {contact.is_primary && <Star className="w-3 h-3 text-status-warning-fg fill-status-warning-line" />}
                         </div>
-                        {contact.title && <p className="text-xs text-muted-foreground">{contact.title}</p>}
+                        {(contact.role || contact.title) && <p className="text-xs text-muted-foreground">{contact.role || contact.title}</p>}
                         {contact.phone && <p className="text-xs text-muted-foreground">{contact.phone}</p>}
                         {contact.email && <p className="text-xs text-muted-foreground truncate">{contact.email}</p>}
                       </div>
@@ -1548,8 +1551,8 @@ const CustomerDetailPage = ({ customerId: propCustomerId, isModal = false, onClo
             <div>
               <Label>Unvan</Label>
               <Input
-                value={newContact.title}
-                onChange={(e) => setNewContact({ ...newContact, title: e.target.value })}
+                value={newContact.role}
+                onChange={(e) => setNewContact({ ...newContact, role: e.target.value })}
                 placeholder="Pozisyon/Unvan"
                 className="mt-1"
               />
@@ -1604,8 +1607,8 @@ const CustomerDetailPage = ({ customerId: propCustomerId, isModal = false, onClo
                     {selectedContact.name}
                     {selectedContact.is_primary && <Star className="w-4 h-4 text-status-warning-fg fill-status-warning-line" />}
                   </h3>
-                  {selectedContact.title && (
-                    <p className="text-muted-foreground">{selectedContact.title}</p>
+                  {(selectedContact.role || selectedContact.title) && (
+                    <p className="text-muted-foreground">{selectedContact.role || selectedContact.title}</p>
                   )}
                 </div>
               </div>
@@ -1708,8 +1711,8 @@ const CustomerDetailPage = ({ customerId: propCustomerId, isModal = false, onClo
               <div>
                 <Label>Unvan</Label>
                 <Input
-                  value={editingContact.title || ""}
-                  onChange={(e) => setEditingContact({ ...editingContact, title: e.target.value })}
+                  value={editingContact.role ?? editingContact.title ?? ""}
+                  onChange={(e) => setEditingContact({ ...editingContact, role: e.target.value })}
                   placeholder="Pozisyon/Unvan"
                   className="mt-1"
                 />

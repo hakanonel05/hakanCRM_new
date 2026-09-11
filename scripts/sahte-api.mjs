@@ -89,8 +89,22 @@ const MUSTERILER = Array.from({ length: 240 }, (_, i) => ({
   district: ILCE[i % ILCE.length],
   website: 'www.' + ['anadolu', 'ege', 'marmara', 'toros', 'kuzey'][i % 5] + i + '.com.tr',
   status: sec(DURUM, i, 4),
-  contact_info: { phone: '0212 555 ' + String(1000 + i).slice(0, 4), email: 'info@firma' + i + '.com.tr' },
-  contacts: [{ name: KISI[i % KISI.length], title: 'Satın Alma Müdürü', phone: '0532 555 ' + String(2000 + i).slice(0, 4) }],
+  /* contact_person + contact_title: ana iletişim kişisi ve unvanı. */
+  contact_info: {
+    contact_person: KISI[(i + 1) % KISI.length],
+    contact_title: ['Satın Alma Müdürü', 'Teknik Müdür', 'Genel Müdür', 'Üretim Şefi'][i % 4],
+    phone: '0212 555 ' + String(1000 + i).slice(0, 4),
+    email: 'info@firma' + i + '.com.tr',
+  },
+  /* Alan adı "role" — gerçek modeldeki ad bu (ContactPerson). Önce "title"
+     yazıyordu ve ekran hiçbir unvan gösteremiyordu. */
+  contacts: [{
+    id: 'kisi-' + i,
+    name: KISI[i % KISI.length],
+    role: ['Satın Alma Müdürü', 'Teknik Müdür', 'Proje Sorumlusu'][i % 3],
+    phone: '0532 555 ' + String(2000 + i).slice(0, 4),
+    email: 'kisi' + i + '@firma.com.tr',
+  }],
   potential_value: [45000, 120000, 380000, 75000, 260000, 890000][i % 6],
   next_followup_date: i % 3 === 0 ? gun((i % 9) - 3) : '',
   assigned_to: sec(KISI, i, 5),
@@ -254,7 +268,9 @@ const _coklu = (deger) => (deger ? String(deger).split(',').map((x) => x.trim())
 
 /* Bir kayıt, verilen sorgu parametrelerine uyuyor mu. */
 const _uyuyor = (x, q) => {
-  const alanlar = ['market', 'application', 'city', 'district', 'status', 'competitor', 'partner', 'assigned_to'];
+  /* assigned_to bu listede DEĞİL: o alan tam eşleşme değil "içerir" ile
+     çalışıyor (kişi adı alanı). Aşağıda ayrıca ele alınıyor. */
+  const alanlar = ['market', 'application', 'city', 'district', 'status', 'competitor', 'partner'];
   for (const alan of alanlar) {
     const secilenler = _coklu(q.get(alan));
     if (secilenler.length) {
@@ -263,6 +279,12 @@ const _uyuyor = (x, q) => {
     }
     const metin = (q.get(alan + '_contains') || '').trim().toLocaleLowerCase('tr');
     if (metin && !String(x[alan] || '').toLocaleLowerCase('tr').includes(metin)) return false;
+  }
+  /* Takip eden: Filtreler sayfası "içerir Furkan" koşulunu ?assigned_to=Furkan
+     olarak gönderiyor ve kısmi eşleşme bekliyor. */
+  for (const anahtar of ['assigned_to', 'assigned_to_contains']) {
+    const v = (q.get(anahtar) || '').trim().toLocaleLowerCase('tr');
+    if (v && !String(x.assigned_to || '').toLocaleLowerCase('tr').includes(v)) return false;
   }
   const ad = (q.get('company_name_contains') || '').trim().toLocaleLowerCase('tr');
   if (ad && !String(x.company_name || '').toLocaleLowerCase('tr').includes(ad)) return false;
@@ -571,6 +593,15 @@ const YOLLAR = [
       conditions: [
         { field: 'city', operator: 'equals', value: 'İstanbul' },
         { field: 'status', operator: 'equals', value: 'Teklif Verildi' },
+      ],
+    },
+    {
+      id: 'f4', name: 'Zeynep', logic: 'AND', created_by: 'Hakan Önel',
+      /* Kullanicinin bildirdigi senaryonun aynisi: takip eden ICERIR +
+         durum ESIT DEGIL. Once bos liste donuyordu. */
+      conditions: [
+        { field: 'assigned_to', operator: 'contains', value: 'Zeynep' },
+        { field: 'status', operator: 'not_equals', value: 'Kaybedildi' },
       ],
     },
     {
