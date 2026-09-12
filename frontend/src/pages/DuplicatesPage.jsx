@@ -13,6 +13,8 @@ import {
   Trash2,
   Crown,
   Zap,
+  X,
+  Undo2,
 } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
@@ -26,6 +28,9 @@ import {
   DialogTitle,
 } from "../components/ui/dialog";
 import { useCustomerModal } from "../contexts/CustomerModalContext";
+// Bu sayfadaki grup araması da düz toLowerCase() kullanıyordu; "istanbul"
+// yazınca "İstanbul" bulunamıyordu. Müşteriler sayfasıyla aynı normalize().
+import { normalize } from "../utils/searchHelpers";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -59,6 +64,35 @@ const formatDate = (iso) => {
 
 const fillCount = (m) => FIELDS.filter((f) => !!m[f] && String(m[f]).trim()).length;
 
+/* "Listeden çıkar" ile gizlenen müşteri kayıtları.
+ *
+ * DİKKAT: burada tutulan şey müşterinin silinmesi DEĞİL — yalnızca bu
+ * ekranda tekrar adayı olarak gösterilmemesi. Müşteri veri tabanında
+ * olduğu gibi duruyor, Müşteriler listesinde görünmeye devam ediyor.
+ *
+ * Tarayıcıda saklanıyor çünkü her "Yeniden Tara" grupları sıfırdan
+ * hesaplıyor: bellekte tutulsaydı yanlış eşleşmeyi her taramada yeniden
+ * elemek gerekirdi. Grup kimlikleri taramadan taramaya değiştiği için
+ * anahtar olarak müşteri kimliği kullanılıyor. */
+const EXCLUDE_KEY = "crmaster_dup_excluded";
+
+const loadExcluded = () => {
+  try {
+    const raw = JSON.parse(localStorage.getItem(EXCLUDE_KEY) || "[]");
+    return new Set(Array.isArray(raw) ? raw : []);
+  } catch {
+    return new Set();
+  }
+};
+
+const saveExcluded = (set) => {
+  try {
+    localStorage.setItem(EXCLUDE_KEY, JSON.stringify([...set]));
+  } catch {
+    /* kota dolu / gizli sekme: eleme yalnızca bu oturumda geçerli olur */
+  }
+};
+
 // Color for the score badge
 const scoreColor = (s) => {
   if (s >= 98) return "bg-status-danger-bg text-status-danger-fg border-status-danger-line";
@@ -77,6 +111,7 @@ export default function DuplicatesPage() {
   const [keepId, setKeepId] = useState(null);
   const [merging, setMerging] = useState(false);
   const [resolvedGroupIds, setResolvedGroupIds] = useState(new Set()); // hide locally after merge
+  const [excludedIds, setExcludedIds] = useState(loadExcluded); // "listeden çıkar"
   // Auto-merge dialog state
   const [autoOpen, setAutoOpen] = useState(false);
   const [autoMinScore, setAutoMinScore] = useState(98);
@@ -123,19 +158,73 @@ export default function DuplicatesPage() {
 
   const filteredGroups = useMemo(() => {
     if (!data?.groups) return [];
-    const q = search.trim().toLowerCase();
+    const q = normalize(search);
     return data.groups
       .filter((g) => !resolvedGroupIds.has(g.id))
+      /* Listeden çıkarılanları gruptan düş. Geriye tek kayıt kalırsa artık
+       * "tekrar" diye bir şey yok, grubu da gizle — yoksa hiçbir işe
+       * yaramayan, Birleştir'i anlamsız tek satırlık kartlar kalıyordu. */
+      .map((g) => {
+        const kalan = g.members.filter((m) => !excludedIds.has(m.id));
+        return kalan.length === g.members.length
+          ? g
+          : { ...g, members: kalan, size: kalan.length };
+      })
+      .filter((g) => g.members.length > 1)
       .filter((g) =>
         !q
           ? true
           : g.members.some((m) =>
               [m.company_name, m.city, m.market, m.phone, m.email]
                 .filter(Boolean)
-                .some((s) => String(s).toLowerCase().includes(q))
+                .some((s) => normalize(s).includes(q))
             )
       );
-  }, [data, search, resolvedGroupIds]);
+  }, [data, search, resolvedGroupIds, excludedIds]);
+
+  /* Başlıktaki sayı sunucudan gelen toplamdı; listeden çıkarma kalıcı
+   * olduğu için ekranda görünenle ayrı düşüyordu. Görünen gruplardan
+   * hesaplanıyor ki iki sayı birbirini tutsun. */
+  const etkilenenSayisi = useMemo(
+    () => filteredGroups.reduce((t, g) => t + g.members.length, 0),
+    [filteredGroups]
+  );
+
+  /* Bir kaydı bu ekrandan çıkar. Müşteri SİLİNMİYOR; yalnızca tekrar
+   * adayı olarak gösterilmiyor. */
+  const listedenCikar = (uye) => {
+    setExcludedIds((prev) => {
+      const yeni = new Set(prev);
+      yeni.add(uye.id);
+      saveExcluded(yeni);
+      return yeni;
+    });
+    toast.success(`"${uye.company_name || "Kayıt"}" listeden çıkarıldı`, {
+      description: "Müşteri silinmedi, yalnızca bu ekranda gizlendi.",
+      action: {
+        label: "Geri al",
+        onClick: () => geriAl(uye.id),
+      },
+    });
+  };
+
+  const geriAl = (id) => {
+    setExcludedIds((prev) => {
+      const yeni = new Set(prev);
+      yeni.delete(id);
+      saveExcluded(yeni);
+      return yeni;
+    });
+  };
+
+  const hepsiniGeriAl = () => {
+    setExcludedIds(() => {
+      const bos = new Set();
+      saveExcluded(bos);
+      return bos;
+    });
+    toast.success("Çıkarılan kayıtlar listeye geri alındı");
+  };
 
   const openMerge = (group) => {
     // Auto-suggest: keep the most-filled member
@@ -234,7 +323,7 @@ export default function DuplicatesPage() {
             {loading
               ? "Taranıyor..."
               : data
-              ? `${filteredGroups.length} olası tekrar grubu · ${data.total_customers_affected} müşteri kaydı etkilenebilir`
+              ? `${filteredGroups.length} olası tekrar grubu · ${etkilenenSayisi} müşteri kaydı etkilenebilir`
               : "—"}
           </p>
         </div>
@@ -290,6 +379,27 @@ export default function DuplicatesPage() {
           />
         </div>
 
+        {/* Çıkarılanlar görünür kalmalı: kalıcı bir eleme sessizce yapılırsa
+            kullanıcı bir kaydın neden hiç çıkmadığını anlayamaz. */}
+        {excludedIds.size > 0 && (
+          <div className="mb-3 flex items-center justify-between gap-2 rounded-lg border border-border bg-card px-3 py-2">
+            <span className="text-xs text-muted-foreground">
+              <strong className="text-foreground">{excludedIds.size}</strong>{" "}
+              kayıt listeden çıkarıldı — müşteriler silinmedi.
+            </span>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={hepsiniGeriAl}
+              className="h-7 px-2 text-xs"
+              data-testid="dup-restore-all"
+            >
+              <Undo2 className="w-3.5 h-3.5 mr-1" />
+              Geri al
+            </Button>
+          </div>
+        )}
+
         {/* States */}
         {loading && (
           <div className="flex items-center justify-center py-16 text-muted-foreground">
@@ -304,11 +414,15 @@ export default function DuplicatesPage() {
             <p className="text-sm font-medium text-foreground">
               {data?.groups?.length === 0
                 ? "Yinelenen müşteri bulunamadı"
+                : excludedIds.size > 0 && !search.trim()
+                ? "Gösterilecek grup kalmadı"
                 : "Filtreye uyan grup yok"}
             </p>
             <p className="text-xs text-muted-foreground mt-1">
               {data?.groups?.length === 0
                 ? "Veri tabanın bu eşikte temiz görünüyor."
+                : excludedIds.size > 0 && !search.trim()
+                ? "Kalan gruplar listeden çıkardığın kayıtlardan oluşuyordu. Geri almak için yukarıdaki düğmeyi kullan."
                 : "Aramayı temizleyip tekrar dene."}
             </p>
           </div>
@@ -322,6 +436,7 @@ export default function DuplicatesPage() {
               group={g}
               onOpenCustomer={openCustomerModal}
               onMerge={openMerge}
+              onExclude={listedenCikar}
             />
           ))}
         </div>
@@ -577,7 +692,7 @@ export default function DuplicatesPage() {
 }
 
 // ---------- per-group card ----------
-const DuplicateCard = ({ group, onOpenCustomer, onMerge }) => {
+const DuplicateCard = ({ group, onOpenCustomer, onMerge, onExclude }) => {
   return (
     <div
       className="bg-card border border-border rounded-xl overflow-hidden"
@@ -644,6 +759,21 @@ const DuplicateCard = ({ group, onOpenCustomer, onMerge }) => {
                   </span>
                 )}
               </div>
+              {/* Satırın tamamı müşteri kartını açıyor; bu düğme onun içinde
+                  durduğu için tıklamanın yukarı çıkması engelleniyor. */}
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onExclude(m);
+                }}
+                title="Listeden çıkar (müşteri silinmez)"
+                aria-label={`${m.company_name || "Kayıt"} kaydını listeden çıkar`}
+                className="flex-shrink-0 w-7 h-7 rounded-md flex items-center justify-center text-muted-foreground hover:text-status-danger-fg hover:bg-status-danger-bg transition-colors"
+                data-testid={`dup-exclude-${m.id}`}
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
             </div>
           );
         })}
