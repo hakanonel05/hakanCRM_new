@@ -26,6 +26,7 @@ from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 import resend
 import google.generativeai as genai
 import backup_service
+import gdrive_service
 
 # Password hashing
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -5075,6 +5076,20 @@ async def update_backup_config(payload: BackupConfigUpdate, request: Request, se
     return cfg
 
 
+@api_router.get("/backups/gdrive/check")
+async def check_gdrive(request: Request, session_token: Optional[str] = Cookie(None)):
+    """Drive ayarları tam mı, yenileme anahtarı hâlâ geçerli mi.
+
+    Yenileme anahtarı OAuth istemcisi "Testing" durumundayken 7 günde sessizce
+    ölüyor. Bu uç olmadan bunun tek belirtisi, aylar sonra "yedek yok" diye
+    fark etmek olurdu.
+    """
+    user = await get_current_user_from_request(request, session_token)
+    if not check_admin_permission(user):
+        raise HTTPException(status_code=403, detail="Bu işlem için admin yetkisi gerekli")
+    return await asyncio.to_thread(gdrive_service.check)
+
+
 @api_router.get("/backups/list")
 async def list_backups_endpoint(request: Request, session_token: Optional[str] = Cookie(None)):
     user = await get_current_user_from_request(request, session_token)
@@ -5100,9 +5115,13 @@ async def download_backup(filename: str, request: Request, session_token: Option
     data = backup_service.get_backup_bytes(filename)
     if data is None:
         raise HTTPException(status_code=404, detail="Yedek dosyası bulunamadı")
+    # Yedekler artık .xlsx de olabiliyor; hepsini application/json diye
+    # göndermek tarayıcının dosyayı bozuk açmasına yol açıyordu.
+    media = (backup_service.XLSX_MIME if filename.endswith(".xlsx")
+             else "application/json")
     return Response(
         content=data,
-        media_type="application/json",
+        media_type=media,
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
 

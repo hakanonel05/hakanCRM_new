@@ -25,6 +25,7 @@ Config schema (backup_config.json):
 }
 """
 import os
+import re
 import json
 import base64
 import logging
@@ -37,7 +38,11 @@ from typing import Optional, Dict, Any
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
 
+import gdrive_service
+
 logger = logging.getLogger("backup_service")
+
+XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 
 BACKEND_DIR = Path(__file__).parent
 # Default to a path relative to the backend dir so it works on any host
@@ -156,6 +161,12 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     "last_error": None,
     "last_filename": None,
     "last_size_bytes": 0,
+    # Excel ve Drive durumu ayrı tutuluyor: ikisi de başarısız olsa bile JSON
+    # yedeği geçerli sayılıyor, ama arayüzde sessiz kalmamaları gerekiyor.
+    "last_xlsx_filename": None,
+    "last_xlsx_error": None,
+    "last_gdrive_status": None,
+    "last_gdrive_error": None,
 }
 
 _lock = threading.Lock()
@@ -207,32 +218,127 @@ def _collect_backup_payload(supabase) -> Dict[str, Any]:
     return payload
 
 
+# Excel'in iki sert sınırı var ve ikisi de yedeklemeyi komple çökertebilir:
+# hücrede denetim karakteri (openpyxl IllegalCharacterError fırlatıyor) ve
+# 32.767 karakterlik hücre sınırı. CRM'deki serbest not alanları ikisini de
+# tetikleyebiliyor; bir tek bozuk not yüzünden tüm yedeğin Excel'i
+# üretilememesi kabul edilemez.
+_EXCEL_YASAK = re.compile(r"[\000-\010\013\014\016-\037]")
+_EXCEL_HUCRE_SINIRI = 32767
+# Excel sayfası 1.048.576 satır alıyor; activity_log büyüyünce aşabilir.
+_EXCEL_SATIR_SINIRI = 1_000_000
+
+
+def _excel_hucre(v):
+    """openpyxl yalnızca ilkel türleri yazabiliyor; gerisi metne çevriliyor.
+
+    dict/list alanlar (contacts, products, tags, notes_list) JSON olarak
+    yazılıyor — okunabilirliği düşük ama veri kaybetmemek bu dosyanın
+    varlık sebebi. Geri yükleme için zaten JSON yedeği kullanılıyor;
+    Excel gözle bakmak ve paylaşmak için.
+    """
+    if v is None:
+        return ""
+    if isinstance(v, bool):
+        return "Evet" if v else "Hayır"
+    if isinstance(v, (int, float)):
+        return v
+    if not isinstance(v, str):
+        try:
+            v = json.dumps(v, ensure_ascii=False, default=str)
+        except Exception:
+            v = str(v)
+    v = _EXCEL_YASAK.sub("", v)
+    if len(v) > _EXCEL_HUCRE_SINIRI:
+        # Kırpıldığını görünür yap — sessizce kısaltmak, Excel'e bakıp
+        # "veri tam" sanmaya yol açar.
+        v = v[:_EXCEL_HUCRE_SINIRI - 20] + "…[KIRPILDI]"
+    return v
+
+
+def _build_excel_bytes(payload: Dict[str, Any]) -> bytes:
+    """Her tabloyu ayrı sayfa yapan bir çalışma kitabı üretir.
+
+    write_only kipi: activity_log on binlerce satır olabiliyor ve normal kipte
+    openpyxl hepsini bellekte tutuyor — Render'ın ücretsiz katmanında 512 MB
+    sınırı var.
+    """
+    from openpyxl import Workbook
+    from openpyxl.styles import Font
+    from openpyxl.cell import WriteOnlyCell
+
+    wb = Workbook(write_only=True)
+    for tablo, satirlar in payload.items():
+        if not isinstance(satirlar, list):
+            continue  # export_date / source gibi üstveri alanları
+        # Sayfa adı 31 karakterle sınırlı ve []:*?/\ kabul etmiyor.
+        ws = wb.create_sheet(title=tablo[:31])
+        if not satirlar:
+            ws.append(["(kayıt yok)"])
+            continue
+        # Sütunlar tüm satırların birleşimi: Supabase satırları aynı şemadan
+        # gelse de ilk satıra güvenmek, sonradan eklenen bir alanı sessizce
+        # düşürür.
+        sutunlar = []
+        gorulen = set()
+        for s in satirlar:
+            for k in s.keys():
+                if k not in gorulen:
+                    gorulen.add(k)
+                    sutunlar.append(k)
+        basliklar = []
+        for k in sutunlar:
+            h = WriteOnlyCell(ws, value=k)
+            h.font = Font(bold=True)
+            basliklar.append(h)
+        ws.append(basliklar)
+        for i, s in enumerate(satirlar):
+            if i >= _EXCEL_SATIR_SINIRI:
+                ws.append([f"[{len(satirlar) - i} satır daha var — Excel sayfa "
+                           f"sınırı aşıldı, tamamı JSON yedeğinde]"])
+                logger.warning("Excel: %s tablosu %d satırda kırpıldı", tablo, i)
+                break
+            ws.append([_excel_hucre(s.get(k)) for k in sutunlar])
+
+    from io import BytesIO
+    tampon = BytesIO()
+    wb.save(tampon)
+    return tampon.getvalue()
+
+
 def _prune_old_backups(retention_days: int) -> int:
-    """Delete .json backups older than retention_days. Returns deleted count."""
+    """Delete backups (.json and .xlsx) older than retention_days.
+
+    Returns deleted count.
+    """
     if retention_days <= 0:
         return 0
     cutoff = datetime.now() - timedelta(days=retention_days)
     deleted = 0
-    for p in BACKUP_DIR.glob("crm_backup_*.json"):
-        try:
-            mtime = datetime.fromtimestamp(p.stat().st_mtime)
-            if mtime < cutoff:
-                p.unlink()
-                deleted += 1
-        except Exception as e:
-            logger.warning("Backup prune failed for %s: %s", p, e)
+    for desen in ("crm_backup_*.json", "crm_backup_*.xlsx"):
+        for p in BACKUP_DIR.glob(desen):
+            try:
+                mtime = datetime.fromtimestamp(p.stat().st_mtime)
+                if mtime < cutoff:
+                    p.unlink()
+                    deleted += 1
+            except Exception as e:
+                logger.warning("Backup prune failed for %s: %s", p, e)
 
     # Prune the persistent copies too (timestamp is embedded in the filename:
-    # crm_backup_YYYYMMDD_HHMMSS.json)
+    # crm_backup_YYYYMMDD_HHMMSS.json / .xlsx)
     stale = []
     for obj in _storage_list(BACKUPS_BUCKET):
         name = obj.get("name", "")
-        try:
-            ts = datetime.strptime(name, "crm_backup_%Y%m%d_%H%M%S.json")
+        for kalip in ("crm_backup_%Y%m%d_%H%M%S.json",
+                      "crm_backup_%Y%m%d_%H%M%S.xlsx"):
+            try:
+                ts = datetime.strptime(name, kalip)
+            except ValueError:
+                continue
             if ts < cutoff:
                 stale.append(name)
-        except ValueError:
-            continue
+            break
     if stale and _storage_remove(BACKUPS_BUCKET, stale):
         deleted += len(stale)
     return deleted
@@ -287,6 +393,7 @@ def run_backup_sync(supabase, resend_module=None, sender_email: str = "") -> Dic
     ts = started.strftime("%Y%m%d_%H%M%S")
     filename = f"crm_backup_{ts}.json"
     filepath = BACKUP_DIR / filename
+    xlsx_filename = f"crm_backup_{ts}.xlsx"
     config = load_config()
     try:
         payload = _collect_backup_payload(supabase)
@@ -294,11 +401,43 @@ def run_backup_sync(supabase, resend_module=None, sender_email: str = "") -> Dic
         filepath.write_text(content, encoding="utf-8")
         size_bytes = filepath.stat().st_size
 
+        # Excel: geri yükleme için değil, gözle bakmak/paylaşmak için.
+        # Üretimi başarısız olursa yedeğin tamamı çöpe gitmemeli — JSON asıl
+        # kopya, bu yüzden hata yutuluyor ama durum kaydediliyor.
+        xlsx_bytes = None
+        xlsx_error = None
+        try:
+            xlsx_bytes = _build_excel_bytes(payload)
+            (BACKUP_DIR / xlsx_filename).write_bytes(xlsx_bytes)
+            _storage_upload(BACKUPS_BUCKET, xlsx_filename, xlsx_bytes, XLSX_MIME)
+        except Exception as xe:
+            xlsx_error = str(xe)
+            logger.warning("Excel üretilemedi (JSON yedeği alındı): %s", xe)
+
         # Persist to Supabase Storage — the local copy dies with the dyno,
         # the storage copy is the real backup.
         stored = _storage_upload(BACKUPS_BUCKET, filename, content.encode("utf-8"))
         if not stored:
             logger.warning("Backup saved locally only — storage upload failed: %s", filename)
+
+        # Google Drive: üçüncü kopya. Supabase Storage ile aynı hesabın
+        # altında olmadığı için asıl "felaket" senaryosunu karşılayan kopya
+        # bu. Başarısızlığı yedeği geçersiz kılmıyor, ayrıca raporlanıyor.
+        gdrive_status, gdrive_error, gdrive_link = None, None, None
+        if gdrive_service.is_configured():
+            try:
+                r = gdrive_service.upload(filename, content.encode("utf-8"),
+                                          "application/json")
+                gdrive_link = r.get("link")
+                if xlsx_bytes:
+                    gdrive_service.upload(xlsx_filename, xlsx_bytes, XLSX_MIME,
+                                          klasor_id=r.get("folder_id"))
+                gdrive_service.prune(int(config.get("retention_days", 30)),
+                                     klasor_id=r.get("folder_id"))
+                gdrive_status = "success"
+            except Exception as ge:
+                gdrive_status, gdrive_error = "error", str(ge)
+                logger.error("Drive yüklemesi başarısız: %s", ge)
 
         # Optional email
         if config.get("email_enabled") and config.get("email_recipients") and resend_module:
@@ -318,13 +457,23 @@ def run_backup_sync(supabase, resend_module=None, sender_email: str = "") -> Dic
             "last_error": None,
             "last_filename": filename,
             "last_size_bytes": size_bytes,
+            "last_xlsx_filename": xlsx_filename if xlsx_bytes else None,
+            "last_xlsx_error": xlsx_error,
+            "last_gdrive_status": gdrive_status,
+            "last_gdrive_error": gdrive_error,
         })
-        logger.info("Backup ok: %s (%d bytes, pruned %d)", filename, size_bytes, pruned)
+        logger.info("Backup ok: %s (%d bytes, pruned %d, drive=%s)",
+                    filename, size_bytes, pruned, gdrive_status or "kapalı")
         return {
             "ok": True,
             "filename": filename,
+            "xlsx_filename": xlsx_filename if xlsx_bytes else None,
+            "xlsx_error": xlsx_error,
             "size_bytes": size_bytes,
             "pruned": pruned,
+            "gdrive_status": gdrive_status,
+            "gdrive_error": gdrive_error,
+            "gdrive_link": gdrive_link,
         }
     except Exception as e:
         logger.exception("Backup failed: %s", e)
@@ -351,7 +500,9 @@ def list_backups() -> list:
             "created_at": obj.get("created_at") or "",
             "location": "cloud",
         }
-    for p in BACKUP_DIR.glob("crm_backup_*.json"):
+    yerel = list(BACKUP_DIR.glob("crm_backup_*.json")) + \
+        list(BACKUP_DIR.glob("crm_backup_*.xlsx"))
+    for p in yerel:
         if p.name in seen:
             continue
         try:
