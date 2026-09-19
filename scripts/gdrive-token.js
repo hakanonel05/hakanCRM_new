@@ -86,11 +86,48 @@ const server = http.createServer(async (req, res) => {
       }),
     });
     const veri = await r.json();
+
+    /* Google'ın döndürdüğü hatayı ÖNCE ele al.
+     *
+     * Burada tek bir "refresh_token yok" mesajı vardı ve hata ne olursa
+     * olsun "bu hesaba daha önce izin verilmiş, izni kaldır" diyordu.
+     * Gerçekte invalid_client (yanlış secret) alan biri, saatlerce yanlış
+     * yerde arar. Her hatanın kendi açıklaması olmalı. */
+    if (veri.error) {
+      const aciklama = {
+        invalid_client:
+          "Client secret yanlış.\n" +
+          "  Google mevcut secret'ı artık göstermiyor (ekranda ****XXXX olarak\n" +
+          "  maskeli duruyor) — o maskeli değeri kopyalamış olabilirsin.\n" +
+          "  Çözüm: Clients -> istemcin -> '+ Add secret' ile YENİ bir secret\n" +
+          "  üret, o anda bir kez görünür, hemen kopyala.\n" +
+          "  Google secret'ları 'GOCSPX-' ile başlar.",
+        invalid_grant:
+          "Yetkilendirme kodu geçersiz ya da süresi dolmuş.\n" +
+          "  Betiği yeniden çalıştır ve izin ekranını hızlıca tamamla.",
+        redirect_uri_mismatch:
+          "Yönlendirme adresi eşleşmiyor.\n" +
+          "  OAuth istemcisinde tam olarak şu yazmalı: " + REDIRECT + "\n" +
+          "  (sonunda eğik çizgi yok, https değil http)\n" +
+          "  Yeni kaydettiysen ayarların yayılması birkaç dakika sürebilir.",
+        unauthorized_client:
+          "İstemci bu akış için yetkili değil.\n" +
+          "  İstemci türü 'Web application' olmalı.",
+      }[veri.error];
+      throw new Error(
+        `Google şu hatayı döndürdü: ${veri.error}\n` +
+        (veri.error_description ? `  ${veri.error_description}\n` : "") +
+        (aciklama ? "\n" + aciklama : "")
+      );
+    }
+
     if (!veri.refresh_token) {
       throw new Error(
-        "Yanıtta refresh_token yok. Genellikle bu hesaba daha önce izin " +
-        "verilmiş demektir. https://myaccount.google.com/permissions " +
-        "adresinden uygulamanın erişimini kaldırıp tekrar dene.\n" +
+        "Google yanıtı başarılı ama içinde refresh_token yok. Genellikle bu\n" +
+        "  hesaba daha önce izin verilmiş demektir; Google yenileme anahtarını\n" +
+        "  yalnızca İLK onayda döndürüyor.\n" +
+        "  Çözüm: https://myaccount.google.com/permissions adresinden bu\n" +
+        "  uygulamanın erişimini kaldır, sonra betiği tekrar çalıştır.\n\n" +
         JSON.stringify(veri, null, 2)
       );
     }
