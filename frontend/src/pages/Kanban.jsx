@@ -138,8 +138,10 @@ const Kanban = () => {
     try {
       const response = await axios.get(`${API}/kanban/views`);
       setSavedViews(response.data);
+      return response.data || [];
     } catch (error) {
       console.error("Kanban görünümleri yüklenemedi:", error);
+      return [];
     }
   }, []);
 
@@ -157,10 +159,30 @@ const Kanban = () => {
     }
   }, [currentGroupBy]);
 
+  /* Müşteriler sayfasındaki "nerelerde var" rozetleri buraya adresle
+   * geliyor: ?view=<id> bir kanban görünümünü, ?mode=process&board=<id> bir
+   * süreç panosunu açar. Parametre yoksa davranış eskisi gibi. */
   useEffect(() => {
     fetchGroupFields();
-    fetchSavedViews();
-    fetchKanbanData("status");
+    const p = new URLSearchParams(window.location.search);
+    if (p.get("mode") === "process") {
+      setBoardMode("process");
+      fetchSavedViews();
+      return; // süreç panoları kendi verisini çekiyor
+    }
+    fetchSavedViews().then((views) => {
+      const istenen = p.get("view");
+      const v = istenen && views.find((x) => x.id === istenen);
+      if (v) {
+        // handleViewSelect'i tekrarlamıyoruz: o fetchKanbanData'yı
+        // currentGroupBy kapanışıyla çağırıyor, burada henüz eski değer.
+        setActiveView(v);
+        setCurrentGroupBy(v.group_by);
+        fetchKanbanData(v.group_by);
+      } else {
+        fetchKanbanData("status");
+      }
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -440,7 +462,11 @@ const Kanban = () => {
       )}
 
       {/* Süreç Panoları modu */}
-      {boardMode === "process" && <ProcessBoard />}
+      {boardMode === "process" && (
+        <ProcessBoard
+          initialBoardId={new URLSearchParams(window.location.search).get("board")}
+        />
+      )}
 
       {/* Kanban Board (Durum modu) */}
       {boardMode === "status" && (

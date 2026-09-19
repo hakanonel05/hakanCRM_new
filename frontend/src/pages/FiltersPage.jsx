@@ -34,7 +34,7 @@ import {
   DialogDescription,
 } from "../components/ui/dialog";
 import { toast } from "sonner";
-import { normalize } from "../utils/searchHelpers";
+import { matchesFilter } from "../utils/searchHelpers";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -96,8 +96,10 @@ const FiltersPage = () => {
     try {
       const response = await axios.get(`${API}/filters`);
       setSavedFilters(response.data);
+      return response.data || [];
     } catch (error) {
       console.error("Filtreler yüklenirken hata:", error);
+      return [];
     }
   }, []);
 
@@ -139,9 +141,18 @@ const FiltersPage = () => {
   }, []);
 
   useEffect(() => {
-    fetchFilters();
+    /* Müşteriler sayfasındaki "nerelerde var" rozeti ?apply=<id> ile buraya
+     * geliyor; o filtre doğrudan açılmalı, kullanıcı listeden tekrar
+     * aramasın. Filtre silinmişse sessizce normal açılış. */
+    fetchFilters().then((liste) => {
+      const istenen = new URLSearchParams(window.location.search).get("apply");
+      if (!istenen) return;
+      const f = liste.find((x) => x.id === istenen);
+      if (f) selectFilter(f);
+    });
     fetchCustomers();
     fetchOptions();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fetchFilters, fetchCustomers, fetchOptions]);
 
   // Get unique values for select fields
@@ -166,38 +177,14 @@ const FiltersPage = () => {
       return dataToFilter;
     }
 
-    return dataToFilter.filter(customer => {
-      const results = conditions.map(condition => {
-        const { field, operator, value } = condition;
-        const customerValue = customer[field] || "";
-        /* Müşteriler sayfasıyla aynı karşılaştırma: normalize() Türkçe
-         * harfleri sadeleştirdiği için "NİDAPACK" = "nidapack",
-         * "İSTANBUL" = "istanbul" = "ISTANBUL". Düz toLowerCase() bunu
-         * yapamıyordu ("İ" küçüldüğünde birleşik nokta bırakıyor). */
-        const a = normalize(customerValue);
-        const b = normalize(value);
-
-        switch (operator) {
-          case "equals":
-            return a === b;
-          case "contains":
-            return a.includes(b);
-          case "not_equals":
-            return a !== b;
-          case "is_empty":
-            return !customerValue || customerValue === "";
-          case "is_not_empty":
-            return customerValue && customerValue !== "";
-          default:
-            return true;
-        }
-      });
-      
-      if (logic === "OR") {
-        return results.some(r => r);
-      }
-      return results.every(r => r);
-    });
+    /* Karşılaştırma mantığı searchHelpers'taki matchesFilter'da.
+     *
+     * Bu switch bloğunun bir kopyası Müşteriler sayfasında, bir kopyası da
+     * "nerelerde var" rozetlerinde olacaktı. Rozet "bu filtreye giriyor"
+     * deyip bu sayfa aksini gösterseydi güven biterdi — tek kaynak. */
+    return dataToFilter.filter((customer) =>
+      matchesFilter(customer, conditions, logic)
+    );
   };
 
   // Select filter - fetch from API with filters

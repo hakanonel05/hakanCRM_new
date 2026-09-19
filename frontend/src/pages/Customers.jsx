@@ -68,7 +68,8 @@ import CloudBackupModal from "../components/CloudBackupModal";
 import InlineCreatableSelect from "../components/InlineCreatableSelect";
 import SearchInput from "../components/SearchInput";
 import Breadcrumb from "../components/Breadcrumb";
-import { normalize, computeMatchInfo, highlightMatch, FIELD_LABELS } from "../utils/searchHelpers";
+import { normalize, computeMatchInfo, highlightMatch, FIELD_LABELS, matchesFilter } from "../utils/searchHelpers";
+import CustomerAppearances from "../components/CustomerAppearances";
 import { swrCache } from "../utils/swrCache";
 import MetinFiltre from "../components/MetinFiltre";
 import InlineTextEdit from "../components/InlineTextEdit";
@@ -533,6 +534,9 @@ const Customers = () => {
   const [filterLogic, setFilterLogic] = useState("AND");
   const [activeFilters, setActiveFilters] = useState([]);
   const [savedFilters, setSavedFilters] = useState([]);
+  // "Nerelerde var" rozetleri (yalnızca arama yapılırken dolduruluyor)
+  const [kanbanViews, setKanbanViews] = useState([]);
+  const [processMap, setProcessMap] = useState({}); // customer_id -> [kart...]
   const [saveFilterModalOpen, setSaveFilterModalOpen] = useState(false);
   const [filterName, setFilterName] = useState("");
   
@@ -709,11 +713,23 @@ const Customers = () => {
     }
   }, []);
 
+  /* "Nerelerde var" rozetleri için kanban görünümleri. Bir kez çekiliyor;
+     liste küçük ve nadiren değişiyor. */
+  const fetchKanbanViews = useCallback(async () => {
+    try {
+      const { data } = await axios.get(`${API}/kanban/views`);
+      setKanbanViews(data || []);
+    } catch {
+      setKanbanViews([]); // rozetlerin eksik kalması sayfayı bozmamalı
+    }
+  }, []);
+
   /* Açılışta bir kez. filter-options çağrısı kaldırıldı: süzgeçlerde artık
      listeden seçim yok, o listeleri kimse okumuyordu. */
   useEffect(() => {
     fetchOptions();
     fetchSavedFilters();
+    fetchKanbanViews();
     // Listen for "open new customer" event from Command Palette
     const onNewCustomer = () => setAddModalOpen(true);
     window.addEventListener("crm:open-new-customer", onNewCustomer);
@@ -864,6 +880,35 @@ const Customers = () => {
 
   // === Search match annotation + relevance sort (client-side, runs only when there's a search term) ===
   const normalizedNeedle = useMemo(() => normalize(search.trim()), [search]);
+
+  /* Süreç panosu üyeliğini yalnızca arama yapılırken ve yalnızca ekrandaki
+   * satırlar için çekiyoruz.
+   *
+   * Kanban sütunu ile eşleşen filtreler elimizdeki müşteri satırından
+   * hesaplanabiliyor; süreç panosu üyeliği ise process_cards'ta duran gerçek
+   * bir kayıt, sunucuya sormak şart. Tek tek değil toplu: 50 satır için 50
+   * ayrı istek atmak sayfayı dize dize yüklerdi. */
+  useEffect(() => {
+    if (!normalizedNeedle || !customers.length) {
+      setProcessMap({});
+      return;
+    }
+    const ids = customers.map((c) => c.id).filter(Boolean);
+    if (!ids.length) return;
+    let iptal = false;
+    axios
+      .get(`${API}/process/memberships`, { params: { ids: ids.join(",") } })
+      .then(({ data }) => {
+        if (!iptal) setProcessMap(data || {});
+      })
+      .catch(() => {
+        // Rozetlerin eksik kalması listeyi bozmamalı.
+        if (!iptal) setProcessMap({});
+      });
+    return () => {
+      iptal = true;
+    };
+  }, [normalizedNeedle, customers]);
   const customersWithMatch = useMemo(() => {
     if (!normalizedNeedle) {
       return quickFilteredCustomers.map((c) => ({ ...c, _matchInfo: null }));
@@ -1961,6 +2006,21 @@ const Customers = () => {
                                   +{customer._matchInfo.fields.length - 2}
                                 </span>
                               )}
+                            </div>
+                          )}
+                          {/* "Nerelerde var": süreç panoları, kanban sütunu,
+                              eşleşen kayıtlı filtreler. Yalnızca arama
+                              yapılırken — 50 satırda sürekli dursa tablo
+                              okunmaz olurdu. */}
+                          {normalizedNeedle && (
+                            <div className="mt-1">
+                              <CustomerAppearances
+                                customer={customer}
+                                processCards={processMap[customer.id]}
+                                kanbanViews={kanbanViews}
+                                savedFilters={savedFilters}
+                                matchesFilter={matchesFilter}
+                              />
                             </div>
                           )}
                         </div>

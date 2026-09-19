@@ -10,6 +10,43 @@ export const normalize = (s) => {
     .toLowerCase();
 };
 
+/* Kayıtlı filtre koşullarını tek bir müşteriye uygular.
+ *
+ * Aynı switch bloğu Müşteriler ve Filtreler sayfalarında ayrı ayrı duruyordu;
+ * "nerelerde var" rozetleri üçüncü bir kopya olacaktı. Rozet "bu filtreye
+ * giriyor" diyip Filtreler sayfası aksini gösterirse güven biter, bu yüzden
+ * tek kaynak.
+ *
+ * normalize() kullanılıyor: düz toLowerCase() Türkçe "İ"yi bozuyor.
+ */
+export const matchesCondition = (customer, condition) => {
+  const { field, operator, value } = condition || {};
+  const ham = customer?.[field] ?? "";
+  const a = normalize(ham);
+  const b = normalize(value);
+  switch (operator) {
+    case "equals":
+      return a === b;
+    case "contains":
+      return a.includes(b);
+    case "not_equals":
+      return a !== b;
+    case "is_empty":
+      return !ham || ham === "";
+    case "is_not_empty":
+      return !!ham && ham !== "";
+    default:
+      return true;
+  }
+};
+
+export const matchesFilter = (customer, conditions, logic = "AND") => {
+  const liste = (conditions || []).filter((c) => c && c.field && c.operator);
+  if (!liste.length) return false; // koşulsuz filtre "herkes" demek değil
+  const sonuclar = liste.map((c) => matchesCondition(customer, c));
+  return logic === "OR" ? sonuclar.some(Boolean) : sonuclar.every(Boolean);
+};
+
 // Field labels (Turkish) — used in match badges.
 export const FIELD_LABELS = {
   company_name: "Firma",

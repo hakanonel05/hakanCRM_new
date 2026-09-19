@@ -45,7 +45,10 @@ const STAGE_PALETTE = [
 ];
 const stageColors = (i) => STAGE_PALETTE[i % STAGE_PALETTE.length];
 
-const ProcessBoard = () => {
+/* initialBoardId: Müşteriler sayfasındaki "nerelerde var" rozeti
+ * ?mode=process&board=<id> ile buraya geliyor; o pano açılmalı. Yoksa
+ * eskisi gibi ilk pano seçiliyor. */
+const ProcessBoard = ({ initialBoardId = null }) => {
   const { openCustomerModal } = useCustomerModal();
 
   const [boards, setBoards] = useState([]);
@@ -75,7 +78,9 @@ const ProcessBoard = () => {
       const { data } = await axios.get(`${API}/process/boards`);
       setBoards(data);
       if (data.length && !activeBoardId) {
-        setActiveBoardId(data[0].id);
+        // Adresten gelen pano varsa ve hâlâ duruyorsa onu aç.
+        const istenen = data.find((b) => b.id === initialBoardId);
+        setActiveBoardId(istenen ? istenen.id : data[0].id);
       }
     } catch (err) {
       console.error("Panolar yüklenemedi:", err);

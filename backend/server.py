@@ -4686,6 +4686,69 @@ def _renumber_stage_positions(stage_id: str):
             supabase.table("process_cards").update({"position": idx}).eq("id", row["id"]).execute()
 
 
+@api_router.get("/process/memberships")
+async def get_process_memberships(ids: str = ""):
+    """Verilen müşteriler hangi süreç panosunun hangi aşamasında duruyor.
+
+    Müşteriler sayfasında arama yapınca her sonucun altında "nerelerde var"
+    rozetleri gösteriliyor. Kanban sütunu ve eşleşen kayıtlı filtreler zaten
+    elimizdeki müşteri satırından hesaplanabiliyor; süreç panosu üyeliği ise
+    gerçek bir kayıt (process_cards), o yüzden sunucuya sormak gerekiyor.
+
+    Tek tek değil toplu: sayfada 50 satır var, her biri için ayrı istek
+    atmak 50 gidiş-geliş demekti.
+    """
+    customer_ids = [p.strip() for p in (ids or "").split(",") if p.strip()]
+    if not customer_ids:
+        return {}
+    # Üst sınır: adres uzunluğu ve sorgu maliyeti için. Sayfa boyutu en fazla
+    # 100 olduğundan pratikte hiç dolmuyor.
+    customer_ids = customer_ids[:200]
+
+    cards = (
+        supabase.table("process_cards")
+        .select("id, customer_id, board_id, stage_id")
+        .in_("customer_id", customer_ids)
+        .execute()
+        .data
+        or []
+    )
+    if not cards:
+        return {}
+
+    board_ids = list({c["board_id"] for c in cards if c.get("board_id")})
+    stage_ids = list({c["stage_id"] for c in cards if c.get("stage_id")})
+    boards = {
+        b["id"]: b for b in (
+            supabase.table("process_boards").select("id, name")
+            .in_("id", board_ids).execute().data or []
+        )
+    } if board_ids else {}
+    stages = {
+        s["id"]: s for s in (
+            supabase.table("process_stages").select("id, name, color")
+            .in_("id", stage_ids).execute().data or []
+        )
+    } if stage_ids else {}
+
+    sonuc: Dict[str, list] = {}
+    for c in cards:
+        pano = boards.get(c.get("board_id"))
+        asama = stages.get(c.get("stage_id"))
+        # Pano ya da aşama silinmişse kartı atla: yarım bir rozet
+        # ("? → Teklif") göstermek hiç göstermemekten kötü.
+        if not pano or not asama:
+            continue
+        sonuc.setdefault(c["customer_id"], []).append({
+            "board_id": pano["id"],
+            "board_name": pano.get("name") or "",
+            "stage_id": asama["id"],
+            "stage_name": asama.get("name") or "",
+            "stage_color": asama.get("color") or "",
+        })
+    return sonuc
+
+
 @api_router.get("/process/boards")
 async def list_process_boards():
     rows = (
