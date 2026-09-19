@@ -38,11 +38,23 @@ function kimlikBilgileri() {
   const a1 = process.argv[2];
   const a2 = process.argv[3];
 
-  if (a1 && a1.toLowerCase().endsWith(".json")) {
-    if (!fs.existsSync(a1)) {
+  /* Dosya mı? Uzantıya DEĞİL, gerçekten var olup olmadığına bakılıyor.
+   * Windows ".json" uzantısını gizlediği için insan dosyanın adını
+   * uzantısız görüyor ve uzantısız yazıyor; o zaman bu argüman CLIENT_ID
+   * sanılıp anlamsız bir hataya dönüşüyordu. Uzantısı yoksa ".json"
+   * eklenerek de bakılıyor. */
+  let dosyaYolu = null;
+  if (a1 && !a2) {
+    if (fs.existsSync(a1) && fs.statSync(a1).isFile()) dosyaYolu = a1;
+    else if (fs.existsSync(a1 + ".json")) dosyaYolu = a1 + ".json";
+    else if (a1.toLowerCase().endsWith(".json")) {
       console.error("Dosya bulunamadı: " + path.resolve(a1));
       process.exit(1);
     }
+  }
+
+  if (dosyaYolu) {
+    const a1 = dosyaYolu;
     let j;
     try {
       j = JSON.parse(fs.readFileSync(a1, "utf8"));
