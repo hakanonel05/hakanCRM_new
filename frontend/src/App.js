@@ -3,6 +3,8 @@ import { useState, useEffect, createContext, useContext, lazy, Suspense } from "
 import axios from "axios";
 import { isAdminUser, isSuperAdminUser } from "./lib/config";
 import { getStoredUser, fetchCurrentUser, clearStoredUser } from "./lib/auth";
+import { oturumHatasiMi, notifySessionExpired, resetSessionExpired } from "./lib/session";
+import SessionExpiredDialog from "./components/SessionExpiredDialog";
 import Layout from "./components/Layout";
 import Login from "./pages/Login";
 import AuthCallback from "./pages/AuthCallback";
@@ -19,6 +21,21 @@ axios.interceptors.request.use((config) => {
   }
   return config;
 });
+
+// Oturum düştüğünde arka uç her API çağrısına 401 döndürüyor. Sayfalar bu
+// hatayı yutup boş liste gösterdiği için ekranda "0 müşteri" yazıyor ve
+// kullanıcı verisinin gittiğini sanıyordu. Burada yakalayıp tek bir uyarı
+// gösteriyoruz. Hata yine de reddediliyor — sayfaların kendi hata yolları
+// bozulmasın.
+axios.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (oturumHatasiMi(error?.response?.status, error?.config?.url)) {
+      notifySessionExpired();
+    }
+    return Promise.reject(error);
+  }
+);
 import { CustomerModalProvider } from "./contexts/CustomerModalContext";
 import { ThemeProvider } from "./contexts/ThemeContext";
 
@@ -114,7 +131,24 @@ function App() {
         setUser(storedUser);
         setLoading(false);
         setAuthChecked(true);
-        return; // User found in localStorage, no need to call API
+        resetSessionExpired();
+        /* localStorage'a güvenip burada durmak, sunucudaki oturum düştüğünde
+         * uygulamanın "giriş yapılmış" gibi açılmasına yol açıyordu: kenar
+         * çubuğunda ad görünüyor ama her istek 401 dönüyor ve ekran boş
+         * kalıyordu. Artık arka planda sunucuya da soruyoruz.
+         *
+         * Ekranı bekletmiyoruz (await yok): yerel kullanıcıyla anında
+         * çiziliyor, doğrulama sonucu ancak oturum GERÇEKTEN düştüyse
+         * uyarıyı açıyor. Giriş ekranlarında sormuyoruz — orada 401
+         * zaten beklenen durum. */
+        const yol = window.location.pathname;
+        if (!yol.startsWith("/login") && !yol.startsWith("/auth/")) {
+          fetchCurrentUser().then((taze) => {
+            if (taze) setUser(taze);
+            else notifySessionExpired();
+          });
+        }
+        return;
       }
 
       // Only call API if no localStorage user (for Emergent Auth callback)
@@ -198,6 +232,9 @@ function App() {
           </Routes>
         </BrowserRouter>
         <Toaster position="top-right" richColors />
+        {/* Router'ın dışında: oturum hangi sayfadayken düşerse düşsün
+            uyarı görünsün. */}
+        <SessionExpiredDialog />
       </div>
       </ThemeProvider>
     </AuthContext.Provider>
