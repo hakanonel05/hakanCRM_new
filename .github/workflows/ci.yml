@@ -7,7 +7,11 @@ name: Kontrol (CI)
 
 on:
   push:
-    branches: [main, master]
+    # fix/gecmis-kullanici-kaydi GEÇİCİ: bu makinede Python kurulu değil,
+    # arka uç değişikliğini yerelde derleyemiyorum. Render main'i CI'ı
+    # beklemeden dağıttığı için önce burada doğrulanıyor.
+    # Doğrulandıktan sonra bu satır geri alınacak.
+    branches: [main, master, fix/gecmis-kullanici-kaydi]
   pull_request:
 
 jobs:
