@@ -57,7 +57,11 @@ const Notifications = () => {
 
   const handleUpdateNotificationDays = async (days) => {
     try {
-      await axios.patch(`${API}/users/me/notifications?days=${days}`, {}, { withCredentials: true });
+      /* Uç adresi yanlıştı: PATCH /users/me/notifications diye bir şey
+       * hiç olmadı, çağrı 404 dönüyordu ve kullanıcı her seferinde
+       * "Ayar güncellenemedi" görüyordu — ayar hiç kaydedilmiyordu.
+       * Arka uçtaki gerçek uç bu. */
+      await axios.put(`${API}/settings/notifications`, { notification_days: days }, { withCredentials: true });
       setNotificationDays(days);
       toast.success(`Bildirim süresi ${days} gün olarak ayarlandı`);
       fetchNotifications();

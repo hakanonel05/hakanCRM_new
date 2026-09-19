@@ -21,6 +21,7 @@ import shutil
 from passlib.context import CryptContext
 from functools import lru_cache
 import time as _time
+import threading
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 import resend
@@ -891,6 +892,24 @@ def get_customers(
         }
 
 # Simple in-memory cache for filter options
+# Önbellek doldurma kilitleri.
+#
+# Sıcak uçlar iş parçacığı havuzunda çalışmaya başlayınca (bkz. /customers
+# üstündeki not) istekler gerçekten paralelleşti. Yan etkisi: önbellek
+# boşaldığı anda gelen 3 istek, 3.099 satırı ÜÇ KEZ birden çekmeye kalkıyor.
+# Kilit sayesinde biri hesaplarken ötekiler bekliyor ve hazır sonucu alıyor.
+# Ücretsiz Render katmanında 512 MB bellek var; üç kopya eş zamanlı tutmak
+# gereksiz bir risk.
+_cache_locks = {}
+_cache_locks_guard = threading.Lock()
+
+
+def _cache_lock(ad: str) -> threading.Lock:
+    with _cache_locks_guard:
+        if ad not in _cache_locks:
+            _cache_locks[ad] = threading.Lock()
+        return _cache_locks[ad]
+
 _filter_options_cache = {"data": None, "timestamp": 0}
 _FILTER_CACHE_TTL = 60  # 60 seconds cache
 
@@ -3042,7 +3061,21 @@ def get_stats():
     now = _time.time()
     if _stats_cache["data"] and (now - _stats_cache["timestamp"]) < _STATS_CACHE_TTL:
         return _stats_cache["data"]
-    
+
+    # Bu uç 3.099 satırı dört turda çekiyor — en pahalısı. Kilit olmadan
+    # önbellek boşaldığında gelen her istek aynı işi baştan yapardı.
+    with _cache_lock("stats"):
+        # Kilidi bekleyen ikinci istek için yeniden bak: ilk istek bu arada
+        # önbelleği doldurmuş olabilir.
+        now = _time.time()
+        if _stats_cache["data"] and (now - _stats_cache["timestamp"]) < _STATS_CACHE_TTL:
+            return _stats_cache["data"]
+        return _get_stats_uncached()
+
+
+def _get_stats_uncached():
+    """/stats'ın asıl gövdesi. Kilit içinde çağrılıyor."""
+    now = _time.time()
     # Only fetch needed fields - paginate to bypass Supabase 1000 row limit
     customers = fetch_all_rows(
         "customers",
@@ -4014,8 +4047,15 @@ async def get_allowed_users():
         return []
 
 @api_router.post("/allowed-users")
-async def add_allowed_user(data: dict):
+async def add_allowed_user(data: dict, request: Request):
     """Add email to whitelist"""
+    # GÜVENLİK: allowed_users bu sistemin erişim sınırı — /auth/register
+    # yalnızca bu listedekileri kabul ediyor. Yetki kontrolü YOKTU: giriş
+    # yapmış herhangi biri dışarıdan birinin e-postasını ekleyip ona CRM
+    # erişimi verebiliyordu.
+    user = await get_current_user_from_request(request)
+    if not check_admin_permission(user):
+        raise HTTPException(status_code=403, detail="Bu işlem için admin yetkisi gerekli")
     try:
         email = data.get("email", "").lower().strip()
         
@@ -4046,8 +4086,13 @@ async def add_allowed_user(data: dict):
         raise HTTPException(status_code=500, detail=f"Kullanıcı eklenirken hata: {str(e)}")
 
 @api_router.delete("/allowed-users/{user_id}")
-async def remove_allowed_user(user_id: str):
+async def remove_allowed_user(user_id: str, request: Request):
     """Remove email from whitelist"""
+    # GÜVENLİK: yetki kontrolü yoktu — giriş yapmış herhangi biri bir
+    # meslektaşını erişim listesinden çıkarıp sistemden kilitleyebiliyordu.
+    user = await get_current_user_from_request(request)
+    if not check_admin_permission(user):
+        raise HTTPException(status_code=403, detail="Bu işlem için admin yetkisi gerekli")
     try:
         response = supabase.table("allowed_users").delete().eq("id", user_id).execute()
         return {"message": "Kullanıcı silindi"}
@@ -4523,13 +4568,17 @@ async def get_calendar_events():
     visits = fetch_all_rows("visits", "*")
     customers = fetch_all_rows("customers", "id, company_name, next_followup_date")
     
+    # id -> firma adı sözlüğü. Önceden her ziyaret için (üstelik İKİ KEZ)
+    # 3.099 müşteride doğrusal arama yapılıyordu: 500 ziyarette 3 milyon
+    # karşılaştırma. Sözlükte aynı iş tek geçişte bitiyor.
+    musteri_adi = {c["id"]: c.get("company_name") or "Bilinmiyor" for c in customers}
+
     events = []
-    
+
     for visit in visits:
         if visit.get("visit_date"):
-            customer = next((c for c in customers if c["id"] == visit["customer_id"]), None)
-            customer_name = customer["company_name"] if customer else "Bilinmiyor"
-            
+            customer_name = musteri_adi.get(visit.get("customer_id"), "Bilinmiyor")
+
             events.append({
                 "id": f"visit_{visit['id']}",
                 "title": f"Ziyaret: {customer_name}",
@@ -4541,12 +4590,12 @@ async def get_calendar_events():
             })
         
         if visit.get("next_visit_date"):
-            customer = next((c for c in customers if c["id"] == visit["customer_id"]), None)
-            customer_name = customer["company_name"] if customer else "Bilinmiyor"
-            
+            customer_name = musteri_adi.get(visit.get("customer_id"), "Bilinmiyor")
+
             events.append({
                 "id": f"next_visit_{visit['id']}",
-                "title": f"Planl Ziyaret: {customer_name}",
+                # "Planl" yazıyordu — takvimde görünen metin.
+                "title": f"Planlı Ziyaret: {customer_name}",
                 "start": visit["next_visit_date"],
                 "type": "planned_visit",
                 "customer_id": visit["customer_id"],
@@ -4674,7 +4723,21 @@ def get_kanban_customers(group_by: str = "status"):
     cached = _kanban_cache.get(group_by)
     if cached and (now - cached["timestamp"]) < _KANBAN_CACHE_TTL:
         return cached["data"]
-    
+
+    # /stats ile aynı sebep: bu uç da bütün müşterileri çekiyor. Kilit
+    # gruplama alanı başına, çünkü farklı group_by farklı sorgu demek ve
+    # birbirlerini beklemeleri gereksiz.
+    with _cache_lock(f"kanban:{group_by}"):
+        now = _time.time()
+        cached = _kanban_cache.get(group_by)
+        if cached and (now - cached["timestamp"]) < _KANBAN_CACHE_TTL:
+            return cached["data"]
+        return _get_kanban_customers_uncached(group_by)
+
+
+def _get_kanban_customers_uncached(group_by: str):
+    """/kanban/customers'ın asıl gövdesi. Kilit içinde çağrılıyor."""
+    now = _time.time()
     # Only select fields needed for Kanban cards
     kanban_fields = "id, company_name, market, application, city, status, potential_level, assigned_to, contact_info, products, competitor, partner"
     
@@ -5990,8 +6053,12 @@ async def get_notification_settings():
         }
 
 @api_router.post("/notification-settings")
-async def save_notification_settings(settings: dict):
+async def save_notification_settings(settings: dict, request: Request):
     """Save email notification settings"""
+    # Bildirim ayarları admin işi.
+    user = await get_current_user_from_request(request)
+    if not check_admin_permission(user):
+        raise HTTPException(status_code=403, detail="Bu işlem için admin yetkisi gerekli")
     try:
         # Check if settings exist
         existing = supabase.table("notification_settings").select("*").execute()
@@ -6010,8 +6077,12 @@ async def save_notification_settings(settings: dict):
         raise HTTPException(status_code=500, detail=str(e))
 
 @api_router.post("/notification-settings/add-recipient")
-async def add_notification_recipient(recipient: dict):
+async def add_notification_recipient(recipient: dict, request: Request):
     """Add a new email recipient"""
+    # Alıcı eklemek, CRM özetini dışarı bir adrese göndermek demek.
+    user = await get_current_user_from_request(request)
+    if not check_admin_permission(user):
+        raise HTTPException(status_code=403, detail="Bu işlem için admin yetkisi gerekli")
     try:
         settings = await get_notification_settings()
         recipients = settings.get("recipients", [])
@@ -6040,8 +6111,12 @@ async def add_notification_recipient(recipient: dict):
         raise HTTPException(status_code=500, detail=str(e))
 
 @api_router.delete("/notification-settings/recipient/{recipient_id}")
-async def remove_notification_recipient(recipient_id: str):
+async def remove_notification_recipient(recipient_id: str, request: Request):
     """Remove an email recipient"""
+    # Bildirim alıcısı silmek admin işi.
+    user = await get_current_user_from_request(request)
+    if not check_admin_permission(user):
+        raise HTTPException(status_code=403, detail="Bu işlem için admin yetkisi gerekli")
     try:
         settings = await get_notification_settings()
         recipients = settings.get("recipients", [])
