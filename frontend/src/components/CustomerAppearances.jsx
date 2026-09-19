@@ -32,8 +32,17 @@ const Rozet = ({ icon: Icon, renk, baslik, children, onClick, testid }) => (
   </button>
 );
 
-export default function CustomerAppearances({ customer, processCards, kanbanViews, savedFilters, matchesFilter }) {
+export default function CustomerAppearances({ customer, processCards, kanbanViews, savedFilters, matchesFilter, returnTo }) {
   const navigate = useNavigate();
+
+  /* Gidilen sayfa "← Müşteri aramasına dön" bağlantısı gösterebilsin diye
+   * o anki arama adresini taşıyoruz. Tarayıcının geri tuşu da çalışıyor
+   * (arama artık adreste), ama kullanıcı kanban'da gezindikten sonra kaç
+   * adım geri gideceğini bilemez — görünür bir dönüş yolu gerekiyor. */
+  const ekle = (yol) =>
+    returnTo
+      ? `${yol}${yol.includes("?") ? "&" : "?"}from=${encodeURIComponent(returnTo)}`
+      : yol;
 
   const surecler = processCards || [];
 
@@ -67,7 +76,7 @@ export default function CustomerAppearances({ customer, processCards, kanbanView
           renk="bg-status-success-bg text-status-success-fg border-status-success-line hover:opacity-80"
           baslik={`Süreç panosu: ${s.board_name} → ${s.stage_name}`}
           testid={`appear-process-${s.board_id}`}
-          onClick={() => navigate(`/kanban?mode=process&board=${s.board_id}`)}
+          onClick={() => navigate(ekle(`/kanban?mode=process&board=${s.board_id}`))}
         >
           {s.board_name} → {s.stage_name}
         </Rozet>
@@ -80,7 +89,7 @@ export default function CustomerAppearances({ customer, processCards, kanbanView
           renk="bg-muted text-foreground border-border hover:bg-muted/70"
           baslik={`Kanban "${view.name}" görünümünde "${sutun}" sütununda`}
           testid={`appear-kanban-${view.id}`}
-          onClick={() => navigate(`/kanban?view=${view.id}`)}
+          onClick={() => navigate(ekle(`/kanban?view=${view.id}`))}
         >
           {view.name}: {sutun}
         </Rozet>
@@ -93,7 +102,7 @@ export default function CustomerAppearances({ customer, processCards, kanbanView
           renk="bg-status-warning-bg text-status-warning-fg border-status-warning-line hover:opacity-80"
           baslik={`"${f.name}" kayıtlı filtresine giriyor`}
           testid={`appear-filter-${f.id}`}
-          onClick={() => navigate(`/filters?apply=${f.id}`)}
+          onClick={() => navigate(ekle(`/filters?apply=${f.id}`))}
         >
           {f.name}
         </Rozet>

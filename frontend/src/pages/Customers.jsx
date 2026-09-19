@@ -489,7 +489,15 @@ const Customers = () => {
   };
   
   // Filters
-  const [search, setSearch] = useState("");
+  /* Arama adresten okunuyor ve adrese yazılıyor.
+   *
+   * Önceden yalnızca React durumundaydı: "nida" arayıp bir rozete tıklayınca
+   * kanban/filtre sayfasına gidiliyor, geri dönünce arama kutusu boş
+   * kalıyordu — kullanıcı yerini kaybediyordu. Adreste durunca geri/ileri
+   * tuşları, yenileme ve bağlantı paylaşmak da çalışıyor. */
+  const [search, setSearch] = useState(
+    () => new URLSearchParams(window.location.search).get("search") || ""
+  );
   // (debouncedSearch now derived inline below, no separate state)
   // Filtreler sayfa açılışında URL'deki ?market=&city=&status=... gibi
   // parametrelerden okunur — böylece başka bir sayfadan (ör. Türkiye
@@ -879,6 +887,30 @@ const Customers = () => {
   });
 
   // === Search match annotation + relevance sort (client-side, runs only when there's a search term) ===
+  /* Aramayı adres çubuğuna yansıt.
+   *
+   * replaceState kullanılıyor, pushState değil: her harfte bir geçmiş kaydı
+   * oluşsa "nida" yazan biri geri tuşuna 4 kez basmak zorunda kalırdı.
+   * Rozetten kanban'a gidip geri dönüldüğünde arama yerinde duruyor. */
+  useEffect(() => {
+    const p = new URLSearchParams(window.location.search);
+    const mevcut = p.get("search") || "";
+    if (mevcut === search) return;
+    if (search) p.set("search", search);
+    else p.delete("search");
+    const qs = p.toString();
+    window.history.replaceState(
+      null, "", window.location.pathname + (qs ? `?${qs}` : "")
+    );
+  }, [search]);
+
+  /* Rozetten gidilen sayfada "aramaya dön" bağlantısı gösterebilmek için
+   * o anki adresi taşıyoruz. */
+  const donusAdresi = useMemo(
+    () => window.location.pathname + (search ? `?search=${encodeURIComponent(search)}` : ""),
+    [search]
+  );
+
   const normalizedNeedle = useMemo(() => normalize(search.trim()), [search]);
 
   /* Süreç panosu üyeliğini yalnızca arama yapılırken ve yalnızca ekrandaki
@@ -2020,6 +2052,7 @@ const Customers = () => {
                                 kanbanViews={kanbanViews}
                                 savedFilters={savedFilters}
                                 matchesFilter={matchesFilter}
+                                returnTo={donusAdresi}
                               />
                             </div>
                           )}

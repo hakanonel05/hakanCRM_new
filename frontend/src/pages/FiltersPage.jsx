@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import Breadcrumb from "../components/Breadcrumb";
+import ReturnToSearch from "../components/ReturnToSearch";
 import { useNavigate } from "react-router-dom";
 import { useCustomerModal } from "../contexts/CustomerModalContext";
 import axios from "axios";
@@ -347,7 +348,11 @@ const FiltersPage = () => {
       {/* Header */}
       <div className="flex items-center justify-between mb-3 flex-shrink-0">
         <div>
-          <Breadcrumb className="mb-1" />
+          <div className="mb-1 flex items-center gap-2">
+            <Breadcrumb />
+            {/* Müşteri aramasından rozetle gelindiyse görünür dönüş yolu. */}
+            <ReturnToSearch />
+          </div>
           <h1 className="text-xl sm:text-2xl font-bold text-foreground flex items-center gap-2">
             <Filter className="w-6 h-6 text-primary" />
             Filtreler

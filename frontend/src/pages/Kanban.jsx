@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import Breadcrumb from "../components/Breadcrumb";
+import ReturnToSearch from "../components/ReturnToSearch";
 import axios from "axios";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import { useCustomerModal } from "../contexts/CustomerModalContext";
@@ -355,7 +356,11 @@ const Kanban = () => {
       {/* Header */}
       <div className="page-header">
         <div className="flex-1">
-          <Breadcrumb className="mb-1" />
+          <div className="mb-1 flex items-center gap-2">
+            <Breadcrumb />
+            {/* Müşteri aramasından rozetle gelindiyse görünür dönüş yolu. */}
+            <ReturnToSearch />
+          </div>
           <h1 className="page-title">Kanban Panosu</h1>
           <p className="page-subtitle">
             {boardMode === "status"
