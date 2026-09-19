@@ -185,10 +185,18 @@ export default function CustomerHistoryModal({ open, onClose, customerId, custom
                         <span className="rounded border border-border px-1 py-0.5 text-[10px] font-medium text-muted-foreground">
                           {TIP_ETIKET[k.type] || k.type}
                         </span>
-                        <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                        <span
+                          className="flex items-center gap-1 text-xs text-muted-foreground"
+                          title={
+                            k.user_name
+                              ? k.user_email || k.user_name
+                              : "Bu kayıt, kimin yaptığı tutulmaya başlanmadan önce oluşmuş. Eski kayıtlar için bu bilgi veri tabanında hiç yok."
+                          }
+                        >
                           <User className="h-3 w-3" />
-                          {/* Eski kayıtlarda kimin yaptığı tutulmuyordu. */}
-                          {k.user_name || "bilinmiyor"}
+                          {k.user_name || (
+                            <span className="italic">kaydedilmemiş</span>
+                          )}
                         </span>
                       </div>
 
