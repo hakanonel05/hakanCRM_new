@@ -7,7 +7,7 @@ name: Kontrol (CI)
 
 on:
   push:
-    branches: [main, master, bakim/surum-sabitleme-ci]  # GEÇİCİ
+    branches: [main, master]
   pull_request:
 
 jobs:
