@@ -7,7 +7,7 @@ name: Kontrol (CI)
 
 on:
   push:
-    branches: [main, master]
+    branches: [main, master, bakim/surum-sabitleme-ci]  # GEÇİCİ
   pull_request:
 
 jobs:
@@ -32,7 +32,17 @@ jobs:
           ADMIN_EMAIL: dummy@ci.local
         run: |
           python -m py_compile server.py
-          python -c "import server; print('server.py hatasiz yüklendi, endpoint sayisi:', len(server.app.routes))"
+          python -c "
+          import server
+          # len(app.routes) SAYMIYOR: FastAPI 0.141'den beri include_router
+          # tek bir _IncludedRouter girdisi bırakıyor, bu sayı uç sayısı
+          # değil (her zaman 5). Kontrol vakıf hale gelmişti. Uçlar
+          # api_router üzerinde sayılıyor ve makul bir alt sınır aranıyor:
+          # rotalar kaydedilmezse ya da toplu silinirse CI kırmızı olsun.
+          n = len(server.api_router.routes)
+          print('server.py hatasiz yüklendi, endpoint sayisi:', n)
+          assert n > 100, f'Beklenenden az uç kayıtlı: {n}'
+          "
 
   frontend:
     name: Frontend derleme kontrolü
