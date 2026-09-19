@@ -70,6 +70,7 @@ import SearchInput from "../components/SearchInput";
 import Breadcrumb from "../components/Breadcrumb";
 import { normalize, computeMatchInfo, highlightMatch, FIELD_LABELS, matchesFilter } from "../utils/searchHelpers";
 import CustomerAppearances from "../components/CustomerAppearances";
+import CustomerHistoryModal from "../components/CustomerHistoryModal";
 import { swrCache } from "../utils/swrCache";
 import MetinFiltre from "../components/MetinFiltre";
 import InlineTextEdit from "../components/InlineTextEdit";
@@ -542,6 +543,8 @@ const Customers = () => {
   const [filterLogic, setFilterLogic] = useState("AND");
   const [activeFilters, setActiveFilters] = useState([]);
   const [savedFilters, setSavedFilters] = useState([]);
+  // Değişiklik geçmişi penceresi: {id, name} ya da null
+  const [historyFor, setHistoryFor] = useState(null);
   // "Nerelerde var" rozetleri (yalnızca arama yapılırken dolduruluyor)
   const [kanbanViews, setKanbanViews] = useState([]);
   const [processMap, setProcessMap] = useState({}); // customer_id -> [kart...]
@@ -1978,8 +1981,10 @@ const Customers = () => {
                 {displayCustomers.map((customer, index) => (
                   <tr 
                     key={customer.id}
-                    className={`border-b border-border/60 transition-colors ${
-                      selectedIds.has(customer.id) 
+                    /* "group": göz ikonu yalnızca satırın üstüne gelince
+                        beliriyor, 50 satırda sürekli durmuyor. */
+                    className={`group border-b border-border/60 transition-colors ${
+                      selectedIds.has(customer.id)
                         ? "bg-primary/5"
                         : getRowBackgroundColor(customer, customerCalls[customer.id])
                     }`}
@@ -2059,6 +2064,21 @@ const Customers = () => {
                         </div>
                         <div className="flex items-center gap-1 flex-shrink-0">
                           {customer.is_followup && <Bell className="w-3.5 h-3.5 text-status-warning-fg" title="Takipte" />}
+                          {/* Değişiklik geçmişi. Satırın tamamı müşteri
+                              kartını açtığı için tıklama yukarı sızdırılmıyor. */}
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setHistoryFor({ id: customer.id, name: customer.company_name });
+                            }}
+                            title="Değişiklik geçmişi — kim ne zaman ne değiştirdi"
+                            aria-label={`${customer.company_name || "Müşteri"} değişiklik geçmişi`}
+                            data-testid={`history-open-${customer.id}`}
+                            className="w-6 h-6 rounded flex items-center justify-center text-muted-foreground opacity-0 group-hover:opacity-100 focus:opacity-100 hover:text-foreground hover:bg-muted transition-opacity"
+                          >
+                            <Eye className="w-3.5 h-3.5" />
+                          </button>
                         </div>
                       </div>
                     </td>
@@ -2273,6 +2293,13 @@ const Customers = () => {
           </div>
         </DialogContent>
       </Dialog>
+
+      <CustomerHistoryModal
+        open={!!historyFor}
+        onClose={() => setHistoryFor(null)}
+        customerId={historyFor?.id}
+        customerName={historyFor?.name}
+      />
     </div>
   );
 };

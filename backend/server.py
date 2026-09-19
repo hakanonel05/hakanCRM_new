@@ -114,6 +114,68 @@ async def log_activity(
     except Exception as e:
         logging.error(f"Activity log error: {e}")
 
+
+# ============ DEĞİŞİKLİK GEÇMİŞİ ============
+# Müşteri kartındaki göz ikonu "kim, ne zaman, neyi neyden neye çevirdi"
+# sorusunu yanıtlıyor. Önceden activity_log yalnızca değişen ALAN ADLARINI
+# yazıyordu (o da ilk üçünü) ve kimin yaptığını HİÇ kaydetmiyordu —
+# user_name parametresi update_customer'dan hiç geçilmiyordu.
+
+# Büyük alanların (contacts, notes_list, documents) tamamını geçmişe
+# yazmak activity_log'u şişirirdi; özetleniyor.
+_GECMIS_METIN_SINIRI = 300
+
+
+def _gecmis_deger(v):
+    """Bir alan değerini geçmişte saklanacak hale getirir."""
+    if v is None or v == "":
+        return ""
+    if isinstance(v, bool):
+        return "Evet" if v else "Hayır"
+    if isinstance(v, (int, float)):
+        return v
+    if isinstance(v, list):
+        # Etiket/ürün gibi kısa listeler okunabilir; uzun kayıt listeleri
+        # (notes_list, documents) yalnızca sayıyla özetleniyor.
+        if all(isinstance(x, (str, int, float)) for x in v):
+            metin = ", ".join(str(x) for x in v)
+            return metin[:_GECMIS_METIN_SINIRI]
+        return f"{len(v)} kayıt"
+    if isinstance(v, dict):
+        try:
+            return json.dumps(v, ensure_ascii=False)[:_GECMIS_METIN_SINIRI]
+        except Exception:
+            return "(veri)"
+    return str(v)[:_GECMIS_METIN_SINIRI]
+
+
+def _degisiklikleri_bul(eski: dict, yeni: dict) -> list:
+    """Değişen alanları [{field, old, new}] olarak döndürür.
+
+    Alan ETİKETLERİ burada üretilmiyor, ham alan adı saklanıyor: etiketi ön
+    yüz çeviriyor. Böylece "Takip Eden"in adı yarın değişirse eski kayıtlar
+    da yeni adla görünüyor, geçmişi yeniden yazmak gerekmiyor.
+    """
+    degisimler = []
+    for alan, yeni_deger in yeni.items():
+        if alan in ("updated_at", "id"):
+            continue
+        eski_deger = eski.get(alan)
+        if eski_deger == yeni_deger:
+            continue
+        e, y = _gecmis_deger(eski_deger), _gecmis_deger(yeni_deger)
+        if e == y:
+            continue  # yalnızca biçim farkı (ör. None -> "")
+        degisimler.append({"field": alan, "old": e, "new": y})
+    return degisimler
+
+
+def _istek_kullanicisi(request) -> dict:
+    """Global kimlik ara katmanı kullanıcıyı request.state.user'a koyuyor."""
+    u = getattr(getattr(request, "state", None), "user", None) or {}
+    return {"email": u.get("email", ""), "name": u.get("name") or u.get("email", "")}
+
+
 # ============ MODELS ============
 
 class ContactPerson(BaseModel):
@@ -925,6 +987,50 @@ async def get_customer(customer_id: str):
         raise HTTPException(status_code=404, detail="Müşteri bulunamadı")
     return response.data[0]
 
+@api_router.get("/customers/{customer_id}/history")
+def get_customer_history(customer_id: str, limit: int = 300):
+    """Bir müşterinin değişiklik geçmişi — göz ikonu bunu gösteriyor.
+
+    activity_log'dan okunuyor, yani yalnızca alan değişiklikleri değil o
+    müşteriye ait ziyaret, arama, dosya, kişi kaydı da aynı zaman çizgisinde
+    çıkıyor. Kullanıcının istediği "o müşteride yapılan her değişim" bu.
+
+    Önbelleğe alınmıyor: geçmiş ekranı nadiren açılıyor ve açıldığında
+    bayat veri göstermesi tam da güvenilmesi gereken yerde güveni bozar.
+
+    "def" (async değil) — dosyadaki /customers notuna bakın.
+    """
+    try:
+        resp = (
+            supabase.table("activity_log")
+            .select("*")
+            .eq("customer_id", customer_id)
+            .order("created_at", desc=True)
+            .limit(max(1, min(limit, 1000)))
+            .execute()
+        )
+    except Exception as e:
+        logging.error("Müşteri geçmişi okunamadı (%s): %s", customer_id, e)
+        raise HTTPException(status_code=500, detail="Geçmiş okunamadı")
+
+    kayitlar = []
+    for log in resp.data or []:
+        meta = log.get("metadata") or {}
+        # Eski kayıtlarda metadata yok: o dönem yalnızca alan adları
+        # yazılıyordu. Boş "changes" ile dönüyorlar, ön yüz başlığı gösteriyor.
+        kayitlar.append({
+            "id": log.get("id"),
+            "type": log.get("activity_type", ""),
+            "title": log.get("title", ""),
+            "subtitle": log.get("subtitle", ""),
+            "user_name": log.get("user_name") or "",
+            "user_email": log.get("user_email") or "",
+            "created_at": log.get("created_at", ""),
+            "changes": meta.get("changes") or [],
+        })
+    return {"history": kayitlar, "count": len(kayitlar)}
+
+
 @api_router.get("/calls/latest-per-customer")
 def get_latest_calls_per_customer():
     """Return only the latest call outcome per customer - lightweight endpoint for Customers table.
@@ -968,7 +1074,7 @@ def get_latest_calls_per_customer():
 
 
 @api_router.put("/customers/{customer_id}", response_model=Customer)
-async def update_customer(customer_id: str, customer: CustomerUpdate):
+async def update_customer(customer_id: str, customer: CustomerUpdate, request: Request):
     response = supabase.table("customers").select("*").eq("id", customer_id).execute()
     if not response.data:
         raise HTTPException(status_code=404, detail="Müşteri bulunamadı")
@@ -998,35 +1104,46 @@ async def update_customer(customer_id: str, customer: CustomerUpdate):
     
     # Log specific changes
     company_name = new_customer.get("company_name", "")
-    
-    # Check status change
+    kullanici = _istek_kullanicisi(request)
+
+
+    # Alan bazında eski → yeni farkı. Hangi kayıt tipi yazılırsa yazılsın
+    # farkın TAMAMI metadata'ya giriyor; göz ikonundaki geçmiş bunu okuyor.
+    degisimler = _degisiklikleri_bul(old_customer, update_data)
+
+    # Aşağıdaki if/elif sırası bilerek korundu: Dashboard akışı ve durum
+    # analizi "status_changed" / "followup_changed" tiplerini bekliyor.
+    # Değişen yalnızca kayıt TİPİ; fark her durumda tam yazılıyor, yani
+    # güncelleme başına tek kayıt oluşuyor ve geçmişte tekrar görünmüyor.
+    ortak = {
+        "customer_id": customer_id,
+        "customer_name": company_name,
+        "user_email": kullanici["email"],
+        "user_name": kullanici["name"],
+        "metadata": {"changes": degisimler},
+    }
+
     if "status" in update_data and old_customer.get("status") != update_data.get("status"):
         await log_activity(
             activity_type="status_changed",
             title=f"Durum değişti: {company_name}",
             subtitle=f"{old_customer.get('status', 'Yok')} → {update_data.get('status')}",
-            customer_id=customer_id,
-            customer_name=company_name
+            **ortak,
         )
-    # Check follow-up change
     elif "is_followup" in update_data and old_customer.get("is_followup") != update_data.get("is_followup"):
-        status = "Takibe alındı" if update_data.get("is_followup") else "Takipten çıkarıldı"
+        durum = "Takibe alındı" if update_data.get("is_followup") else "Takipten çıkarıldı"
         await log_activity(
             activity_type="followup_changed",
-            title=f"{status}: {company_name}",
+            title=f"{durum}: {company_name}",
             subtitle="",
-            customer_id=customer_id,
-            customer_name=company_name
+            **ortak,
         )
-    # General update
-    elif len(update_data) > 1:  # More than just updated_at
-        changed_fields = [k for k in update_data.keys() if k != "updated_at"]
+    elif degisimler:
         await log_activity(
             activity_type="customer_updated",
             title=f"Güncellendi: {company_name}",
-            subtitle=f"Değişen: {', '.join(changed_fields[:3])}",
-            customer_id=customer_id,
-            customer_name=company_name
+            subtitle=f"{len(degisimler)} alan değişti",
+            **ortak,
         )
     
     return new_customer
@@ -4651,33 +4768,76 @@ async def delete_kanban_view(view_id: str):
     supabase.table("kanban_views").delete().eq("id", view_id).execute()
     return {"message": "Kanban görünümü silindi"}
 
+# Kanban'da kart sürüklemek de bir değişiklik. Bu iki uç önceden HİÇBİR
+# kayıt bırakmıyordu: müşterinin durumu değişiyor ama geçmişte izi yok,
+# kimin taşıdığı hiç bilinmiyordu. Artık ötekilerle aynı farkı yazıyorlar.
 @api_router.patch("/kanban/customers/{customer_id}/status")
-async def update_customer_status(customer_id: str, new_status: str = Query(...)):
+async def update_customer_status(customer_id: str, request: Request, new_status: str = Query(...)):
     valid_statuses = [s["title"] for s in KANBAN_STATUSES]
     if new_status not in valid_statuses:
         raise HTTPException(status_code=400, detail=f"Geçersiz durum. Geçerli durumlar: {', '.join(valid_statuses)}")
-    
+
+    onceki = supabase.table("customers").select("id, company_name, status").eq("id", customer_id).execute()
+    eski = (onceki.data or [{}])[0]
+
     supabase.table("customers").update({
         "status": new_status,
         "updated_at": datetime.now(timezone.utc).isoformat()
     }).eq("id", customer_id).execute()
-    
+
     _invalidate_kanban_cache()
     _stats_cache["data"] = None
+
+    if eski.get("status") != new_status:
+        k = _istek_kullanicisi(request)
+        ad = eski.get("company_name", "")
+        await log_activity(
+            activity_type="status_changed",
+            title=f"Durum değişti: {ad}",
+            subtitle=f"{eski.get('status', 'Yok')} → {new_status}",
+            customer_id=customer_id,
+            customer_name=ad,
+            user_email=k["email"],
+            user_name=k["name"],
+            metadata={"changes": [{"field": "status",
+                                   "old": eski.get("status", ""),
+                                   "new": new_status}],
+                      "source": "kanban"},
+        )
     return {"message": "Durum güncellendi", "new_status": new_status}
 
 @api_router.patch("/kanban/customers/{customer_id}/field")
-async def update_customer_field(customer_id: str, field: str = Query(...), value: str = Query(...)):
+async def update_customer_field(customer_id: str, request: Request, field: str = Query(...), value: str = Query(...)):
     valid_fields = list(KANBAN_GROUP_FIELDS.keys())
     if field not in valid_fields:
         raise HTTPException(status_code=400, detail=f"Geçersiz alan. Geçerli alanlar: {', '.join(valid_fields)}")
-    
+
+    onceki = supabase.table("customers").select(f"id, company_name, {field}").eq("id", customer_id).execute()
+    eski = (onceki.data or [{}])[0]
+
     supabase.table("customers").update({
         field: value,
         "updated_at": datetime.now(timezone.utc).isoformat()
     }).eq("id", customer_id).execute()
-    
+
     _invalidate_kanban_cache()
+
+    if eski.get(field) != value:
+        k = _istek_kullanicisi(request)
+        ad = eski.get("company_name", "")
+        await log_activity(
+            activity_type="customer_updated",
+            title=f"Güncellendi: {ad}",
+            subtitle="1 alan değişti",
+            customer_id=customer_id,
+            customer_name=ad,
+            user_email=k["email"],
+            user_name=k["name"],
+            metadata={"changes": [{"field": field,
+                                   "old": _gecmis_deger(eski.get(field)),
+                                   "new": _gecmis_deger(value)}],
+                      "source": "kanban"},
+        )
     return {"message": "Alan güncellendi", "field": field, "value": value}
 
 # ============ PROCESS BOARDS (manuel süreç panoları) ============

@@ -9,6 +9,7 @@ import {
   Globe,
   MapPin,
   Calendar,
+  Eye,
   Bell,
   Users,
   Pencil,
@@ -64,6 +65,7 @@ import { useAuth } from "../App";
 import CustomerEditModal from "../components/CustomerEditModal";
 import VisitModal from "../components/VisitModal";
 
+import CustomerHistoryModal from "../components/CustomerHistoryModal";
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 // Call status options from image
@@ -93,6 +95,17 @@ const ResponsiveScroll = ({ isNarrow, className = "", children }) => {
   return <ScrollArea className={className}>{children}</ScrollArea>;
 };
 
+/* "19/09/26 - 10:30" — iki haneli yıl ve saat bilerek.
+ * toLocaleString("tr-TR") "19.09.2026 10:30:00" veriyor; saniye gereksiz,
+ * damga kısa kalmalı. */
+const damgaBicimi = (iso) => {
+  const d = new Date(iso);
+  if (isNaN(d)) return "";
+  const iki = (n) => String(n).padStart(2, "0");
+  return `${iki(d.getDate())}/${iki(d.getMonth() + 1)}/${String(d.getFullYear()).slice(-2)}` +
+    ` - ${iki(d.getHours())}:${iki(d.getMinutes())}`;
+};
+
 const CustomerDetailPage = ({ customerId: propCustomerId, isModal = false, onClose, onNavigateToFull }) => {
   const params = useParams();
   const id = propCustomerId || params.id;
@@ -105,6 +118,8 @@ const CustomerDetailPage = ({ customerId: propCustomerId, isModal = false, onClo
   const [isNarrow, setIsNarrow] = useState(
     typeof window !== "undefined" ? window.innerWidth < 1024 : false
   );
+  // Değişiklik geçmişi penceresi (son güncelleme damgasının yanındaki göz)
+  const [historyOpen, setHistoryOpen] = useState(false);
   useEffect(() => {
     const check = () => setIsNarrow(window.innerWidth < 1024);
     check();
@@ -729,6 +744,30 @@ const CustomerDetailPage = ({ customerId: propCustomerId, isModal = false, onClo
                     <Bell className="w-5 h-5 text-status-warning-fg fill-status-warning-bg flex-shrink-0" />
                   )}
                 </h1>
+                {/* Son güncelleme damgası — bilerek silik. Bilgi olarak
+                    değerli ama başlıkla yarışmamalı. Yanındaki düğme
+                    "kim ne zaman ne değiştirdi" geçmişini açıyor. */}
+                {customer.updated_at && (
+                  <div className="flex items-center gap-1.5 mt-0.5">
+                    <span
+                      className="text-[11px] text-muted-foreground/70"
+                      title={new Date(customer.updated_at).toLocaleString("tr-TR")}
+                      data-testid="son-guncelleme-damgasi"
+                    >
+                      son güncelleme: {damgaBicimi(customer.updated_at)}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setHistoryOpen(true)}
+                      title="Değişiklik geçmişi — kim ne zaman ne değiştirdi"
+                      aria-label="Değişiklik geçmişi"
+                      data-testid="detay-history-ac"
+                      className="text-muted-foreground/70 hover:text-foreground transition-colors"
+                    >
+                      <Eye className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                )}
                 <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 text-sm text-muted-foreground mt-0.5">
                   {customer.market && <Badge variant="secondary">{customer.market}</Badge>}
                   {customer.city && <span>{customer.city}</span>}
@@ -924,7 +963,10 @@ const CustomerDetailPage = ({ customerId: propCustomerId, isModal = false, onClo
                   {customer.updated_at && (
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Güncelleme</span>
-                      <span>{new Date(customer.updated_at).toLocaleDateString("tr-TR")}</span>
+                      {/* Başlıktaki damgayla aynı biçim; yalnız tarih
+                          göstermek "bugün mü saat kaçta mı" sorusunu
+                          yanıtsız bırakıyordu. */}
+                      <span>{damgaBicimi(customer.updated_at)}</span>
                     </div>
                   )}
                   {customer.next_followup_date && (
@@ -1786,6 +1828,13 @@ const CustomerDetailPage = ({ customerId: propCustomerId, isModal = false, onClo
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <CustomerHistoryModal
+        open={historyOpen}
+        onClose={() => setHistoryOpen(false)}
+        customerId={id}
+        customerName={customer?.company_name}
+      />
     </div>
   );
 };

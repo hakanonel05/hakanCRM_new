@@ -394,7 +394,10 @@ const CustomerDetailCard = ({ open, onClose, customer, onUpdate }) => {
                         <Tag className="w-4 h-4 text-muted-foreground mt-0.5" />
                         <div>
                           <p className="text-xs text-muted-foreground">Potansiyel Değer</p>
-                          <p className="text-sm font-medium">{customer.potential_value.toLocaleString('tr-TR')} ₺</p>
+                          {/* Birim k€ — düzenleme formu ve liste başlığı da
+                              öyle. Burası ₺ yazıyordu: aynı sayı iki farklı
+                              para birimiyle görünüyordu. */}
+                          <p className="text-sm font-medium">{customer.potential_value.toLocaleString('tr-TR')} k€</p>
                         </div>
                       </div>
                     )}
