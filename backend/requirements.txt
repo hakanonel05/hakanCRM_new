@@ -1,15 +1,26 @@
 # CRMaster Backend Dependencies
-fastapi>=0.100.0
-uvicorn>=0.20.0
-python-dotenv>=1.0.0
-pydantic>=2.0.0
-supabase>=2.0.0
-passlib>=1.7.0
-bcrypt>=4.0.0
-python-multipart>=0.0.5
-httpx>=0.24.0
-openpyxl>=3.0.0
-resend>=2.0.0
-google-generativeai>=0.3.0
+#
+# SÜRÜMLER SABİT. Önceden hepsi ">=" idi; Render her dağıtımda o anki EN SON
+# sürümü kuruyordu. Yani kod hiç değişmeden, alakasız bir dağıtımda üretim
+# davranışı değişebiliyordu — ve değişti de: FastAPI 0.141 include_router'ın
+# rotaları nasıl tuttuğunu değiştirdi, CI'daki uç sayısı kontrolü bu yüzden
+# sessizce anlamsızlaştı. Bir sonraki kırıcı sürüm CRM'i düşürebilirdi.
+#
+# Buradaki sürümler üretimin Python'u (3.11) ile yerelde kurulup, server.py
+# içe aktarılarak ve uvicorn ayağa kaldırılarak doğrulandı.
+# Yükseltmek istersen: sürümü burada değiştir, yerelde dene, dalda CI'a
+# doğrulat, sonra main'e al.
+fastapi==0.141.1
+uvicorn==0.53.0
+python-dotenv==1.2.3
+pydantic==2.13.5
+supabase==2.31.0
+passlib==1.7.4
+bcrypt==5.0.0
+python-multipart==0.0.32
+httpx==0.28.1
+openpyxl==3.1.5
+resend==2.47.0
+google-generativeai==0.8.6
 APScheduler==3.11.2
 tzlocal==5.3.1
