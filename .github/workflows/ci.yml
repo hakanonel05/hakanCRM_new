@@ -7,7 +7,7 @@ name: Kontrol (CI)
 
 on:
   push:
-    branches: [main, master, denetim/guvenlik-ve-perf]  # GEÇİCİ: doğrulama sonrası geri alınacak
+    branches: [main, master]
   pull_request:
 
 jobs:
