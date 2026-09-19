@@ -447,7 +447,7 @@ async def root():
     return {"message": "CRM API is running"}
 
 @api_router.post("/customers", response_model=Customer)
-async def create_customer(customer: CustomerCreate):
+async def create_customer(customer: CustomerCreate, request: Request):
     customer_dict = customer.model_dump()
     if customer_dict.get("contact_info"):
         customer_dict["contact_info"] = dict(customer_dict["contact_info"])
@@ -471,7 +471,9 @@ async def create_customer(customer: CustomerCreate):
         title=f"Yeni müşteri: {customer_obj.company_name}",
         subtitle=f"Durum: {customer_obj.status or 'Beklemede'}",
         customer_id=customer_obj.id,
-        customer_name=customer_obj.company_name
+        customer_name=customer_obj.company_name,
+        user_email=_istek_kullanicisi(request)["email"],
+        user_name=_istek_kullanicisi(request)["name"],
     )
     
     return customer_obj
@@ -1174,13 +1176,14 @@ async def delete_customer(customer_id: str, request: Request, session_token: Opt
         subtitle="",
         customer_id=None,
         customer_name=company_name,
-        user_email=""
+        user_email=_istek_kullanicisi(request)["email"],
+        user_name=_istek_kullanicisi(request)["name"],
     )
-    
+
     return {"message": "Müşteri silindi"}
 
 @api_router.post("/customers/{customer_id}/contacts", response_model=Customer)
-async def add_contact_person(customer_id: str, contact: ContactPerson):
+async def add_contact_person(customer_id: str, contact: ContactPerson, request: Request):
     response = supabase.table("customers").select("*").eq("id", customer_id).execute()
     if not response.data:
         raise HTTPException(status_code=404, detail="Müşteri bulunamadı")
@@ -1201,7 +1204,9 @@ async def add_contact_person(customer_id: str, contact: ContactPerson):
         title=f"Kişi eklendi: {contact.name}",
         subtitle=f"{company_name} - {contact.role or contact.title or ''}",
         customer_id=customer_id,
-        customer_name=company_name
+        customer_name=company_name,
+        user_email=_istek_kullanicisi(request)["email"],
+        user_name=_istek_kullanicisi(request)["name"],
     )
     
     updated = supabase.table("customers").select("*").eq("id", customer_id).execute()
@@ -1241,7 +1246,9 @@ async def delete_contact_person(customer_id: str, contact_id: str, request: Requ
             title=f"Kişi silindi: {contact_name}",
             subtitle=company_name,
             customer_id=customer_id,
-            customer_name=company_name
+            customer_name=company_name,
+            user_email=_istek_kullanicisi(request)["email"],
+            user_name=_istek_kullanicisi(request)["name"],
         )
     
     return {"message": "Kişi silindi"}
@@ -1362,7 +1369,7 @@ async def preview_import(data: dict):
     }
 
 @api_router.post("/customers/{customer_id}/merge")
-async def merge_customer(customer_id: str, new_data: dict):
+async def merge_customer(customer_id: str, new_data: dict, request: Request):
     """Merge import data with existing customer - only fill empty fields"""
     # Get existing customer
     response = supabase.table("customers").select("*").eq("id", customer_id).execute()
@@ -1424,7 +1431,9 @@ async def merge_customer(customer_id: str, new_data: dict):
             title=f"Müşteri güncellendi (Import): {existing.get('company_name')}",
             subtitle=f"{len(update_data)} alan güncellendi",
             customer_id=customer_id,
-            customer_name=existing.get("company_name")
+            customer_name=existing.get("company_name"),
+            user_email=_istek_kullanicisi(request)["email"],
+            user_name=_istek_kullanicisi(request)["name"],
         )
     
     # Return updated customer
@@ -1784,6 +1793,8 @@ async def dedupe_merge(payload: DedupeMergeRequest, request: Request,
         subtitle=f"Silinen: {deleted_names}  ·  {sum(reassign_counts.values())} ilişkili kayıt taşındı",
         customer_id=payload.keep_id,
         customer_name=keep.get("company_name"),
+        user_email=_istek_kullanicisi(request)["email"],
+        user_name=_istek_kullanicisi(request)["name"],
     )
 
     return {
@@ -2173,7 +2184,7 @@ def _musteri_excel(rows, dosya_oneki: str):
 # ============ BULK IMPORT ENDPOINTS ============
 
 @api_router.post("/import/bulk-customers")
-async def bulk_import_customers(data: dict):
+async def bulk_import_customers(data: dict, request: Request):
     """Bulk import customers - accepts a batch of customers and inserts them efficiently"""
     items = data.get("items", [])
     merge_items = data.get("merge_items", [])  # [{customer_id, data}]
@@ -2316,7 +2327,9 @@ async def bulk_import_customers(data: dict):
         title=f"Toplu içe aktarma: {success_count} yeni, {merge_count} güncellendi",
         subtitle=f"{fail_count} başarısız" if fail_count > 0 else "",
         customer_id=None,
-        customer_name=""
+        customer_name="",
+        user_email=_istek_kullanicisi(request)["email"],
+        user_name=_istek_kullanicisi(request)["name"],
     )
     
     return {
@@ -2383,7 +2396,7 @@ async def bulk_create_options(data: dict):
 # ============ VISITS ENDPOINTS ============
 
 @api_router.post("/visits", response_model=Visit)
-async def create_visit(visit: VisitCreate):
+async def create_visit(visit: VisitCreate, request: Request):
     visit_obj = Visit(**visit.model_dump())
     doc = visit_obj.model_dump()
     
@@ -2402,7 +2415,9 @@ async def create_visit(visit: VisitCreate):
         title=f"Ziyaret: {customer_name}",
         subtitle=visit.visit_type or "Ziyaret",
         customer_id=visit.customer_id,
-        customer_name=customer_name
+        customer_name=customer_name,
+        user_email=_istek_kullanicisi(request)["email"],
+        user_name=_istek_kullanicisi(request)["name"],
     )
     
     return visit_obj
@@ -2447,7 +2462,7 @@ async def delete_visit(visit_id: str, request: Request, session_token: Optional[
 # ============ CALLS ENDPOINTS ============
 
 @api_router.post("/calls", response_model=Call)
-async def create_call(call: CallCreate):
+async def create_call(call: CallCreate, request: Request):
     call_obj = Call(**call.model_dump())
     doc = call_obj.model_dump()
     
@@ -2467,7 +2482,9 @@ async def create_call(call: CallCreate):
         title=f"Arama: {customer_name}",
         subtitle=f"{call.caller_name or ''} - {call.outcome or ''}",
         customer_id=call.customer_id,
-        customer_name=customer_name
+        customer_name=customer_name,
+        user_email=_istek_kullanicisi(request)["email"],
+        user_name=_istek_kullanicisi(request)["name"],
     )
     
     return call_obj
@@ -2828,7 +2845,7 @@ async def apply_saved_filter(filter_id: str):
 # ============ FILE UPLOAD ENDPOINTS ============
 
 @api_router.post("/upload")
-async def upload_file(file: UploadFile = File(...), customer_id: str = None):
+async def upload_file(request: Request, file: UploadFile = File(...), customer_id: str = None):
     if not file.filename:
         raise HTTPException(status_code=400, detail="Dosya adı gerekli")
     
@@ -2896,7 +2913,9 @@ async def upload_file(file: UploadFile = File(...), customer_id: str = None):
                 title=f"Dosya yüklendi: {file.filename}",
                 subtitle=customer_name,
                 customer_id=customer_id,
-                customer_name=customer_name
+                customer_name=customer_name,
+                user_email=_istek_kullanicisi(request)["email"],
+                user_name=_istek_kullanicisi(request)["name"],
             )
     
     return file_info
@@ -6129,7 +6148,11 @@ async def send_followup_reminders():
             await log_activity(
                 activity_type="email_sent",
                 title=f"Takip hatırlatma e-postası gönderildi",
-                subtitle=f"{len(customers)} müşteri"
+                subtitle=f"{len(customers)} müşteri",
+                # Bu uç zamanlayıcıdan tetikleniyor, ortada bir kullanıcı
+                # yok. "bilinmiyor" yazmak yanıltıcı olurdu — kimse
+                # unutmuş değil, bunu sistem yaptı.
+                user_name="Sistem",
             )
             
             return {
