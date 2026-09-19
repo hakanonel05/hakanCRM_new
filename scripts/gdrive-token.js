@@ -20,11 +20,66 @@ const http = require("http");
 const crypto = require("crypto");
 const { exec } = require("child_process");
 
-const [, , CLIENT_ID, CLIENT_SECRET] = process.argv;
-if (!CLIENT_ID || !CLIENT_SECRET) {
-  console.error("Kullanım: node scripts/gdrive-token.js <CLIENT_ID> <CLIENT_SECRET>");
-  process.exit(1);
+/* Kimlik bilgileri iki yoldan gelebilir:
+ *
+ *   node scripts/gdrive-token.js client_secret_xxx.json     <- ÖNERİLEN
+ *   node scripts/gdrive-token.js <CLIENT_ID> <CLIENT_SECRET>
+ *
+ * JSON yolu önerilen, çünkü elle kopyalarken en sık yapılan hata id ile
+ * secret'ı FARKLI projelerden almak. Google bunu "invalid_client: The
+ * provided client secret is invalid" diye bildiriyor ve insan haklı olarak
+ * secret'ı yanlış kopyaladığını sanıyor — oysa secret doğru, eşi yanlış.
+ * Dosyadan okununca ikisi zorunlu olarak aynı istemciden geliyor.
+ */
+const fs = require("fs");
+const path = require("path");
+
+function kimlikBilgileri() {
+  const a1 = process.argv[2];
+  const a2 = process.argv[3];
+
+  if (a1 && a1.toLowerCase().endsWith(".json")) {
+    if (!fs.existsSync(a1)) {
+      console.error("Dosya bulunamadı: " + path.resolve(a1));
+      process.exit(1);
+    }
+    let j;
+    try {
+      j = JSON.parse(fs.readFileSync(a1, "utf8"));
+    } catch (e) {
+      console.error("JSON okunamadı: " + e.message);
+      process.exit(1);
+    }
+    // Google dosyayı "web" (Web application) ya da "installed" (Desktop)
+    // anahtarı altında veriyor.
+    const k = j.web || j.installed || j;
+    if (!k.client_id || !k.client_secret) {
+      console.error("JSON içinde client_id/client_secret bulunamadı.");
+      console.error("Beklenen yapı: { \"web\": { \"client_id\": ..., \"client_secret\": ... } }");
+      process.exit(1);
+    }
+    return { id: k.client_id, secret: k.client_secret, kaynak: path.basename(a1) };
+  }
+
+  if (!a1 || !a2) {
+    console.error("Kullanım:");
+    console.error("  node scripts/gdrive-token.js client_secret_xxx.json   (önerilen)");
+    console.error("  node scripts/gdrive-token.js <CLIENT_ID> <CLIENT_SECRET>");
+    process.exit(1);
+  }
+  return { id: a1, secret: a2, kaynak: "komut satırı" };
 }
+
+const { id: CLIENT_ID, secret: CLIENT_SECRET, kaynak: KAYNAK } = kimlikBilgileri();
+
+/* Hangi istemciyle denendiğini göster. Client ID gizli bilgi değil (OAuth'ta
+ * tasarım gereği herkese açık) ve yanlış projeden geldiyse ancak böyle fark
+ * edilir. Secret yazdırılmıyor, yalnızca ön eki doğrulanıyor. */
+console.log("\nKaynak     : " + KAYNAK);
+console.log("Client ID  : " + CLIENT_ID);
+console.log("Secret     : " + (CLIENT_SECRET.startsWith("GOCSPX-")
+  ? "GOCSPX-… (biçim doğru, " + CLIENT_SECRET.length + " karakter)"
+  : "!! 'GOCSPX-' ile başlamıyor — yanlış değer olabilir (" + CLIENT_SECRET.length + " karakter)"));
 
 const PORT = 53682; // OAuth istemcisinde yönlendirme adresi olarak tanımlanacak
 const REDIRECT = `http://localhost:${PORT}`;
