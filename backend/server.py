@@ -499,8 +499,25 @@ def _coklu(deger: Optional[str]) -> List[str]:
     return [p.strip() for p in deger.split(",") if p.strip() and p.strip() != "all"]
 
 
+# BU UÇ BİLEREK "def", "async def" DEĞİL. Aşağıdaki not bütün sıcak uçlar
+# için geçerli (/stats, /kanban/customers, /activity-feed, /filters ...).
+#
+# supabase-py'nin senkron istemcisi kullanılıyor: her .execute() çağrısı
+# bloke ediyor. Bu çağrı "async def" bir işleyicinin içinde yapılırsa olay
+# döngüsünü (event loop) kilitliyor — yani sunucu o sırada BAŞKA HİÇBİR
+# isteği işleyemiyor. Tarayıcı Dashboard'da üç isteği paralel atıyor ama
+# sunucu bunları sırayla işliyordu; süreler toplanıyordu, en büyüğü değil.
+#
+# İşleyici düz "def" olduğunda FastAPI onu kendi iş parçacığı havuzunda
+# çalıştırıyor ve istekler gerçekten paralelleşiyor. Kod değişmiyor,
+# yalnızca nerede çalıştığı değişiyor.
+#
+# KURAL: içinde "await" olan bir işleyici "async def" kalmalı. Buradakilerin
+# hiçbirinde await yok (kimlik doğrulama global ara katmanda yapılıyor ve
+# bellekte çalışıyor). Yeni bir await eklersen "async def"e geri çevir ve
+# bloke eden çağrıyı asyncio.to_thread ile sar.
 @api_router.get("/customers")
-async def get_customers(
+def get_customers(
     search: Optional[str] = None,
     market: Optional[str] = None,
     application: Optional[str] = None,
@@ -855,7 +872,7 @@ def fetch_all_rows(table: str, select_cols: str = "*", page_size: int = 1000):
     return rows
 
 @api_router.get("/customers/lookup")
-async def get_customer_lookup():
+def get_customer_lookup():
     """Sadece id + company_name döner.
 
     Ziyaretler/Kanban gibi ekranlar firma adını göstermek için müşteri
@@ -909,7 +926,7 @@ async def get_customer(customer_id: str):
     return response.data[0]
 
 @api_router.get("/calls/latest-per-customer")
-async def get_latest_calls_per_customer():
+def get_latest_calls_per_customer():
     """Return only the latest call outcome per customer - lightweight endpoint for Customers table.
 
     Cached for 30 seconds (invalidated when a new call is logged).
@@ -2385,7 +2402,7 @@ async def get_customer_calls(customer_id: str):
 # ============ OPTIONS ENDPOINTS ============
 
 @api_router.get("/options/grouped")
-async def get_grouped_options():
+def get_grouped_options():
     # Fetch all options with pagination to handle >1000 records
     all_options = []
     offset = 0
@@ -2598,7 +2615,7 @@ async def merge_field_values(data: dict, request: Request, session_token: Option
 # ============ SAVED FILTERS ENDPOINTS ============
 
 @api_router.get("/filters", response_model=List[SavedFilter])
-async def get_saved_filters():
+def get_saved_filters():
     response = supabase.table("saved_filters").select("*").execute()
     return response.data
 
@@ -2885,7 +2902,7 @@ _stats_cache = {"data": None, "timestamp": 0}
 _STATS_CACHE_TTL = 30  # 30 seconds cache
 
 @api_router.get("/stats")
-async def get_stats():
+def get_stats():
     now = _time.time()
     if _stats_cache["data"] and (now - _stats_cache["timestamp"]) < _STATS_CACHE_TTL:
         return _stats_cache["data"]
@@ -2987,7 +3004,7 @@ _FOLLOWUPS_CACHE_TTL = 30
 
 
 @api_router.get("/stats/distribution")
-async def get_stats_distribution(
+def get_stats_distribution(
     field: str = Query(..., description="Dimension to aggregate: market, status, city, assigned_to, partner, application, competitor"),
     followup_only: bool = Query(False),
     limit: int = Query(10, ge=1, le=50),
@@ -3124,7 +3141,7 @@ async def get_city_market_distribution(
 
 
 @api_router.get("/stats/segment")
-async def get_stats_segment(
+def get_stats_segment(
     field: str = Query(..., description="Dimension to filter on (market, status, city, assigned_to, partner)"),
     value: str = Query(..., description="Value of that dimension"),
     followup_only: bool = Query(False, description="Restrict to is_followup=true customers"),
@@ -3166,7 +3183,7 @@ async def get_stats_segment(
 
 
 @api_router.get("/activity-feed")
-async def get_activity_feed(limit: int = 50):
+def get_activity_feed(limit: int = 50):
     """Get recent activity feed from activity_log table (15s in-memory cache)."""
     now = _time.time()
     cache_key = f"activity_{limit}"
@@ -4089,7 +4106,11 @@ async def register(data: LocalRegisterRequest, response: Response):
     }
 
 @api_router.post("/auth/login")
-async def login(data: LocalLoginRequest, response: Response):
+# "def" — yukarıdaki /customers notundaki sebebin aynısı, üstüne bir tane
+# daha: pwd_context.verify() bcrypt çalıştırıyor ve bu yüzlerce milisaniye
+# süren SAF İŞLEMCİ işi. "async def" içinde olay döngüsünü o süre boyunca
+# kilitliyordu — yani biri giriş yaparken sunucu kimseye cevap veremiyordu.
+def login(data: LocalLoginRequest, response: Response):
     # First check whitelist
     email = data.email.lower().strip()
     admin_email = ADMIN_EMAIL
@@ -4507,11 +4528,11 @@ async def migrate_normalize_statuses():
     return {"message": f"{updated} müşterinin durumu güncellendi", "updated": updated}
 
 @api_router.get("/kanban/group-fields")
-async def get_kanban_group_fields():
+def get_kanban_group_fields():
     return [{"value": key, "label": val["label"]} for key, val in KANBAN_GROUP_FIELDS.items()]
 
 @api_router.get("/kanban/customers")
-async def get_kanban_customers(group_by: str = "status"):
+def get_kanban_customers(group_by: str = "status"):
     # In-memory cache (30s TTL) - same group_by gets cached response
     now = _time.time()
     cached = _kanban_cache.get(group_by)
@@ -4597,7 +4618,7 @@ async def get_kanban_columns(group_by: str = "status"):
 
 # Kanban Views CRUD
 @api_router.get("/kanban/views", response_model=List[KanbanView])
-async def get_kanban_views():
+def get_kanban_views():
     response = supabase.table("kanban_views").select("*").execute()
     return response.data
 
