@@ -326,6 +326,20 @@ _EXCEL_HUCRE_SINIRI = 32767
 # Excel sayfası 1.048.576 satır alıyor; activity_log büyüyünce aşabilir.
 _EXCEL_SATIR_SINIRI = 1_000_000
 
+# Tablo başına Excel satır sınırı.
+#
+# activity_log her değişiklikle büyüyor ve sınırsız. Normal kipte openpyxl
+# satırları bellekte tutuyor: ölçüldü, 250.000 aktivite 427 MB demek ve
+# Render ücretsiz katmanda 512 MB var. 30.000 satırda tepe bellek ~60 MB.
+#
+# Bu bir KIRPMA ve sessiz olmaması şart — bugünkü 1000 satır hatası tam da
+# sessiz kırpmaydı. Sınır aşılınca sayfaya görünür bir uyarı satırı
+# yazılıyor ve Özet sayfasında "Excel'de gösterilen" sütunu gerçeği
+# söylüyor. JSON yedeği her zaman TAM.
+_EXCEL_SATIR_SINIRLARI = {
+    "activity_log": 30_000,
+}
+
 
 def _excel_hucre(v):
     """openpyxl yalnızca ilkel türleri yazabiliyor; gerisi metne çevriliyor.
@@ -354,6 +368,141 @@ def _excel_hucre(v):
     return v
 
 
+def _tarih_kisa(v) -> str:
+    """ISO tarihi '20.09.2026' yapar. Ayrıştıramazsa olduğu gibi bırakır."""
+    if not v:
+        return ""
+    m = str(v)[:10]
+    try:
+        y, a, g = m.split("-")
+        return f"{g}.{a}.{y}"
+    except Exception:
+        return str(v)[:19]
+
+
+def _musteri_dosyasi(ws, payload, musteri_adi):
+    """Firma adının altında o firmaya ait HER ŞEYİ toplayan sayfa.
+
+    Kullanıcının istediği bu: "Ales Pres Makina'nın altında tüm sekmeleri
+    görmek istiyorum". Excel'in katlanabilir satır özelliği (+/- düğmeleri)
+    kullanılıyor, yani firma satırının solundaki + ile açılıp kapanıyor.
+
+    Notlar, kişiler, dosyalar, ürünler ve etiketler müşteri satırında JSON
+    sütunu olarak duruyor; ham hâlleri tek hücrede okunamaz bir yığın.
+    Burada satır satır açılıyorlar. Ziyaret ve aramalar ayrı tablolardan
+    gelip aynı firmanın altında toplanıyor.
+    """
+    from openpyxl.styles import Font, PatternFill, Alignment
+    from openpyxl.utils import get_column_letter
+
+    basliklar = ["Firma", "Tür", "Tarih", "Kim", "Ayrıntı"]
+    ws.append(basliklar)
+    for h in ws[1]:
+        h.font = Font(bold=True, color="FFFFFF")
+        h.fill = PatternFill("solid", fgColor="374151")
+
+    # İlişkili kayıtları müşteriye göre grupla (tek geçiş, sözlükle).
+    ziyaret_by, arama_by = {}, {}
+    for v in payload.get("visits", []):
+        ziyaret_by.setdefault(v.get("customer_id"), []).append(v)
+    for c in payload.get("calls", []):
+        arama_by.setdefault(c.get("customer_id"), []).append(c)
+
+    firma_yazi = Font(bold=True, size=11)
+    firma_zemin = PatternFill("solid", fgColor="E5E7EB")
+    sat = 1
+
+    musteriler = sorted(
+        payload.get("customers", []),
+        key=lambda c: (c.get("company_name") or "").lower(),
+    )
+
+    for m in musteriler:
+        mid = m.get("id")
+        ad = (m.get("company_name") or "(isimsiz)").strip()
+
+        ozet = " · ".join(x for x in [
+            m.get("market"), m.get("city"), m.get("status"),
+            m.get("application"),
+        ] if x)
+        sat += 1
+        ws.append([ad, "FİRMA", "", m.get("assigned_to") or "", ozet])
+        for h in ws[sat]:
+            h.font = firma_yazi
+            h.fill = firma_zemin
+
+        alt = []  # (tür, tarih, kim, ayrıntı)
+
+        for n in (m.get("notes_list") or []):
+            if isinstance(n, dict):
+                alt.append(("NOT", _tarih_kisa(n.get("created_at") or n.get("date")),
+                            n.get("author") or n.get("user_name") or "",
+                            n.get("text") or n.get("note") or ""))
+            else:
+                alt.append(("NOT", "", "", str(n)))
+
+        for c in sorted(arama_by.get(mid, []),
+                        key=lambda x: str(x.get("call_date") or ""), reverse=True):
+            ayrinti = " · ".join(x for x in [
+                c.get("outcome"),
+                f"{c.get('duration')} dk" if c.get("duration") else None,
+                c.get("notes"),
+            ] if x)
+            alt.append(("ARAMA", _tarih_kisa(c.get("call_date") or c.get("created_at")),
+                        c.get("caller_name") or "", ayrinti))
+
+        for v in sorted(ziyaret_by.get(mid, []),
+                        key=lambda x: str(x.get("visit_date") or ""), reverse=True):
+            ayrinti = " · ".join(x for x in [
+                v.get("visit_type"), v.get("notes"),
+            ] if x)
+            alt.append(("ZİYARET", _tarih_kisa(v.get("visit_date")),
+                        v.get("visited_by") or "", ayrinti))
+
+        for k in (m.get("contacts") or []):
+            if isinstance(k, dict):
+                ayrinti = " · ".join(x for x in [
+                    k.get("role") or k.get("title"), k.get("email"), k.get("phone"),
+                ] if x)
+                alt.append(("KİŞİ", "", k.get("name") or "", ayrinti))
+
+        for d in (m.get("documents") or []):
+            if isinstance(d, dict):
+                alt.append(("DOSYA", _tarih_kisa(d.get("uploaded_at")),
+                            d.get("uploaded_by") or "",
+                            d.get("name") or d.get("filename") or ""))
+
+        urunler = [str(u) for u in (m.get("products") or []) if u]
+        if urunler:
+            alt.append(("ÜRÜNLER", "", "", ", ".join(urunler)))
+        etiketler = [str(t) for t in (m.get("tags") or []) if t]
+        if etiketler:
+            alt.append(("ETİKETLER", "", "", ", ".join(etiketler)))
+
+        iletisim = m.get("contact_info")
+        if isinstance(iletisim, dict):
+            ayrinti = " · ".join(f"{k}: {v}" for k, v in iletisim.items() if v)
+            if ayrinti:
+                alt.append(("İLETİŞİM", "", "", ayrinti))
+
+        for tur, tarih, kim, ayrinti in alt:
+            sat += 1
+            ws.append(["", tur, tarih, kim, _excel_hucre(ayrinti)])
+            # outlineLevel: firma satırının altına katlanır. Varsayılan
+            # KAPALI değil — açık bıraktım ki dosyayı açan kişi veriyi
+            # görsün; kapatmak isteyen soldaki "1" düğmesine basar.
+            ws.row_dimensions[sat].outlineLevel = 1
+
+    ws.freeze_panes = "A2"
+    ws.auto_filter.ref = f"A1:E{sat}"
+    # summaryBelow=False: özet (firma) satırı grubun ÜSTÜNDE, altında değil.
+    ws.sheet_properties.outlinePr.summaryBelow = False
+    for kolon, genislik in zip("ABCDE", (38, 11, 12, 18, 90)):
+        ws.column_dimensions[kolon].width = genislik
+    for r in ws.iter_rows(min_row=2, min_col=5, max_col=5):
+        r[0].alignment = Alignment(wrap_text=False, vertical="top")
+
+
 def _build_excel_bytes(payload: Dict[str, Any]) -> bytes:
     """Her tabloyu ayrı sayfa yapan, GÖZLE OKUNABİLİR bir çalışma kitabı üretir.
 
@@ -376,7 +525,6 @@ def _build_excel_bytes(payload: Dict[str, Any]) -> bytes:
     """
     from openpyxl import Workbook
     from openpyxl.styles import Font, Alignment, PatternFill
-    from openpyxl.cell import WriteOnlyCell
     from openpyxl.utils import get_column_letter
 
     tablolar = [(t, s) for t, s in payload.items() if isinstance(s, list)]
@@ -387,33 +535,51 @@ def _build_excel_bytes(payload: Dict[str, Any]) -> bytes:
         for c in payload.get("customers", []) if isinstance(c, dict)
     }
 
-    wb = Workbook(write_only=True)
+    # NORMAL kip (write_only değil): "Müşteri Dosyası" sayfasındaki
+    # katlanabilir satırlar (+/- düğmeleri) write_only kipte KAYBOLUYOR —
+    # openpyxl row_dimensions'ı akışa yazmıyor. Ölçüldü: 3.099 müşteri +
+    # 20.000 aktivite ile tepe bellek 39,5 MB. Ama 250.000 aktivitede
+    # 427 MB'a çıkıyor ve Render ücretsiz katmanda 512 MB sınırı var; bu
+    # yüzden aşağıda aktivite kaydına GÖRÜNÜR bir Excel sınırı konuyor.
+    wb = Workbook()
+    wb.remove(wb.active)  # varsayılan boş sayfa
     baslik_yazi = Font(bold=True, color="FFFFFF")
     baslik_zemin = PatternFill("solid", fgColor="374151")
     baslik_hiza = Alignment(vertical="center")
 
     def _basliklar(ws, adlar):
-        hucreler = []
-        for ad in adlar:
-            h = WriteOnlyCell(ws, value=ad)
+        """Başlık satırını yazar ve biçimler. Normal kipte hücreler
+        yazıldıktan SONRA biçimleniyor."""
+        ws.append(list(adlar))
+        for h in ws[ws.max_row]:
             h.font = baslik_yazi
             h.fill = baslik_zemin
             h.alignment = baslik_hiza
-            hucreler.append(h)
-        return hucreler
 
     # ---- Özet sayfası ----
     ozet = wb.create_sheet(title="Özet")
     ozet.column_dimensions["A"].width = 28
     ozet.column_dimensions["B"].width = 16
-    ozet.append(_basliklar(ozet, ["Yedek Bilgisi", "Değer"]))
+    _basliklar(ozet, ["Yedek Bilgisi", "Değer"])
     ozet.append(["Yedek tarihi", str(payload.get("export_date", ""))])
     ozet.append(["Kaynak", str(payload.get("source", ""))])
     ozet.append([])
-    ozet.append(_basliklar(ozet, ["Tablo", "Kayıt sayısı"]))
+    _basliklar(ozet, ["Tablo", "Kayıt sayısı", "Excel'de gösterilen"])
     for tablo, satirlar in tablolar:
-        ozet.append([_TABLO_ADLARI.get(tablo, tablo), len(satirlar)])
+        sinir = _EXCEL_SATIR_SINIRLARI.get(tablo, _EXCEL_SATIR_SINIRI)
+        gosterilen = min(len(satirlar), sinir)
+        ozet.append([_TABLO_ADLARI.get(tablo, tablo), len(satirlar),
+                     gosterilen if gosterilen != len(satirlar) else "tamamı"])
+    ozet.column_dimensions["C"].width = 20
     ozet.freeze_panes = "A2"
+
+    # ---- Müşteri Dosyası: firma altında her şey, katlanabilir ----
+    try:
+        _musteri_dosyasi(wb.create_sheet(title="Müşteri Dosyası"),
+                         payload, musteri_adi)
+    except Exception as e:
+        # Bu sayfa kolaylık; üretilemezse yedeğin tamamı çöpe gitmemeli.
+        logger.warning("Müşteri Dosyası sayfası üretilemedi: %s", e)
 
     # ---- Tablo sayfaları ----
     for tablo, satirlar in tablolar:
@@ -439,14 +605,15 @@ def _build_excel_bytes(payload: Dict[str, Any]) -> bytes:
         if ad_ekle:
             sutunlar.insert(sutunlar.index("customer_id") + 1, "customer_name")
 
-        ws.append(_basliklar(ws, [_ALAN_ADLARI.get(k, k) for k in sutunlar]))
+        _basliklar(ws, [_ALAN_ADLARI.get(k, k) for k in sutunlar])
 
         genislikler = [len(str(_ALAN_ADLARI.get(k, k))) for k in sutunlar]
         yazilan = 0
         for i, s in enumerate(satirlar):
-            if i >= _EXCEL_SATIR_SINIRI:
-                ws.append([f"[{len(satirlar) - i} satır daha var — Excel sayfa "
-                           f"sınırı aşıldı, tamamı JSON yedeğinde]"])
+            if i >= _EXCEL_SATIR_SINIRLARI.get(tablo, _EXCEL_SATIR_SINIRI):
+                ws.append([f"[{len(satirlar) - i} satır daha var — Excel'de "
+                           f"gösterilmiyor, TAMAMI JSON yedeğinde. Bkz. Özet "
+                           f"sayfası.]"])
                 logger.warning("Excel: %s tablosu %d satırda kırpıldı", tablo, i)
                 break
             degerler = []
