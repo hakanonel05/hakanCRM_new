@@ -348,6 +348,25 @@ const ImportModal = ({ open, onClose, onImportComplete }) => {
       return null;
     }
 
+    /* Kişi bilgisi iki yere birden yazılıyor: contact_info (Ana İletişim
+       paneli) ve contacts dizisi (Kişiler paneli). Bir kez okunuyor. */
+    const kisiAdi = getVal('kişi') || getVal('contact') || getVal('iletişim');
+    const kisiUnvan = getVal('ünvan') || getVal('unvan') || getVal('görev') || getVal('title');
+    const kisiEposta = getVal('mail') || getVal('e-posta');
+    const kisiTelefon = getVal('telefon') || getVal('phone');
+
+    /* Potansiyel SEVİYE ile potansiyel DEĞER ayrı sütunlar ama getVal
+       içerik araması yaptığı için "Potansiyel Değer" başlığı ikisine de
+       uyuyor. Seviye yalnızca bilinen üç değerden biriyse kabul ediliyor;
+       "102" gibi bir sayı seviye alanına düşüp veriyi bozmasın. */
+    const potHam = (getVal('potansiyel seviye') || getVal('seviye')
+                    || getVal('potansiyel') || '').trim();
+    const potSeviye = ['Yüksek', 'Orta', 'Düşük'].find(
+      (x) => x.toLocaleLowerCase('tr') === potHam.toLocaleLowerCase('tr')) || 'Düşük';
+    const potDeger = parseFloat(
+      (getVal('potansiyel değer') || getVal('değer') || getVal('value') || '0')
+        .replace(/[^\d,.-]/g, '').replace(',', '.')) || 0;
+
     return {
       rowNum,
       company_name: companyName,
@@ -358,20 +377,40 @@ const ImportModal = ({ open, onClose, onImportComplete }) => {
       website: getVal('web') || getVal('website'),
       status: getVal('durum') || getVal('status') || 'Beklemede',
       contact_info: {
-        contact_person: getVal('kişi') || getVal('contact') || getVal('iletişim'),
-        email: getVal('mail') || getVal('e-posta'),
-        phone: getVal('telefon') || getVal('phone')
+        contact_person: kisiAdi,
+        contact_title: kisiUnvan,
+        email: kisiEposta,
+        phone: kisiTelefon
       },
+      /* "Kişiler" paneli contact_info'yu DEĞİL, contacts dizisini okuyor.
+         İçe aktarma yalnızca contact_info'yu dolduruyordu, bu yüzden
+         dosyada kişi sütunu olsa bile panel hep "Kişiler (0)" diyordu.
+         Aynı kişi ana iletişim olarak işaretlenip listeye de ekleniyor. */
+      contacts: kisiAdi
+        ? [{
+            id: (crypto.randomUUID ? crypto.randomUUID()
+                 : String(Date.now()) + Math.random().toString(16).slice(2)),
+            name: kisiAdi,
+            role: kisiUnvan,
+            email: kisiEposta,
+            phone: kisiTelefon,
+            is_primary: true,
+          }]
+        : [],
       competitor: getVal('rakip') || getVal('competitor'),
       partner: getVal('partner'),
-      potential_level: getVal('potansiyel') || 'Düşük',
+      potential_level: potSeviye,
       assigned_to: getVal('takip') || getVal('assigned'),
       products: (getVal('ürün') || getVal('product') || getVal('abb')).split(',').filter(Boolean).map(p => p.trim()),
       notes: getVal('notlar') || getVal('notes') || getVal('not'),
-      tags: [],
-      is_followup: false,
-      potential_value: 0,
-      description: ''
+      /* Aşağıdaki üçü sabit değer olarak geçiliyordu (tags: [],
+         potential_value: 0, description: ''), yani dosyada o sütunlar
+         olsa bile veri sessizce düşüyordu. */
+      tags: (getVal('etiket') || getVal('tag')).split(',').filter(Boolean).map(t => t.trim()),
+      is_followup: ['evet', 'yes', 'true', '1', 'x'].includes(
+        (getVal('takipte') || '').toLowerCase().trim()),
+      potential_value: potDeger,
+      description: getVal('açıklama') || getVal('description') || ''
     };
   };
 

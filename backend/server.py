@@ -471,6 +471,27 @@ def _cekirdek_skoru(a: List[str], b: List[str]) -> float:
     return toplam / len(uzun)
 
 
+def _ice_aktarma_notu(metin: str, kullanici: str = "") -> dict:
+    """İçe aktarmadaki "notlar" sütununu gerçek bir NOTA çevirir.
+
+    İki ayrı alan var ve karıştırılıyordu: "notes" düz bir metin alanı,
+    "notes_list" ise Notlar sekmesinin okuduğu kayıt listesi. İçe aktarma
+    yalnızca "notes"a yazıyordu, dolayısıyla Notlar sekmesi hep (0)
+    görünüyor ve not pratikte kayboluyordu — o alan müşteri detay
+    sayfasında hiçbir yerde gösterilmiyor.
+
+    Not metni "İçe aktarma" damgasıyla işaretleniyor ki elle yazılmış
+    notlardan ayırt edilebilsin.
+    """
+    return {
+        "id": str(uuid.uuid4()),
+        "text": (metin or "").strip(),
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "created_by": kullanici or "İçe aktarma",
+        "source": "import",
+    }
+
+
 def normalize_phone(phone: str) -> str:
     if not phone:
         return ""
@@ -1558,6 +1579,20 @@ async def merge_customer(customer_id: str, new_data: dict, request: Request):
         # Only update if existing is empty and new has value
         if (not existing_value or existing_value == "") and new_value:
             update_data[field] = new_value
+
+    # Not AYRI ele alınıyor: yukarıdaki kural "mevcut boşsa doldur" diyor,
+    # yani mevcut müşterinin notu varsa içe aktarılan not tamamen
+    # düşüyordu. Not birikmeli bir şey, üzerine yazılacak bir alan değil —
+    # Notlar sekmesine yeni kayıt olarak ekleniyor.
+    _yeni_not = (new_data.get("notes") or "").strip()
+    if _yeni_not:
+        _mevcut_notlar = list(existing.get("notes_list") or [])
+        _var_mi = any((n or {}).get("text", "").strip() == _yeni_not
+                      for n in _mevcut_notlar if isinstance(n, dict))
+        if not _var_mi:
+            _mevcut_notlar.append(
+                _ice_aktarma_notu(_yeni_not, _istek_kullanicisi(request)["name"]))
+            update_data["notes_list"] = _mevcut_notlar
     
     # Handle contact_info specially
     existing_contact = existing.get("contact_info", {}) or {}
@@ -2353,6 +2388,16 @@ def _musteri_excel(rows, dosya_oneki: str):
 async def bulk_import_customers(data: dict, request: Request):
     """Bulk import customers - accepts a batch of customers and inserts them efficiently"""
     items = data.get("items", [])
+    _ice_aktaran = _istek_kullanicisi(request)["name"]
+
+    def _notlari_hazirla(item, kullanici):
+        """Satırdaki "notlar" metnini Notlar sekmesinde görünecek hale getirir."""
+        notlar = list(item.get("notes_list") or [])
+        metin = (item.get("notes") or "").strip()
+        if metin and not any((n or {}).get("text", "").strip() == metin
+                             for n in notlar if isinstance(n, dict)):
+            notlar.append(_ice_aktarma_notu(metin, kullanici))
+        return notlar
     merge_items = data.get("merge_items", [])  # [{customer_id, data}]
     
     if not items and not merge_items:
@@ -2399,7 +2444,7 @@ async def bulk_import_customers(data: dict, request: Request):
                     "products": item.get("products", []),
                     "description": item.get("description", ""),
                     "notes": item.get("notes", ""),
-                    "notes_list": item.get("notes_list", []),
+                    "notes_list": _notlari_hazirla(item, _ice_aktaran),
                     "documents": item.get("documents", []),
                     "tags": item.get("tags", []),
                     "is_followup": item.get("is_followup", False),
@@ -6038,10 +6083,15 @@ async def download_customer_template():
     ws.title = "Şirket Şablonu"
     
     # All customer columns
+    # Şablondaki her sütunun içe aktarmada bir karşılığı VAR. Eskiden
+    # Ünvan, Potansiyel Değer, Etiketler, Açıklama ve Takipte sütunları
+    # şablonda yoktu; kullanıcı bu bilgileri hiç giremiyordu.
     headers = [
-        'Firma Adı', 'Market', 'Uygulama', 'Şehir', 'İlçe', 'Web Site', 
-        'Durum', 'İletişim Kişisi', 'E-posta', 'Telefon', 'Rakip', 'Partner',
-        'Potansiyel', 'Takip Eden', 'ABB Ürünleri', 'Notlar'
+        'Firma Adı', 'Market', 'Uygulama', 'Şehir', 'İlçe', 'Web Site',
+        'Durum', 'İletişim Kişisi', 'Ünvan', 'E-posta', 'Telefon',
+        'Rakip', 'Partner', 'Potansiyel Seviye', 'Potansiyel Değer (k€)',
+        'Takip Eden', 'ABB Ürünleri', 'Etiketler', 'Notlar', 'Açıklama',
+        'Takipte'
     ]
     
     # Header styling
@@ -6057,15 +6107,18 @@ async def download_customer_template():
     # Example row
     example_data = [
         'ABC Şirketi A.Ş.', 'Otomotiv', 'CNC', 'İstanbul', 'Kadıköy', 'www.abcsirketi.com',
-        'Beklemede', 'Ahmet Yılmaz', 'ahmet@abcsirketi.com', '0532 123 45 67', 'Siemens', 'XYZ Partner',
-        'Yüksek', 'Mehmet Demir', 'PLC, Motor', 'Potansiyel müşteri'
+        'Beklemede', 'Ahmet Yılmaz', 'Satın Alma Müdürü', 'ahmet@abcsirketi.com',
+        '0532 123 45 67', 'Siemens', 'XYZ Partner',
+        'Yüksek', '150', 'Mehmet Demir', 'PLC, Motor', 'öncelikli, bayi',
+        'İlk görüşme yapıldı, teklif bekliyor', 'CNC hattı yenileme projesi', 'Hayır'
     ]
     
     for col, value in enumerate(example_data, 1):
         ws.cell(row=2, column=col, value=value)
     
     # Column widths
-    column_widths = [20, 15, 15, 12, 12, 25, 12, 18, 25, 18, 12, 15, 12, 15, 20, 30]
+    column_widths = [24, 15, 15, 12, 12, 25, 14, 18, 18, 25, 16,
+                     14, 15, 16, 18, 16, 20, 18, 34, 30, 10]
     for col, width in enumerate(column_widths, 1):
         ws.column_dimensions[chr(64 + col) if col <= 26 else 'A' + chr(64 + col - 26)].width = width
     
@@ -6076,14 +6129,18 @@ async def download_customer_template():
         ["", ""],
         ["Zorunlu Alan:", "Firma Adı"],
         ["", ""],
-        ["Durum Değerleri:", "Beklemede, İletişimde, Çalışılıyor, Takip Ediliyor, Olumsuz, Kapandı"],
-        ["Potansiyel Değerleri:", "Düşük, Orta, Yüksek"],
+        ["Durum Değerleri:", "Beklemede, İletişimde, Teklif Verildi, Çalışılıyor, Kazanıldı, Kaybedildi"],
+        ["Potansiyel Seviye:", "Düşük, Orta, Yüksek"],
+        ["Potansiyel Değer:", "Sayı, k€ cinsinden. Örnek: 150"],
+        ["Takipte:", "Evet / Hayır"],
         ["", ""],
         ["Notlar:", ""],
         ["- İlk satır başlık satırıdır, silmeyin", ""],
         ["- 2. satırdaki örnek veriyi silin veya üzerine yazın", ""],
-        ["- ABB Ürünleri sütununda birden fazla ürün virgülle ayrılır", ""],
+        ["- ABB Ürünleri ve Etiketler sütunlarında birden fazla değer virgülle ayrılır", ""],
         ["- Web Site http:// veya https:// olmadan yazılabilir", ""],
+        ["- Notlar sütunu, müşteri sayfasındaki Notlar sekmesine not olarak eklenir", ""],
+        ["- İletişim Kişisi, hem Ana İletişim hem Kişiler panelinde görünür", ""],
     ]
     for row_idx, row_data in enumerate(instructions, 1):
         for col_idx, value in enumerate(row_data, 1):
