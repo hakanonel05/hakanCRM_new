@@ -5792,6 +5792,42 @@ def _gun(v) -> str:
     return m if len(m) == 10 and m[4] == "-" else ""
 
 
+def _kisi_eslestirici(musteriler: list):
+    """Serbest yazılmış kişi adlarını ekipteki gerçek isme eşler.
+
+    Arama kayıtlarında "Furkan", "Furkan ÇELİK" ve "Furkan Çelik" ayrı
+    ayrı sayılıyordu; raporda aynı kişi üç satır oluyor ve yüzdeler
+    bölünüyordu. Bilinen kişiler müşterilerin "Takip Eden" alanından
+    çıkarılıyor — ekibin gerçek listesi orada.
+
+    Eşleştirme calculate_similarity ile: "Furkan" ile "Furkan Çelik"
+    içerme kuralından 0.85 alıyor, "Melih Karaman" tam eşleşiyor.
+    """
+    from collections import Counter
+    sayac = Counter((m.get("assigned_to") or "").strip()
+                    for m in musteriler if (m.get("assigned_to") or "").strip())
+    # Çok geçen isim daha güvenilir bir yazım; eşitlikte uzun olan kazansın.
+    bilinenler = [a for a, _ in sorted(sayac.items(), key=lambda x: (-x[1], -len(x[0])))]
+    onbellek = {}
+
+    def duzelt(ad: str) -> str:
+        ad = (ad or "").strip()
+        if not ad:
+            return "Arayan kaydedilmemiş"
+        if ad in onbellek:
+            return onbellek[ad]
+        en_iyi, skor = ad, 0.0
+        for b in bilinenler:
+            x = calculate_similarity(ad, b)
+            if x > skor:
+                en_iyi, skor = b, x
+        sonuc = en_iyi if skor >= 0.85 else ad
+        onbellek[ad] = sonuc
+        return sonuc
+
+    return duzelt
+
+
 def _dagilim(sayac: dict, toplam: int, en_fazla: int = 12) -> list:
     """{ad: sayı} -> yüzdeli, büyükten küçüğe sıralı liste."""
     sirali = sorted(sayac.items(), key=lambda x: -x[1])[:en_fazla]
@@ -5836,6 +5872,8 @@ def get_report_analytics(baslangic: str = "", bitis: str = "", market: str = "")
     # Seçili markete ait müşterilerin aramalarını süzebilmek için kimlik kümesi
     kimlikler = {m["id"] for m in musteriler_f}
 
+    _kisi = _kisi_eslestirici(musteriler)
+
     b, s = (baslangic or "")[:10], (bitis or "")[:10]
     aramalar_f, gun_sayaci = [], Counter()
     for a in aramalar:
@@ -5873,8 +5911,10 @@ def get_report_analytics(baslangic: str = "", bitis: str = "", market: str = "")
             "toplam": n_arama,
             "sonuc": _dagilim(Counter((a.get("outcome") or "Belirtilmemiş").strip()
                                       for a in aramalar_f), n_arama),
-            "arayan": _dagilim(Counter((a.get("caller_name") or "Belirtilmemiş").strip()
+            "arayan": _dagilim(Counter(_kisi(a.get("caller_name"))
                                        for a in aramalar_f), n_arama, 10),
+            "arayani_bos": sum(1 for a in aramalar_f
+                               if not (a.get("caller_name") or "").strip()),
             "gunluk": [{"tarih": g, "sayi": n}
                        for g, n in sorted(gun_sayaci.items())],
         },

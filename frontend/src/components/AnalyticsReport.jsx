@@ -214,6 +214,17 @@ export default function AnalyticsReport() {
                     basliklar={["Kişi", "Adet", "%"]}
                     satirlar={veri.aramalar.arayan.map((d) => [d.ad, d.sayi, `%${d.yuzde}`])}
                   />
+                  {/* Boş "Arayan" alanı bu raporun en büyük zayıflığı;
+                      gizlemek yerine ne yapılacağıyla birlikte söyleniyor. */}
+                  {veri.aramalar.arayani_bos > 0 && (
+                    <p className="mt-2 text-[11px] text-status-warning-fg">
+                      {veri.aramalar.arayani_bos} aramada "Arayan" alanı boş
+                      ({Math.round(veri.aramalar.arayani_bos * 100 / veri.aramalar.toplam)}%).
+                      Kim aradığının raporda çıkması için arama kaydederken
+                      bu alanın doldurulması gerekiyor. Farklı yazımlar
+                      (Furkan / Furkan ÇELİK) aynı kişide birleştiriliyor.
+                    </p>
+                  )}
                 </div>
               </div>
             )}
