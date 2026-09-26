@@ -110,7 +110,7 @@ const CustomerDetailPage = ({ customerId: propCustomerId, isModal = false, onClo
   const params = useParams();
   const id = propCustomerId || params.id;
   const navigate = useNavigate();
-  const { isAdmin, canDelete } = useAuth();
+  const { isAdmin, canDelete, user } = useAuth();
 
   // Sütunların bağımsız mı yoksa tek-akış mı kayacağını belirler. Grid'in
   // kendisi de aynı eşikte (lg = 1024px) tek sütuna yığıldığı için aynı
@@ -162,7 +162,16 @@ const CustomerDetailPage = ({ customerId: propCustomerId, isModal = false, onClo
   // Followup date picker state
   const [followupDateOpen, setFollowupDateOpen] = useState(false);
   const [selectedFollowupDate, setSelectedFollowupDate] = useState(null);
+
+  /* Giriş yapan kişinin görünen adı. Arama formundaki "Arayan" alanı
+     bununla doluyor. useAuth asenkron olduğu için useState başlangıcında
+     henüz hazır olmayabiliyor; aşağıdaki effect yakalıyor. */
+  const arayanVarsayilan = user?.name || user?.email || "";
   
+  /* "Arayan" giriş yapan kişinin adıyla AÇILIYOR ama kilitli değil.
+     Önceden boş açılıyordu ve kimse doldurmuyordu: 40 arama kaydının
+     33'ünde bu alan boştu, dolayısıyla "kim aradı" raporu anlamsızdı.
+     Başkasının yaptığı bir aramayı kaydediyorsan üstüne yazabilirsin. */
   const [newCall, setNewCall] = useState({
     call_date: new Date().toISOString().split("T")[0],
     caller_name: "",
@@ -175,6 +184,15 @@ const CustomerDetailPage = ({ customerId: propCustomerId, isModal = false, onClo
     next_action: "",
     next_action_date: ""
   });
+
+  /* Kullanıcı bilgisi geldiğinde boş "Arayan" alanını doldur. Kullanıcı
+     bilerek sildiyse (alan boş ama kullanıcı daha önce yüklendiyse)
+     tekrar yazmamak için yalnızca ilk gelişte çalışıyor. */
+  useEffect(() => {
+    if (!arayanVarsayilan) return;
+    setNewCall((o) => (o.caller_name ? o : { ...o, caller_name: arayanVarsayilan }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [arayanVarsayilan]);
 
   // Contact modal state
   const [addContactOpen, setAddContactOpen] = useState(false);
@@ -528,7 +546,7 @@ const CustomerDetailPage = ({ customerId: propCustomerId, isModal = false, onClo
       fetchCalls();
       setNewCall({
         call_date: new Date().toISOString().split("T")[0],
-        caller_name: "",
+        caller_name: arayanVarsayilan,
         contact_person: "",
         phone_number: "",
         duration_minutes: 0,
@@ -1221,7 +1239,13 @@ const CustomerDetailPage = ({ customerId: propCustomerId, isModal = false, onClo
                           </div>
                           <div>
                             <Label className="text-xs">Arayan</Label>
-                            <Input value={newCall.caller_name} onChange={(e) => setNewCall({ ...newCall, caller_name: e.target.value })} placeholder="Adınız" />
+                            <Input
+                              value={newCall.caller_name}
+                              onChange={(e) => setNewCall({ ...newCall, caller_name: e.target.value })}
+                              placeholder="Adınız"
+                              title="Giriş yapan kişiyle dolduruldu — başkası aradıysa değiştirebilirsin"
+                              data-testid="arama-arayan"
+                            />
                           </div>
                           <div>
                             <Label className="text-xs">Süre (dk)</Label>

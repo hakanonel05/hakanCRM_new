@@ -378,7 +378,7 @@ const setOptionsToCache = (data) => {
 const Customers = () => {
   const navigate = useNavigate();
   const { openCustomerModal } = useCustomerModal();
-  const { isAdmin, canDelete } = useAuth();
+  const { isAdmin, canDelete, user } = useAuth();
   // Mobile detection: <768px renders card list instead of table
   const [isMobile, setIsMobile] = useState(
     typeof window !== "undefined" ? window.innerWidth < 768 : false
@@ -1045,7 +1045,10 @@ const Customers = () => {
         const customer = customers.find(c => c.id === customerId);
         await axios.post(`${API}/calls`, {
           customer_id: customerId,
-          caller_name: "",
+          /* Burada "Arayan" diye bir alan yok, kod boş gönderiyordu.
+             Listeden sonuç seçmek en hızlı yol olduğu için aramaların
+             çoğu buradan giriliyor ve hepsi sahipsiz kalıyordu. */
+          caller_name: user?.name || user?.email || "",
           call_type: "Giden",
           outcome: outcome,
           notes: ""

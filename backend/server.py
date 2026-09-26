@@ -4154,6 +4154,56 @@ def check_permission(user: Optional[dict], permission_key: str) -> bool:
     return bool(_user_permissions_cache.get(uid, {}).get(permission_key, False))
 
 
+# ROL ÖNBELLEĞİ
+#
+# Oturum nesnesi kullanıcının rolünü GİRİŞ ANINDA donduruyor ve imzalı
+# belirteç bunu içine gömüyor. Sonuç: birini admin yaptığında, o kişinin
+# açık oturumu hâlâ eski rolü taşıyor — ne yönetim menüsü görünüyor ne de
+# arka uç ona admin diyor. Çıkıp tekrar girmesi gerekiyordu ve bunu kimse
+# tahmin edemez.
+#
+# Rol artık veri tabanından okunuyor. Her istekte sorgu atmamak için 60
+# saniyelik önbellek var; rol değiştiren uç ilgili kaydı hemen siliyor,
+# yani değişiklik anında geçerli oluyor.
+_rol_onbellek: Dict[str, tuple] = {}
+_ROL_ONBELLEK_TTL = 60
+
+
+def _rolu_oku(email: str):
+    try:
+        r = (supabase.table("users").select("role")
+             .eq("email", email).limit(1).execute())
+        if r.data:
+            return (r.data[0] or {}).get("role")
+    except Exception as e:
+        logging.warning("Rol okunamadı (%s): %s", email, e)
+    return None
+
+
+def rol_onbellegini_temizle(email: str = "") -> None:
+    """Rol değişince çağrılıyor ki yeni rol beklemeden geçerli olsun."""
+    if email:
+        _rol_onbellek.pop((email or "").lower(), None)
+    else:
+        _rol_onbellek.clear()
+
+
+async def _guncel_rol(email: str, oturum_rolu: str) -> str:
+    e = (email or "").lower()
+    if not e:
+        return oturum_rolu
+    now = _time.time()
+    kayit = _rol_onbellek.get(e)
+    if kayit and (now - kayit[1]) < _ROL_ONBELLEK_TTL:
+        return kayit[0] or oturum_rolu
+    # to_thread: bu fonksiyon global kimlik ara katmanından, yani HER
+    # istekte çağrılıyor. Supabase istemcisi bloke ediyor; doğrudan
+    # çağırmak olay döngüsünü kilitlerdi (bkz. /customers üstündeki not).
+    rol = await asyncio.to_thread(_rolu_oku, e)
+    _rol_onbellek[e] = (rol, now)
+    return rol or oturum_rolu
+
+
 async def get_current_user_from_request(request: Request, session_token: Optional[str] = None) -> Optional[dict]:
     # Priority: explicit param > X-Session-Token header > cookie
     token = session_token or request.headers.get("x-session-token") or request.cookies.get("session_token")
@@ -4195,7 +4245,8 @@ async def get_current_user_from_request(request: Request, session_token: Optiona
         "email": session.email,
         "name": session.name,
         "picture": session.picture,
-        "role": session.role
+        # Oturumdaki rol değil, veri tabanındaki GÜNCEL rol (yukarıya bakın).
+        "role": await _guncel_rol(session.email, session.role),
     }
 
 @api_router.get("/auth/me")
@@ -4581,6 +4632,18 @@ async def update_user_role(
         raise HTTPException(status_code=400, detail="Geçersiz rol")
     
     supabase.table("users").update({"role": new_role}).eq("user_id", user_id).execute()
+
+    # Rol önbelleğini hemen temizle, yoksa yeni rol 60 saniye beklerdi.
+    # E-postayı bulmak için tek sorgu; rol değişimi nadir bir işlem.
+    try:
+        k = (supabase.table("users").select("email")
+             .eq("user_id", user_id).limit(1).execute())
+        if k.data:
+            rol_onbellegini_temizle((k.data[0] or {}).get("email", ""))
+    except Exception as e:
+        # Temizlenemezse yeni rol yine geçerli olur, sadece 60 sn gecikir.
+        logging.warning("Rol önbelleği temizlenemedi: %s", e)
+
     return {"message": "Rol güncellendi", "role": new_role}
 
 
