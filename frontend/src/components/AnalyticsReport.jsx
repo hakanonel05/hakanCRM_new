@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import axios from "axios";
 import { Chart as ChartJS, Tooltip, Legend, ArcElement } from "chart.js";
 import { Doughnut } from "react-chartjs-2";
@@ -29,8 +29,41 @@ const RENKLER = [
   "#7c3aed", "#be123c", "#0f766e", "#9a3412", "#4338ca",
 ];
 
+/* Durum değerleri sabit bir liste (arka uçtaki KANBAN_STATUSES ile aynı);
+   filter-options bunu döndürmüyor. */
+/* Başlıkta hangi süzgecin etkili olduğu yazıyor; raporu birine
+   gönderdiğinde neyin süzüldüğü belli olsun. */
+const SUZGEC_ADLARI = {
+  market: "Market", city: "Şehir", district: "İlçe", status: "Durum",
+  potential_level: "Potansiyel", competitor: "Rakip", partner: "Partner",
+  assigned_to: "Takip Eden",
+};
+
+const DURUMLAR = ["Beklemede", "İletişimde", "Teklif Verildi", "Çalışılıyor",
+                  "Kazanıldı", "Kaybedildi"];
+
 const bugun = () => new Date().toISOString().slice(0, 10);
 const yilBasi = () => `${new Date().getFullYear()}-01-01`;
+
+/* Süzgeç kutusu. Yerel <select> bilerek: yüzlerce şehir olduğunda harfle
+   yazarak atlamayı tarayıcı zaten yapıyor, özel bir bileşen bunu
+   taklit etmek zorunda kalırdı. */
+const Secim = ({ etiket, deger, secenekler, onChange, testid }) => (
+  <div>
+    <Label className="text-xs">{etiket}</Label>
+    <select
+      value={deger}
+      onChange={(e) => onChange(e.target.value)}
+      data-testid={testid}
+      className="h-9 w-40 rounded-md border border-input bg-background px-2 text-sm"
+    >
+      <option value="">Tümü</option>
+      {(secenekler || []).map((x) => (
+        <option key={x} value={x}>{x}</option>
+      ))}
+    </select>
+  </div>
+);
 
 const Kart = ({ baslik, deger, alt }) => (
   <div className="rounded-lg border border-border bg-card p-3">
@@ -102,17 +135,33 @@ const CubukluTablo = ({ satirlar, birimBaslik = "Müşteri" }) => {
 export default function AnalyticsReport() {
   const [baslangic, setBaslangic] = useState(yilBasi);
   const [bitis, setBitis] = useState(bugun);
-  const [market, setMarket] = useState("");
+  /* Süzgeçler tek nesnede: hepsi birlikte çalışıyor (VE mantığı), yani
+     "İstanbul" + "F&B" seçilince İstanbul'daki F&B müşterileri kalıyor. */
+  const [suzgec, setSuzgec] = useState({
+    market: "", sehir: "", durum: "", rakip: "", takip_eden: "",
+  });
+  const [secenekler, setSecenekler] = useState({});
   const [veri, setVeri] = useState(null);
   const [yukleniyor, setYukleniyor] = useState(false);
   const [hata, setHata] = useState("");
+
+  const suzgecAyarla = (alan, deger) =>
+    setSuzgec((o) => ({ ...o, [alan]: deger }));
+
+  /* Süzgeç kutularının içeriği gerçek veriden geliyor; elle yazılan bir
+     şehir adı yanlış yazılırsa rapor boş çıkardı. */
+  useEffect(() => {
+    axios.get(`${API}/customers/filter-options`)
+      .then(({ data }) => setSecenekler(data || {}))
+      .catch(() => setSecenekler({}));
+  }, []);
 
   const olustur = useCallback(async () => {
     setYukleniyor(true);
     setHata("");
     try {
       const { data } = await axios.get(`${API}/reports/analytics`, {
-        params: { baslangic, bitis, market: market.trim() },
+        params: { baslangic, bitis, ...suzgec },
       });
       setVeri(data);
     } catch (e) {
@@ -121,7 +170,15 @@ export default function AnalyticsReport() {
     } finally {
       setYukleniyor(false);
     }
-  }, [baslangic, bitis, market]);
+  }, [baslangic, bitis, suzgec]);
+
+  /* ANLIK YENİLEME: süzgeç değişince rapor kendiliğinden yeniden
+     hesaplanıyor, düğmeye basmak gerekmiyor. 350 ms bekleme, arka arkaya
+     iki seçimde iki istek atılmasını önlüyor. */
+  useEffect(() => {
+    const t = setTimeout(olustur, 350);
+    return () => clearTimeout(t);
+  }, [olustur]);
 
   const halka = (dagilim) => ({
     labels: dagilim.map((d) => d.ad),
@@ -167,16 +224,31 @@ export default function AnalyticsReport() {
           <Input type="date" value={bitis} onChange={(e) => setBitis(e.target.value)}
                  className="h-9 w-40" data-testid="analiz-bitis" />
         </div>
-        <div>
-          <Label className="text-xs">Market (boş = tümü)</Label>
-          <Input value={market} onChange={(e) => setMarket(e.target.value)}
-                 placeholder="örn. F&B" className="h-9 w-44" data-testid="analiz-market" />
-        </div>
-        <Button onClick={olustur} disabled={yukleniyor} data-testid="analiz-olustur">
-          {yukleniyor ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
-                      : <BarChart3 className="mr-1.5 h-4 w-4" />}
-          Rapor Oluştur
-        </Button>
+        <Secim etiket="Şehir" deger={suzgec.sehir} secenekler={secenekler.city}
+               onChange={(v) => suzgecAyarla("sehir", v)} testid="analiz-sehir" />
+        <Secim etiket="Market" deger={suzgec.market} secenekler={secenekler.market}
+               onChange={(v) => suzgecAyarla("market", v)} testid="analiz-market" />
+        <Secim etiket="Durum" deger={suzgec.durum} secenekler={DURUMLAR}
+               onChange={(v) => suzgecAyarla("durum", v)} testid="analiz-durum" />
+        <Secim etiket="Rakip" deger={suzgec.rakip} secenekler={secenekler.competitor}
+               onChange={(v) => suzgecAyarla("rakip", v)} testid="analiz-rakip" />
+        <Secim etiket="Takip Eden" deger={suzgec.takip_eden} secenekler={secenekler.assigned_to}
+               onChange={(v) => suzgecAyarla("takip_eden", v)} testid="analiz-takip" />
+
+        {Object.values(suzgec).some(Boolean) && (
+          <Button
+            variant="ghost"
+            onClick={() => setSuzgec({ market: "", sehir: "", durum: "", rakip: "", takip_eden: "" })}
+            data-testid="analiz-temizle"
+          >
+            Süzgeçleri temizle
+          </Button>
+        )}
+        {yukleniyor && (
+          <span className="flex items-center gap-1 pb-2 text-xs text-muted-foreground">
+            <Loader2 className="h-3 w-3 animate-spin" /> güncelleniyor
+          </span>
+        )}
         {veri && (
           <Button variant="outline" onClick={() => window.print()} data-testid="analiz-yazdir">
             <Printer className="mr-1.5 h-4 w-4" />
@@ -199,7 +271,10 @@ export default function AnalyticsReport() {
             <h2 className="text-lg font-bold text-foreground">CRMaster Analiz Raporu</h2>
             <p className="text-xs text-muted-foreground">
               {veri.aralik.baslangic || "başlangıç yok"} – {veri.aralik.bitis || "bugün"}
-              {veri.market ? ` · Market: ${veri.market}` : " · Tüm marketler"}
+              {veri.suzgecler && Object.keys(veri.suzgecler).length > 0
+                ? " · " + Object.entries(veri.suzgecler)
+                    .map(([k, v]) => `${SUZGEC_ADLARI[k] || k}: ${v}`).join(" · ")
+                : " · Süzgeç yok"}
               {" · "}{new Date().toLocaleString("tr-TR")}
             </p>
           </div>

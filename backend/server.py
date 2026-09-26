@@ -5900,7 +5900,18 @@ def _dagilim(sayac: dict, toplam: int, en_fazla: int = 12) -> list:
 
 
 @api_router.get("/reports/analytics")
-def get_report_analytics(baslangic: str = "", bitis: str = "", market: str = ""):
+def get_report_analytics(
+    baslangic: str = "",
+    bitis: str = "",
+    market: str = "",
+    sehir: str = "",
+    ilce: str = "",
+    durum: str = "",
+    potansiyel: str = "",
+    rakip: str = "",
+    partner: str = "",
+    takip_eden: str = "",
+):
     """Tarih aralığına göre toplulaştırılmış rapor verisi.
 
     Mevcut /reports/generate bir SÜTUN SEÇİCİ: düz bir Excel listesi
@@ -5924,13 +5935,28 @@ def get_report_analytics(baslangic: str = "", bitis: str = "", market: str = "")
     aramalar = fetch_all_rows(
         "calls", "id, customer_id, call_date, created_at, caller_name, outcome")
 
+    # SÜZGEÇLER BİRLİKTE ÇALIŞIYOR (VE mantığı): "İstanbul" + "F&B"
+    # seçilince İstanbul'DAKİ F&B müşterileri kalıyor. Her biri isteğe
+    # bağlı; boş bırakılan süzgeç hiçbir şey elemiyor.
+    #
+    # Karşılaştırma normalize_text ile: "istanbul" ile "İstanbul" aynı
+    # sayılıyor (Türkçe büyük/küçük harf sorunu, dosyadaki _tr_regex
+    # notuna bakın).
+    _secimler = {
+        "market": market, "city": sehir, "district": ilce,
+        "status": durum, "potential_level": potansiyel,
+        "competitor": rakip, "partner": partner, "assigned_to": takip_eden,
+    }
+    aktif_suzgecler = {alan: v.strip() for alan, v in _secimler.items()
+                       if (v or "").strip()}
+
+    musteriler_f = musteriler
+    for alan, deger in aktif_suzgecler.items():
+        hedef = normalize_text(deger)
+        musteriler_f = [m for m in musteriler_f
+                        if normalize_text(m.get(alan) or "") == hedef]
+
     market_sec = (market or "").strip()
-    if market_sec:
-        hedef = normalize_text(market_sec)
-        musteriler_f = [m for m in musteriler
-                        if normalize_text(m.get("market") or "") == hedef]
-    else:
-        musteriler_f = musteriler
 
     # Seçili markete ait müşterilerin aramalarını süzebilmek için kimlik kümesi
     kimlikler = {m["id"] for m in musteriler_f}
@@ -5948,7 +5974,8 @@ def get_report_analytics(baslangic: str = "", bitis: str = "", market: str = "")
             continue
         if s and g > s:
             continue
-        if market_sec and a.get("customer_id") not in kimlikler:
+        # Süzgeç varsa aramalar da yalnızca o müşterilere ait olanlar.
+        if aktif_suzgecler and a.get("customer_id") not in kimlikler:
             continue
         aramalar_f.append(a)
         gun_sayaci[g] += 1
@@ -5965,6 +5992,8 @@ def get_report_analytics(baslangic: str = "", bitis: str = "", market: str = "")
     return {
         "aralik": {"baslangic": b, "bitis": s},
         "market": market_sec or None,
+        # Ön yüz hangi süzgeçlerin etkili olduğunu başlıkta gösteriyor.
+        "suzgecler": aktif_suzgecler,
         "kapsam": {
             "musteri_sayisi": len(musteriler_f),
             "tum_musteriler": len(musteriler),
@@ -5988,7 +6017,9 @@ def get_report_analytics(baslangic: str = "", bitis: str = "", market: str = "")
         },
         # Market bazında rakip kırılımı: market seçilmemişse en büyük
         # marketler için ayrı ayrı veriliyor, seçilmişse yalnızca o market.
-        "market_rakip": _market_rakip_kirilimi(musteriler, market_sec),
+        # Kırılım süzülmüş küme üzerinden: "İstanbul" seçiliyse
+        # marketlere göre dağılım da yalnızca İstanbul'u anlatmalı.
+        "market_rakip": _market_rakip_kirilimi(musteriler_f, market_sec),
     }
 
 
