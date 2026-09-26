@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import Breadcrumb from "../components/Breadcrumb";
+import AnalyticsReport from "../components/AnalyticsReport";
 import axios from "axios";
 import {
   FileSpreadsheet,
@@ -115,6 +116,8 @@ const ReportsPage = () => {
   const [customerLimit, setCustomerLimit] = useState("all");
   
   // Expanded sections
+  // Analiz raporu mu, sütun seçip Excel listesi mi.
+  const [sekme, setSekme] = useState("analiz");
   const [expandedSections, setExpandedSections] = useState({
     columns: true,
     contacts: false,
@@ -298,11 +301,37 @@ const ReportsPage = () => {
         <div>
           <Breadcrumb className="mb-1" />
           <h1 className="page-title">Raporlama</h1>
-          <p className="page-subtitle">Özelleştirilmiş Excel raporları oluşturun</p>
+          <p className="page-subtitle">
+            {sekme === "analiz"
+              ? "Tarih aralığına göre analiz — ekranda grafikle, PDF olarak kaydedilebilir"
+              : "Özelleştirilmiş Excel raporları oluşturun"}
+          </p>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      {/* İki farklı iş: "analiz" soruların cevabını verir (kaç arama, rakip
+          payı), "liste" ise seçtiğin sütunlardan düz bir Excel döker. */}
+      <div className="yazdirma-disi flex gap-1 border-b border-border">
+        {[["analiz", "Analiz Raporu"], ["liste", "Excel Listesi"]].map(([k, ad]) => (
+          <button
+            key={k}
+            type="button"
+            onClick={() => setSekme(k)}
+            data-testid={`rapor-sekme-${k}`}
+            className={`px-3 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
+              sekme === k
+                ? "border-primary text-foreground"
+                : "border-transparent text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            {ad}
+          </button>
+        ))}
+      </div>
+
+      {sekme === "analiz" && <AnalyticsReport />}
+
+      <div className={`grid grid-cols-1 lg:grid-cols-3 gap-6 ${sekme === "analiz" ? "hidden" : ""}`}>
         {/* Left Panel - Report Builder */}
         <div className="lg:col-span-2 space-y-4">
           {/* Customer Columns Section */}

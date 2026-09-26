@@ -5784,6 +5784,138 @@ async def export_visits_xlsx(request: Request, session_token: Optional[str] = Co
 
 # ============ CUSTOM REPORTS ============
 
+def _gun(v) -> str:
+    """ISO tarihten YYYY-MM-DD. Ayrıştıramazsa boş."""
+    if not v:
+        return ""
+    m = str(v)[:10]
+    return m if len(m) == 10 and m[4] == "-" else ""
+
+
+def _dagilim(sayac: dict, toplam: int, en_fazla: int = 12) -> list:
+    """{ad: sayı} -> yüzdeli, büyükten küçüğe sıralı liste."""
+    sirali = sorted(sayac.items(), key=lambda x: -x[1])[:en_fazla]
+    return [{"ad": a, "sayi": s,
+             "yuzde": round(s * 100 / toplam, 1) if toplam else 0.0}
+            for a, s in sirali]
+
+
+@api_router.get("/reports/analytics")
+def get_report_analytics(baslangic: str = "", bitis: str = "", market: str = ""):
+    """Tarih aralığına göre toplulaştırılmış rapor verisi.
+
+    Mevcut /reports/generate bir SÜTUN SEÇİCİ: düz bir Excel listesi
+    döküyor, analiz yapmıyor. Bu uç ise soruların cevabını veriyor:
+    "şu tarihler arasında kaç arama yapıldı", "rakiplerin payı ne",
+    "F&B marketinde rakip dağılımı nasıl".
+
+    Arama tarihinde created_at esas alınıyor, call_date yedek. Gerçek
+    veride call_date aramaların yalnızca dörtte birinde dolu; call_date'e
+    dayansaydı raporun dışında kalırlardı.
+
+    "def" (async değil) — dosyadaki /customers notuna bakın.
+    """
+    from collections import Counter
+
+    musteriler = fetch_all_rows(
+        "customers",
+        "id, company_name, market, competitor, partner, city, status, "
+        "potential_level, potential_value, assigned_to, created_at",
+    )
+    aramalar = fetch_all_rows(
+        "calls", "id, customer_id, call_date, created_at, caller_name, outcome")
+
+    market_sec = (market or "").strip()
+    if market_sec:
+        hedef = normalize_text(market_sec)
+        musteriler_f = [m for m in musteriler
+                        if normalize_text(m.get("market") or "") == hedef]
+    else:
+        musteriler_f = musteriler
+
+    # Seçili markete ait müşterilerin aramalarını süzebilmek için kimlik kümesi
+    kimlikler = {m["id"] for m in musteriler_f}
+
+    b, s = (baslangic or "")[:10], (bitis or "")[:10]
+    aramalar_f, gun_sayaci = [], Counter()
+    for a in aramalar:
+        # created_at esas, call_date yedek (yukarıdaki nota bakın)
+        g = _gun(a.get("created_at")) or _gun(a.get("call_date"))
+        if not g:
+            continue
+        if b and g < b:
+            continue
+        if s and g > s:
+            continue
+        if market_sec and a.get("customer_id") not in kimlikler:
+            continue
+        aramalar_f.append(a)
+        gun_sayaci[g] += 1
+
+    n_arama = len(aramalar_f)
+    rakip_sayaci = Counter((m.get("competitor") or "").strip()
+                           for m in musteriler_f if (m.get("competitor") or "").strip())
+    rakipli = sum(rakip_sayaci.values())
+
+    # Yeni müşteriler de aynı aralıkta
+    yeni = [m for m in musteriler_f
+            if (lambda g: g and (not b or g >= b) and (not s or g <= s))(_gun(m.get("created_at")))]
+
+    return {
+        "aralik": {"baslangic": b, "bitis": s},
+        "market": market_sec or None,
+        "kapsam": {
+            "musteri_sayisi": len(musteriler_f),
+            "tum_musteriler": len(musteriler),
+            "yeni_musteri": len(yeni),
+        },
+        "aramalar": {
+            "toplam": n_arama,
+            "sonuc": _dagilim(Counter((a.get("outcome") or "Belirtilmemiş").strip()
+                                      for a in aramalar_f), n_arama),
+            "arayan": _dagilim(Counter((a.get("caller_name") or "Belirtilmemiş").strip()
+                                       for a in aramalar_f), n_arama, 10),
+            "gunluk": [{"tarih": g, "sayi": n}
+                       for g, n in sorted(gun_sayaci.items())],
+        },
+        "rakipler": {
+            "rakibi_bilinen": rakipli,
+            "rakibi_bos": len(musteriler_f) - rakipli,
+            "dagilim": _dagilim(rakip_sayaci, rakipli),
+        },
+        # Market bazında rakip kırılımı: market seçilmemişse en büyük
+        # marketler için ayrı ayrı veriliyor, seçilmişse yalnızca o market.
+        "market_rakip": _market_rakip_kirilimi(musteriler, market_sec),
+    }
+
+
+def _market_rakip_kirilimi(musteriler: list, market_sec: str) -> list:
+    """Her market için rakip dağılımı. "F&B'de rakip dağılımı nedir" sorusu."""
+    from collections import Counter, defaultdict
+
+    market_sayaci = Counter((m.get("market") or "").strip()
+                            for m in musteriler if (m.get("market") or "").strip())
+    if market_sec:
+        hedef = normalize_text(market_sec)
+        adlar = [a for a in market_sayaci if normalize_text(a) == hedef]
+    else:
+        adlar = [a for a, _ in market_sayaci.most_common(6)]
+
+    sonuc = []
+    for ad in adlar:
+        alt = [m for m in musteriler if (m.get("market") or "").strip() == ad]
+        rak = Counter((m.get("competitor") or "").strip()
+                      for m in alt if (m.get("competitor") or "").strip())
+        toplam_rak = sum(rak.values())
+        sonuc.append({
+            "market": ad,
+            "musteri_sayisi": len(alt),
+            "rakibi_bilinen": toplam_rak,
+            "dagilim": _dagilim(rak, toplam_rak, 8),
+        })
+    return sonuc
+
+
 class ReportRequest(BaseModel):
     report_type: str = "customers"
     customer_columns: List[str] = []
