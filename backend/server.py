@@ -345,30 +345,131 @@ class ProcessStageReorder(BaseModel):
 
 # ============ HELPER FUNCTIONS ============
 
+# Türkçe harfleri sadeleştirme. lower() tek başına yetmiyor: "MAKİNA".lower()
+# "maki̇na" veriyor (i + birleşik nokta). Ön yüzdeki normalize() ile aynı eşleme.
+_TR_SADE = str.maketrans({
+    "ı": "i", "İ": "i", "I": "i", "ş": "s", "Ş": "s", "ç": "c", "Ç": "c",
+    "ğ": "g", "Ğ": "g", "ü": "u", "Ü": "u", "ö": "o", "Ö": "o",
+})
+
+# Şirket adlarındaki HUKUKİ EKLER. Bunlar kimlik taşımıyor: "Hakan Makina" ile
+# "Hakan Makina Limited Sanayi Ticaret Şti" aynı firma. Önceden bu kelimeler
+# ismin parçası sanılıyordu ve benzerlik %85'te kalıyordu — Yinelenenler
+# sayfasının varsayılan eşiği 90 olduğu için hiç görünmüyorlardı.
+#
+# Listeye YALNIZCA kimlik taşımayan kelimeler giriyor. "Makina", "Otomasyon",
+# "Plastik" gibi sektör kelimeleri BİLEREK dışarıda: onları atmak
+# "Hakan Makina" ile "Hakan Plastik"i aynı firma yapardı.
+_SIRKET_EKLERI = {
+    "ltd", "limited", "sti", "sirketi", "sirket",
+    "as", "anonim",
+    "san", "sanayi", "sanayii", "snyi",
+    "tic", "ticaret", "tck",
+    "ve", "dis",
+    "koll", "kollektif", "komandit",
+    "ith", "ithalat", "ihr", "ihracat",
+    "paz", "pazarlama",
+}
+
+
 def normalize_text(text: str) -> str:
+    """Karşılaştırma için sadeleştirilmiş metin (Türkçe harfler dahil)."""
     if not text:
         return ""
-    text = text.lower().strip()
-    text = re.sub(r'[^\w\s]', '', text)
-    text = re.sub(r'\s+', ' ', text)
-    return text
+    text = text.translate(_TR_SADE).lower().strip()
+    text = re.sub(r"[^\w\s]", " ", text)
+    text = re.sub(r"\s+", " ", text)
+    return text.strip()
+
+
+def _sirket_cekirdegi(ad: str) -> List[str]:
+    """Şirket adından hukuki ekleri atıp kimlik taşıyan kelimeleri döndürür.
+
+    "Hakan Makina LTD. San. tic."  -> ["hakan", "makina"]
+    "Hakan Makina A.Ş."            -> ["hakan", "makina"]
+
+    Hepsi ek ise (ör. "Sanayi Ticaret Ltd Şti") ayıklamadan vazgeçiliyor —
+    elde hiçbir şey kalmayan bir adı her şeye benzetmek olurdu.
+    """
+    kelimeler = normalize_text(ad).split()
+    # Tek harfli parçalar atılıyor. "A.Ş." noktalama ayıklanınca "a" ve "s"
+    # diye iki parçaya bölünüyor ve bunlar isim sanılıyordu; "Hakan Makina"
+    # ile "Hakan Makina A.Ş." tam eşleşmek yerine %85'te kalıyordu.
+    # Tek harf kimlik taşımaz.
+    cekirdek = [k for k in kelimeler
+                if k not in _SIRKET_EKLERI and len(k) > 1]
+    return cekirdek or kelimeler
+
+
+def _kelime_benzerligi(a: str, b: str) -> float:
+    """İki kelimenin ne kadar aynı olduğu.
+
+    Kısaltmalar için ön ek kuralı var: "mak" -> "makina", "muh" ->
+    "muhendislik". En az 3 harf şartı, yoksa "a" her şeye uyar.
+    """
+    if a == b:
+        return 1.0
+    kisa, uzun = (a, b) if len(a) <= len(b) else (b, a)
+    if len(kisa) >= 3 and uzun.startswith(kisa):
+        return 0.95
+    oran = SequenceMatcher(None, a, b).ratio()
+    # 0.85 eşiği bilerek yüksek: "hakan" ile "ayhan" 0.6 alıyor ve
+    # eşleşmiyor, ama "makina" ile "makine" 0.83... bu yüzden 0.8'e
+    # çekilse "hakan/ayhan" hâlâ güvende, "makina/makine" yakalanıyor.
+    return oran if oran >= 0.80 else 0.0
+
 
 def calculate_similarity(str1: str, str2: str) -> float:
+    """İki şirket adının benzerliği (0..1).
+
+    Kelime bazlı çalışıyor, çünkü şirket adları kelime kelime değişiyor:
+    ek geliyor, kısaltma oluyor, sıra değişiyor. Harf harf karşılaştırma
+    "Hakan Makina" ile "Hakan Makina Ltd Şti"yi uzunluk farkı yüzünden
+    cezalandırıyordu.
+    """
     if not str1 or not str2:
         return 0.0
-    norm1 = normalize_text(str1)
-    norm2 = normalize_text(str2)
-    if not norm1 or not norm2:
-        return 0.0
-    if norm1 == norm2:
+    if normalize_text(str1) == normalize_text(str2):
         return 1.0
-    # Substring containment boost — "Lamtek" should strongly match "Lamtek Makina"
-    if norm1 in norm2 or norm2 in norm1:
-        shorter = min(len(norm1), len(norm2))
-        longer = max(len(norm1), len(norm2))
-        ratio = shorter / longer if longer else 0
-        return max(ratio, 0.85)
-    return SequenceMatcher(None, norm1, norm2).ratio()
+
+    return _cekirdek_skoru(_sirket_cekirdegi(str1), _sirket_cekirdegi(str2))
+
+
+def _cekirdek_skoru(a: List[str], b: List[str]) -> float:
+    """Çekirdek kelime listeleri üzerinden benzerlik.
+
+    Ayrı fonksiyon, çünkü içe aktarma önizlemesi her satırı 3.099 mevcut
+    müşteriyle karşılaştırıyor. Çekirdekleri bir kez hesaplayıp burada
+    karşılaştırmak, her çağrıda baştan ayrıştırmaktan kat kat hızlı.
+    """
+    if not a or not b:
+        return 0.0
+    if a == b:
+        return 1.0
+
+    kisa, uzun = (a, b) if len(a) <= len(b) else (b, a)
+    kalan = list(uzun)
+    toplam = 0.0
+    for k in kisa:
+        en_iyi, en_iyi_i = 0.0, -1
+        for i, u in enumerate(kalan):
+            s = _kelime_benzerligi(k, u)
+            if s > en_iyi:
+                en_iyi, en_iyi_i = s, i
+        if en_iyi_i >= 0:
+            toplam += en_iyi
+            kalan.pop(en_iyi_i)   # her kelime bir kez eşleşsin
+
+    if not toplam:
+        return 0.0
+
+    # Kısa adın TAMAMI eşleştiyse bu bir "içerme" durumu: "Hakan Makina" ile
+    # "Hakan Makina Otomasyon". Aynı firma olabilir de olmayabilir de; eski
+    # davranıştaki 0.85 tabanı korunuyor.
+    if toplam >= len(kisa) - 0.01:
+        return max(len(kisa) / len(uzun), 0.85)
+    return toplam / len(uzun)
+
 
 def normalize_phone(phone: str) -> str:
     if not phone:
@@ -1305,10 +1406,34 @@ async def preview_import(data: dict):
             "id": ec["id"],
             "company_name": ec.get("company_name", ""),
             "norm_name": normalize_text(ec.get("company_name", "")),
+            # Şirket eklerinden arındırılmış çekirdek, bir kez hesaplanıyor.
+            "cekirdek": _sirket_cekirdegi(ec.get("company_name", "")),
             "norm_web": normalize_website(ec.get("website", "")),
             "norm_phone": normalize_phone((ec.get("contact_info") or {}).get("phone", ""))
         })
-    
+
+    # ADAY İNDEKSİ
+    #
+    # Önceden her içe aktarılan satır, mevcut 3.099 müşterinin HEPSİYLE
+    # karşılaştırılıyordu: 500 satırlık bir liste 1,5 milyon karşılaştırma
+    # demek ve ölçüldü, 100 saniyeden fazla sürüyor (Render'ın ücretsiz
+    # katmanı bundan da yavaş).
+    #
+    # Anahtar: çekirdek kelimelerin ilk 3 harfi. "makina", "makine" ve
+    # kısaltması "mak" aynı anahtarı ("mak") paylaşıyor, yani aradığımız
+    # eşleşmeler indeksten geçiyor. Hiçbir anahtarı paylaşmayan iki ad
+    # zaten benzer çıkmıyordu.
+    _ad_indeksi = {}
+    for i, ec in enumerate(existing_normalized):
+        for t in ec["cekirdek"]:
+            if len(t) >= 3:
+                _ad_indeksi.setdefault(t[:3], set()).add(i)
+    # Web sitesi ayrı: tam eşleşme güçlü bir sinyal ve aday üretir.
+    _web_indeksi = {}
+    for i, ec in enumerate(existing_normalized):
+        if ec["norm_web"]:
+            _web_indeksi.setdefault(ec["norm_web"], set()).add(i)
+
     items = []
     total_new = 0
     total_similar = 0
@@ -1320,20 +1445,42 @@ async def preview_import(data: dict):
         website = row.get("website", "")
         
         norm_name = normalize_text(company_name)
+        norm_cekirdek = _sirket_cekirdegi(company_name)
         norm_web = normalize_website(website)
         
-        # Compare against cached existing customers
+        # Yalnızca anahtar paylaşan adaylarla karşılaştır (bkz. ADAY İNDEKSİ).
+        # EN AYIRT EDİCİ kelimenin kovası alınıyor, hepsinin birleşimi değil.
+        #
+        # "Hakan Makina"da kimliği taşıyan kelime "Hakan"; "Makina" bu veride
+        # firmaların yarısında geçiyor ve hiçbir şey elemiyor. Bütün kovaları
+        # birleştirmek 3.098 aday üretiyordu — indeks olmamasıyla aynı şey.
+        # En küçük kova, adın en nadir kelimesi demek.
+        #
+        # Yalnızca "Makina" gibi yaygın bir kelimeyi paylaşan iki ad zaten
+        # aynı firma değil (Arotek Makina / Askas Makina), o yüzden bu
+        # daraltma gerçek eşleşme kaybettirmiyor.
+        _kovalar = [_ad_indeksi.get(t[:3]) for t in norm_cekirdek if len(t) >= 3]
+        _kovalar = [k for k in _kovalar if k]
+        _adaylar = min(_kovalar, key=len) if _kovalar else set()
+        if norm_web:
+            _adaylar = _adaylar | _web_indeksi.get(norm_web, set())
+
         similar_results = []
-        for ec in existing_normalized:
+        for _i in _adaylar:
+            ec = existing_normalized[_i]
             max_sim = 0.0
             match_type = ""
             
             # Name comparison
             if norm_name and ec["norm_name"]:
+                # Düz SequenceMatcher kullanılıyordu ve "Hakan Makina" ile
+                # "Hakan Makina Limited Sanayi Ticaret Şti" %50 civarı
+                # alıyordu: uzunluk farkı ceza olarak işliyordu. Artık
+                # hukuki ekler ayıklanmış çekirdekler karşılaştırılıyor.
                 if norm_name == ec["norm_name"]:
                     name_sim = 1.0
                 else:
-                    name_sim = SequenceMatcher(None, norm_name, ec["norm_name"]).ratio()
+                    name_sim = _cekirdek_skoru(norm_cekirdek, ec["cekirdek"])
                 if name_sim > max_sim:
                     max_sim = name_sim
                     match_type = "Firma Adı"
