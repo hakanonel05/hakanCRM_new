@@ -1,22 +1,14 @@
 import { useState, useCallback } from "react";
 import axios from "axios";
-import {
-  Chart as ChartJS,
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  Title,
-  Tooltip,
-  Legend,
-  ArcElement,
-} from "chart.js";
-import { Doughnut, Bar } from "react-chartjs-2";
+import { Chart as ChartJS, Tooltip, Legend, ArcElement } from "chart.js";
+import { Doughnut } from "react-chartjs-2";
 import { Loader2, Printer, BarChart3 } from "lucide-react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 
-ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, ArcElement);
+// Yalnızca halka grafik kullanılıyor; çubuklar artık tablonun içinde.
+ChartJS.register(Tooltip, Legend, ArcElement);
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -58,26 +50,54 @@ const Bolum = ({ baslik, children, not: notMetni }) => (
   </section>
 );
 
-const Tablo = ({ basliklar, satirlar }) => (
-  <table className="w-full text-xs">
-    <thead>
-      <tr className="border-b border-border text-left text-muted-foreground">
-        {basliklar.map((b, i) => (
-          <th key={b} className={`py-1 font-medium ${i ? "text-right" : ""}`}>{b}</th>
-        ))}
-      </tr>
-    </thead>
-    <tbody>
-      {satirlar.map((s, i) => (
-        <tr key={i} className="border-b border-border/50">
-          {s.map((h, j) => (
-            <td key={j} className={`py-1 ${j ? "text-right tabular-nums" : "font-medium"}`}>{h}</td>
-          ))}
+/* Satır içi çubuklu tablo.
+ *
+ * Önceden her bölümde ayrı bir grafik ve ayrı bir tablo vardı; grafik
+ * 360px'e sıkışıyor, tablo sağ kenara itiliyor, ortada koca bir boşluk
+ * kalıyordu. Çubuğu satırın içine almak ikisini tek yerde birleştiriyor:
+ * hem yarı yer kaplıyor hem de göz karşılaştırmayı aynı satırda yapıyor.
+ */
+const CubukluTablo = ({ satirlar, birimBaslik = "Müşteri" }) => {
+  const enBuyuk = Math.max(1, ...satirlar.map((d) => d.sayi));
+  return (
+    <table className="w-full text-xs">
+      <thead>
+        <tr className="border-b border-border text-left text-muted-foreground">
+          <th className="py-1 font-medium">Ad</th>
+          <th className="py-1 font-medium text-right w-16">{birimBaslik}</th>
+          <th className="py-1 font-medium w-[45%]" />
+          <th className="py-1 font-medium text-right w-14">%</th>
         </tr>
-      ))}
-    </tbody>
-  </table>
-);
+      </thead>
+      <tbody>
+        {satirlar.map((d, i) => (
+          <tr key={d.ad} className="border-b border-border/40">
+            <td className="py-1 font-medium truncate max-w-[160px]" title={d.ad}>{d.ad}</td>
+            <td className="py-1 text-right tabular-nums">{d.sayi}</td>
+            <td className="py-1 pl-2 pr-2">
+              <div className="h-2.5 rounded-sm bg-muted">
+                <div
+                  className="h-2.5 rounded-sm"
+                  /* Tek renk: satırda bilgiyi çubuğun UZUNLUĞU taşıyor,
+                     rengi değil — adı zaten solda yazıyor. Satır başına
+                     ayrı renk vermek gökkuşağı gürültüsü olurdu (projenin
+                     grafik renk notuna bakın: index.css --chart-1..5).
+                     Halka grafikte renk gerekli, çünkü orada dilimi
+                     ayıran tek şey o. */
+                  style={{
+                    width: `${Math.max(2, (d.sayi / enBuyuk) * 100)}%`,
+                    backgroundColor: "hsl(var(--chart-2))",
+                  }}
+                />
+              </div>
+            </td>
+            <td className="py-1 text-right tabular-nums text-muted-foreground">%{d.yuzde}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+};
 
 export default function AnalyticsReport() {
   const [baslangic, setBaslangic] = useState(yilBasi);
@@ -200,20 +220,14 @@ export default function AnalyticsReport() {
             {veri.aramalar.toplam === 0 ? (
               <p className="text-xs text-muted-foreground">Bu aralıkta arama kaydı yok.</p>
             ) : (
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="max-w-[320px]">
+              <div className="grid gap-5 lg:grid-cols-[260px_1fr]">
+                <div className="w-full max-w-[260px]">
                   <Doughnut data={halka(veri.aramalar.sonuc)} options={halkaAyar} />
                 </div>
                 <div>
-                  <Tablo
-                    basliklar={["Sonuç", "Adet", "%"]}
-                    satirlar={veri.aramalar.sonuc.map((d) => [d.ad, d.sayi, `%${d.yuzde}`])}
-                  />
+                  <CubukluTablo satirlar={veri.aramalar.sonuc} birimBaslik="Adet" />
                   <p className="mt-3 mb-1 text-xs font-semibold">Arayana göre</p>
-                  <Tablo
-                    basliklar={["Kişi", "Adet", "%"]}
-                    satirlar={veri.aramalar.arayan.map((d) => [d.ad, d.sayi, `%${d.yuzde}`])}
-                  />
+                  <CubukluTablo satirlar={veri.aramalar.arayan} birimBaslik="Adet" />
                   {/* Boş "Arayan" alanı bu raporun en büyük zayıflığı;
                       gizlemek yerine ne yapılacağıyla birlikte söyleniyor. */}
                   {veri.aramalar.arayani_bos > 0 && (
@@ -237,56 +251,44 @@ export default function AnalyticsReport() {
             {veri.rakipler.dagilim.length === 0 ? (
               <p className="text-xs text-muted-foreground">Rakip bilgisi girilmiş kayıt yok.</p>
             ) : (
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="max-w-[320px]">
+              <div className="grid gap-5 lg:grid-cols-[260px_1fr]">
+                <div className="w-full max-w-[260px]">
                   <Doughnut data={halka(veri.rakipler.dagilim)} options={halkaAyar} />
                 </div>
-                <Tablo
-                  basliklar={["Rakip", "Müşteri", "%"]}
-                  satirlar={veri.rakipler.dagilim.map((d) => [d.ad, d.sayi, `%${d.yuzde}`])}
-                />
+                <CubukluTablo satirlar={veri.rakipler.dagilim} />
               </div>
             )}
           </Bolum>
 
-          {/* Market seçiliyse üstteki "Rakip dağılımı" zaten o marketin
-              dağılımı; aynı tabloyu ikinci kez basmanın anlamı yok.
-              Seçim yokken en büyük marketler tek tek kırılıyor. */}
-          {!veri.market && veri.market_rakip.map((mr) => (
-            <Bolum
-              key={mr.market}
-              baslik={`${mr.market} — rakip dağılımı`}
-              not={`${mr.musteri_sayisi} müşteri, ${mr.rakibi_bilinen} tanesinde rakip bilgisi var.`}
-            >
-              {mr.dagilim.length === 0 ? (
-                <p className="text-xs text-muted-foreground">Bu markette rakip bilgisi yok.</p>
-              ) : (
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div className="max-w-[360px]">
-                    <Bar
-                      data={{
-                        labels: mr.dagilim.map((d) => d.ad),
-                        datasets: [{
-                          label: "Müşteri",
-                          data: mr.dagilim.map((d) => d.sayi),
-                          backgroundColor: RENKLER[1],
-                        }],
-                      }}
-                      options={{
-                        animation: false,
-                        plugins: { legend: { display: false } },
-                        scales: { y: { beginAtZero: true, ticks: { precision: 0 } } },
-                      }}
-                    />
+          {/* Market kırılımları İKİ SÜTUNDA.
+              Önceden her market tam sayfa genişliği kaplıyordu; 5-8 satırlık
+              veri için bir ekran boyu yer demekti ve PDF'te sayfa sayısını
+              gereksiz artırıyordu. Ayrı çubuk grafikler kaldırıldı, çubuk
+              artık satırın içinde. */}
+          {!veri.market && veri.market_rakip.length > 0 && (
+            <section className="mb-6">
+              <h3 className="mb-3 border-b border-border pb-1 text-sm font-semibold text-foreground">
+                Marketlere göre rakip dağılımı
+              </h3>
+              <div className="grid gap-x-8 gap-y-5 lg:grid-cols-2">
+                {veri.market_rakip.map((mr) => (
+                  <div key={mr.market} className="break-inside-avoid">
+                    <div className="mb-1 flex items-baseline justify-between gap-2">
+                      <h4 className="text-xs font-semibold text-foreground">{mr.market}</h4>
+                      <span className="text-[10px] text-muted-foreground">
+                        {mr.musteri_sayisi} müşteri · {mr.rakibi_bilinen} rakipli
+                      </span>
+                    </div>
+                    {mr.dagilim.length === 0 ? (
+                      <p className="text-[11px] text-muted-foreground">Rakip bilgisi yok.</p>
+                    ) : (
+                      <CubukluTablo satirlar={mr.dagilim} />
+                    )}
                   </div>
-                  <Tablo
-                    basliklar={["Rakip", "Müşteri", "%"]}
-                    satirlar={mr.dagilim.map((d) => [d.ad, d.sayi, `%${d.yuzde}`])}
-                  />
-                </div>
-              )}
-            </Bolum>
-          ))}
+                ))}
+              </div>
+            </section>
+          )}
         </div>
       )}
     </div>
