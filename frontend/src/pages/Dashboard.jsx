@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, useCallback, memo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCustomerModal } from "../contexts/CustomerModalContext";
 import { useAuth } from "../App";
+import DashboardBanner from "../components/DashboardBanner";
 import axios from "axios";
 import { swrCache } from "../utils/swrCache";
 import Breadcrumb from "../components/Breadcrumb";
@@ -662,7 +663,7 @@ const saveState = (visible, layouts, chartConfigs) => {
 const Dashboard = () => {
   const navigate = useNavigate();
   const { openCustomerModal } = useCustomerModal();
-  const { canEditDashboard } = useAuth();
+  const { canEditDashboard, user } = useAuth();
   const [stats, setStats] = useState(null);
   const [activities, setActivities] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -1198,7 +1199,7 @@ const Dashboard = () => {
     <div className="h-full overflow-y-auto" data-testid="dashboard-page">
       {/* Header */}
       <div className="sticky top-0 z-20 px-4 sm:px-6 py-3 flex items-center justify-between gap-2" style={{ background: "hsl(var(--background))", borderBottom: "1px solid hsl(var(--border))" }}>
-        <div className="min-w-0 flex-1">
+        <div className="min-w-0 flex-shrink-0">
           <Breadcrumb className="mb-1" />
           <h1 className="text-lg sm:text-xl font-bold text-primary tracking-tight">
             Genel Bakış
@@ -1214,6 +1215,13 @@ const Dashboard = () => {
                 })}
           </p>
         </div>
+
+        {/* Başlık ile "Düzenle" arasındaki boş şerit. Düzenleme modunda
+            gizleniyor: o sırada ekran zaten sürükle-bırak kılavuzlarıyla
+            dolu, bir de bu okunacak değil. */}
+        {!editing && (
+          <DashboardBanner stats={stats} kullaniciAdi={user?.name} />
+        )}
         <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
           {editing && (
             <>
