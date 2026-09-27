@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useCustomerModal } from "../contexts/CustomerModalContext";
 import axios from "axios";
 import CokluSecim from "../components/CokluSecim";
+import { cokluDegerler } from "../utils/searchHelpers";
 import { 
   Plus, 
   Search, 
@@ -1365,9 +1366,7 @@ const Customers = () => {
    * kendisi güncelliyor. */
   const renderCokluCell = (customer, field) => {
     const cogul = field === "competitor" ? "competitors" : "partners";
-    const mevcut = customer[cogul]?.length
-      ? customer[cogul]
-      : (customer[field] ? [customer[field]] : []);
+    const mevcut = cokluDegerler(customer, field);
     return (
       <CokluSecim
         values={mevcut}

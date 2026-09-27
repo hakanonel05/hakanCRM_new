@@ -479,12 +479,17 @@ def _cogul_oku(kayit: dict, tekil: str) -> List[str]:
     """
     cogul = _COGUL_ALANLAR[tekil]
     deger = kayit.get(cogul)
-    if isinstance(deger, list):
-        temiz = [str(v).strip() for v in deger if str(v or "").strip()]
+    if isinstance(deger, list) and deger:
+        # Her eleman ayrıca ayrıştırılıyor: tek alan varken çare olsun diye
+        # "ABB, Siemens" yazılmış kayıtlar var ve SQL göçü bunu tek parça
+        # olarak aktarıyor. Okurken bölmek bu eskiliği kendiliğinden
+        # düzeltiyor — kayıt bir sonraki kaydetmede kalıcı olarak ayrılıyor.
+        temiz = []
+        for v in deger:
+            temiz.extend(_cogul_ayir(v))
         if temiz:
             return temiz
-    t = (kayit.get(tekil) or "").strip()
-    return [t] if t else []
+    return _cogul_ayir(kayit.get(tekil))
 
 
 def _cogul_yaz(veri: dict) -> dict:

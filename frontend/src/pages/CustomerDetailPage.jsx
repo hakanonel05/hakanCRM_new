@@ -66,15 +66,7 @@ import CustomerEditModal from "../components/CustomerEditModal";
 import VisitModal from "../components/VisitModal";
 
 import CustomerHistoryModal from "../components/CustomerHistoryModal";
-
-/* Rakip/partner çok değerli. Dizi boşsa tekil alandan türetiliyor ki
- * göç çalıştırılmamış kayıtlar da doğru görünsün. */
-const cokluDeger = (customer, field) => {
-  const cogul = field === "competitor" ? "competitors" : "partners";
-  const dizi = customer?.[cogul];
-  if (Array.isArray(dizi) && dizi.length) return dizi.filter(Boolean);
-  return customer?.[field] ? [customer[field]] : [];
-};
+import { cokluDegerler as cokluDeger } from "../utils/searchHelpers";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 

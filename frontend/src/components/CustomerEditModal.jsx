@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
 import CokluSecim from "./CokluSecim";
+import { cokluDegerler } from "../utils/searchHelpers";
 import {
   Dialog,
   DialogContent,
@@ -89,12 +90,8 @@ const CustomerEditModal = ({ open, onClose, customer }) => {
         },
         products: customer.products || [],
         // Göç çalıştırılmamış kayıtlarda dizi boş gelir; tekil alandan türet
-        competitors: customer.competitors?.length
-          ? customer.competitors
-          : (customer.competitor ? [customer.competitor] : []),
-        partners: customer.partners?.length
-          ? customer.partners
-          : (customer.partner ? [customer.partner] : []),
+        competitors: cokluDegerler(customer, "competitor"),
+        partners: cokluDegerler(customer, "partner"),
         tags: customer.tags || []
       });
       setSimilarCustomers([]);

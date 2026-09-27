@@ -24,16 +24,28 @@ export const normalize = (s) => {
  * "Siemens" koşulu diziye bakmadan onu kaçırırdı. */
 const COGUL_ALANLAR = { competitor: "competitors", partner: "partners" };
 
-const alanDegerleri = (customer, field) => {
+/* "ABB, Siemens" gibi tek parçaya sıkıştırılmış değerleri böler.
+ * Tek alan varken çare olsun diye böyle yazılmış kayıtlar var ve SQL
+ * göçü bunları tek eleman olarak aktarıyor. */
+const ayir = (v) =>
+  String(v ?? "").split(/[,;/]+/).map((x) => x.trim()).filter(Boolean);
+
+/* Bir alanın TÜM değerleri. Rakip/partner için dizi, yoksa tekil alan.
+ * Rozetleri çizen ekranlar ve filtre eşleştirme aynı yeri kullanıyor ki
+ * ekranda görünen ile filtrenin bulduğu ayrışmasın. */
+export const cokluDegerler = (customer, field) => {
   const cogul = COGUL_ALANLAR[field];
   if (cogul) {
     const dizi = customer?.[cogul];
-    if (Array.isArray(dizi) && dizi.length) return dizi.filter(Boolean);
+    if (Array.isArray(dizi) && dizi.length) return dizi.flatMap(ayir);
+    return ayir(customer?.[field]);
   }
   const ham = customer?.[field];
   if (Array.isArray(ham)) return ham.filter(Boolean);
   return ham === null || ham === undefined || ham === "" ? [] : [ham];
 };
+
+const alanDegerleri = cokluDegerler;
 
 export const matchesCondition = (customer, condition) => {
   const { field, operator, value } = condition || {};
