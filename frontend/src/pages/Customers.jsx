@@ -80,6 +80,66 @@ import { useAuth } from "../App";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
+/* Potansiyel (k€) hücresi — satır içi düzenleme.
+ *
+ * Bu sütun salt okunur metindi: seviye (Yüksek/Orta/Düşük) tıklanınca
+ * açılıyordu ama rakamı değiştirmek için müşteri sayfasını açmak
+ * gerekiyordu. Listede onlarca firmanın değerini girerken bu çok tıklama.
+ *
+ * Tıkla-yaz-Enter. Odak kaybı da kaydediyor, Esc vazgeçiyor.
+ * Boş bırakmak 0 gönderiyor: arka uç None'ı yok sayıyor
+ * (exclude_unset + "v is not None"), o yüzden temizlemenin yolu 0.
+ */
+const PotansiyelDegeriHucresi = memo(function PotansiyelDegeriHucresi({ customer, onSave }) {
+  const [duzenleniyor, setDuzenleniyor] = useState(false);
+  const [taslak, setTaslak] = useState("");
+
+  const mevcut = Number(customer.potential_value) || 0;
+
+  const bitir = (kaydet) => {
+    setDuzenleniyor(false);
+    if (!kaydet) return;
+    // Virgüllü yazım da kabul: "12,5" -> 12.5
+    const sayi = parseFloat(String(taslak).replace(",", ".").replace(/[^\d.]/g, ""));
+    const yeni = Number.isNaN(sayi) ? 0 : sayi;
+    if (yeni === mevcut) return;
+    onSave(customer.id, "potential_value", yeni);
+  };
+
+  if (duzenleniyor) {
+    return (
+      <input
+        value={taslak}
+        onChange={(e) => setTaslak(e.target.value)}
+        onBlur={() => bitir(true)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") { e.preventDefault(); bitir(true); }
+          if (e.key === "Escape") { e.preventDefault(); bitir(false); }
+        }}
+        onFocus={(e) => e.target.select()}
+        inputMode="decimal"
+        autoFocus
+        className="h-7 w-full rounded-md border border-input bg-background px-2 text-sm tabular-nums outline-none focus:ring-2 focus:ring-ring"
+        data-testid={`potential-value-input-${customer.id}`}
+      />
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={() => { setTaslak(mevcut ? String(mevcut) : ""); setDuzenleniyor(true); }}
+      title="Değiştirmek için tıkla"
+      className="h-7 w-full rounded-md px-2 text-left text-sm tabular-nums hover:bg-muted"
+      data-testid={`potential-value-button-${customer.id}`}
+    >
+      {mevcut
+        ? `${mevcut.toLocaleString("tr-TR")} k€`
+        : <span className="text-muted-foreground">—</span>}
+    </button>
+  );
+});
+
 // ProductsCell Component for editing products inline
 const ProductsCell = memo(function ProductsCell({ customer, onUpdate, options, onOptionAdded }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -2119,12 +2179,13 @@ const Customers = () => {
                     </td>
                     <td
                       style={{ width: columnWidths.potential_value }}
-                      className="px-2 py-2.5 overflow-hidden text-sm tabular-nums"
+                      className="px-1 py-2.5 overflow-hidden"
                       data-testid={`potential-value-cell-${customer.id}`}
                     >
-                      {customer.potential_value
-                        ? `${Number(customer.potential_value).toLocaleString("tr-TR")} k€`
-                        : <span className="text-muted-foreground">—</span>}
+                      <PotansiyelDegeriHucresi
+                        customer={customer}
+                        onSave={saveSelectEdit}
+                      />
                     </td>
                     <td style={{ width: columnWidths.status }} className="px-2 py-2.5 overflow-hidden">
                       {renderStatusCell(customer)}
