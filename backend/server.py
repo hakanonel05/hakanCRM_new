@@ -5635,6 +5635,12 @@ async def get_backup_config(request: Request, session_token: Optional[str] = Coo
     # Yedekleme hiç çalışmazsa (zamanlayıcı durmuş, servis uykuda) ortada
     # hata da yok, dolayısıyla uyarı e-postası da gitmiyor. Sayıyı arayüze
     # taşıyoruz ki ekrana bakıldığında görünsün.
+    # Drive ayarlı mı. Ayarlı DEĞİLSE kod Drive'a hiç dokunmuyor: hata da
+    # olmuyor, ayar dosyasına bir şey yazılmıyor, ekranda uyarı çıkmıyor.
+    # "Drive'a göndermedi" denildiğinde sebebini görecek yer kalmıyordu.
+    cfg["gdrive_configured"] = gdrive_service.is_configured()
+    cfg["gdrive_eksik"] = gdrive_service.eksik_ayarlar()
+
     cfg["gun_once"] = None
     son = cfg.get("last_run")
     if son:

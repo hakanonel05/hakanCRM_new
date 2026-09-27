@@ -56,6 +56,19 @@ def is_configured() -> bool:
                ("GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET", "GOOGLE_REFRESH_TOKEN"))
 
 
+def eksik_ayarlar() -> list:
+    """Hangi ortam değişkenlerinin eksik olduğu.
+
+    is_configured() yalnızca evet/hayır diyor ve eksikse Drive'a HİÇ
+    dokunulmuyor — dolayısıyla ortada hata da olmuyor, ayar dosyasına bir
+    şey yazılmıyor, arayüzde hiçbir uyarı çıkmıyor. Kullanıcı "Drive'a
+    göndermedi" diyor ve sebebini görecek hiçbir yer yok. Eksik listesi
+    bu boşluğu kapatıyor.
+    """
+    return [a for a in ("GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET",
+                        "GOOGLE_REFRESH_TOKEN") if not _cfg(a)]
+
+
 def folder_name() -> str:
     return _cfg("GDRIVE_FOLDER_NAME", "CRMaster Yedekleri")
 

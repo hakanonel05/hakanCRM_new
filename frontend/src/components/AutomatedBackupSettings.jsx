@@ -268,6 +268,19 @@ export default function AutomatedBackupSettings() {
           </div>
         </div>
       )}
+      {config.gdrive_configured === false && (
+        <div className="mb-4 flex items-start gap-2 rounded-lg border border-border bg-muted/40 p-3">
+          <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0 text-muted-foreground" />
+          <div className="text-xs text-muted-foreground">
+            <strong>Google Drive ayarlı değil</strong> — yedekler yalnızca
+            Supabase Storage'a gidiyor, Drive'a kopya çıkmıyor.
+            {config.gdrive_eksik?.length > 0 && (
+              <> Eksik ortam değişkeni: <code>{config.gdrive_eksik.join(", ")}</code></>
+            )}
+          </div>
+        </div>
+      )}
+
       {config.last_gdrive_status === "error" && (
         <div className="mb-4 flex items-start gap-2 rounded-lg border border-status-danger-line bg-status-danger-bg p-3">
           <XCircle className="mt-0.5 h-4 w-4 flex-shrink-0 text-status-danger-fg" />
