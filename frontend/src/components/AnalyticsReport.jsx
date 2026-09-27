@@ -1,13 +1,14 @@
 import { useState, useCallback, useEffect } from "react";
 import axios from "axios";
+import { Chart as ChartJS, Tooltip, Legend, ArcElement } from "chart.js";
+import { Doughnut } from "react-chartjs-2";
 import { Loader2, Printer, BarChart3 } from "lucide-react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 
-// Grafik kütüphanesi kullanılmıyor: her dağılım satır içi çubukla
-// gösteriliyor. Halka grafik yanındaki tabloyla aynı veriyi tekrarlıyor,
-// okumak için renk-dilim-satır eşleştirmesi gerektiriyordu.
+// Yalnızca halka grafik kullanılıyor; çubuklar artık tablonun içinde.
+ChartJS.register(Tooltip, Legend, ArcElement);
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -22,6 +23,11 @@ const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
  * depoya yazı tipi dosyası koymayı gerektiriyordu (ş, ğ, İ, ı gömülü font
  * olmadan bozuk çıkıyor) ve grafikleri sıfırdan çizmek gerekiyordu.
  * Tarayıcı ikisini de zaten doğru yapıyor. */
+
+const RENKLER = [
+  "#1f2937", "#ea580c", "#0369a1", "#15803d", "#a16207",
+  "#7c3aed", "#be123c", "#0f766e", "#9a3412", "#4338ca",
+];
 
 /* Durum değerleri sabit bir liste (arka uçtaki KANBAN_STATUSES ile aynı);
    filter-options bunu döndürmüyor. */
@@ -217,6 +223,24 @@ export default function AnalyticsReport() {
     return () => clearTimeout(t);
   }, [olustur]);
 
+  const halka = (dagilim) => ({
+    labels: dagilim.map((d) => d.ad),
+    datasets: [{
+      data: dagilim.map((d) => d.sayi),
+      backgroundColor: dagilim.map((_, i) => RENKLER[i % RENKLER.length]),
+      borderWidth: 0,
+    }],
+  });
+
+  const halkaAyar = {
+    plugins: {
+      legend: { position: "right", labels: { boxWidth: 10, font: { size: 10 } } },
+    },
+    // Yazdırırken canvas'ın sayfaya sığması için oranı sabitliyoruz.
+    maintainAspectRatio: true,
+    animation: false,
+  };
+
   return (
     <div>
       {/* Yazdırma biçimi: ekran kontrolleri çıktıya girmesin, kartlar
@@ -322,21 +346,14 @@ export default function AnalyticsReport() {
             {veri.aramalar.toplam === 0 ? (
               <p className="text-xs text-muted-foreground">Bu aralıkta arama kaydı yok.</p>
             ) : (
-              <div>
-                {/* Halka grafik kaldırıldı: yanındaki tabloyla AYNI veriyi
-                    gösteriyordu ve okumak için rengi dilime, dilimi satıra
-                    eşleştirmek gerekiyordu. Oran bilgisini çubuk ve yüzde
-                    sütunu zaten taşıyor. */}
-                <div className="grid gap-x-8 gap-y-4 lg:grid-cols-2">
-                  <div className="break-inside-avoid">
-                    <p className="mb-1 text-xs font-semibold">Arama sonucuna göre</p>
-                    <CubukluTablo satirlar={veri.aramalar.sonuc} birimBaslik="Adet" />
-                  </div>
-                  <div className="break-inside-avoid">
-                    <p className="mb-1 text-xs font-semibold">Arayana göre</p>
-                    <CubukluTablo satirlar={veri.aramalar.arayan} birimBaslik="Adet" />
-                  </div>
+              <div className="grid gap-5 lg:grid-cols-[260px_1fr]">
+                <div className="w-full max-w-[260px]">
+                  <Doughnut data={halka(veri.aramalar.sonuc)} options={halkaAyar} />
                 </div>
+                <div>
+                  <CubukluTablo satirlar={veri.aramalar.sonuc} birimBaslik="Adet" />
+                  <p className="mt-3 mb-1 text-xs font-semibold">Arayana göre</p>
+                  <CubukluTablo satirlar={veri.aramalar.arayan} birimBaslik="Adet" />
                   {/* Boş "Arayan" alanı bu raporun en büyük zayıflığı;
                       gizlemek yerine ne yapılacağıyla birlikte söyleniyor. */}
                   {veri.aramalar.arayani_bos > 0 && (
@@ -348,6 +365,7 @@ export default function AnalyticsReport() {
                       (Furkan / Furkan ÇELİK) aynı kişide birleştiriliyor.
                     </p>
                   )}
+                </div>
               </div>
             )}
           </Bolum>
@@ -359,7 +377,12 @@ export default function AnalyticsReport() {
             {veri.rakipler.dagilim.length === 0 ? (
               <p className="text-xs text-muted-foreground">Rakip bilgisi girilmiş kayıt yok.</p>
             ) : (
-              <CubukluTablo satirlar={veri.rakipler.dagilim} />
+              <div className="grid gap-5 lg:grid-cols-[260px_1fr]">
+                <div className="w-full max-w-[260px]">
+                  <Doughnut data={halka(veri.rakipler.dagilim)} options={halkaAyar} />
+                </div>
+                <CubukluTablo satirlar={veri.rakipler.dagilim} />
+              </div>
             )}
           </Bolum>
 
