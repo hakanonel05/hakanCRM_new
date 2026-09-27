@@ -6589,6 +6589,23 @@ def get_report_analytics(
             "tum_musteriler": len(musteriler),
             "yeni_musteri": len(yeni),
         },
+        # Potansiyel büyüklük (k€). "bilinmeyen" olmadan toplam yanıltıcı:
+        # müşterilerin çoğunda değer girilmemişse toplam pazarı değil,
+        # yalnızca girilmiş olanları anlatır. Ön yüz bunu açıkça yazıyor.
+        "buyukluk": {
+            "toplam": round(sum(_deger(m) for m in musteriler_f), 1),
+            "bilinen_musteri": sum(1 for m in musteriler_f if _deger(m) > 0),
+            "bilinmeyen_musteri": sum(1 for m in musteriler_f if _deger(m) <= 0),
+            "ortalama": round(
+                sum(_deger(m) for m in musteriler_f)
+                / max(1, sum(1 for m in musteriler_f if _deger(m) > 0)), 1),
+            "yeni_musteri_toplami": round(sum(_deger(m) for m in yeni), 1),
+            "market": _buyukluk_dagilimi(musteriler_f, "market"),
+            "rakip": _buyukluk_dagilimi(musteriler_f, "competitor"),
+            "sehir": _buyukluk_dagilimi(musteriler_f, "city", 10),
+            "seviye": _buyukluk_dagilimi(musteriler_f, "potential_level", 5),
+            "takip_eden": _buyukluk_dagilimi(musteriler_f, "assigned_to", 10),
+        },
         "aramalar": {
             "toplam": n_arama,
             "sonuc": _dagilim(Counter((a.get("outcome") or "Belirtilmemiş").strip()
@@ -6611,6 +6628,48 @@ def get_report_analytics(
         # marketlere göre dağılım da yalnızca İstanbul'u anlatmalı.
         "market_rakip": _market_rakip_kirilimi(musteriler_f, market_sec),
     }
+
+
+def _deger(m: dict) -> float:
+    """Müşterinin potansiyel değeri (k€). Bozuk/boş veri 0 sayılıyor."""
+    try:
+        v = float(m.get("potential_value") or 0)
+    except (TypeError, ValueError):
+        return 0.0
+    # Negatif değer veri hatası; toplamı bozmasın
+    return v if v > 0 else 0.0
+
+
+def _buyukluk_dagilimi(musteriler: list, alan: str, en_fazla: int = 12) -> list:
+    """Bir alana göre toplam potansiyel büyüklük (k€), büyükten küçüğe.
+
+    Çok değerli alanlarda (rakip, partner) müşterinin TÜM değeri her
+    seçeneğe yazılıyor: "ABB'nin bulunduğu portföy kaç k€" sorusunun
+    cevabı bu. Dolayısıyla bu kırılımın toplamı kapsamın toplamından
+    büyük olabilir — bölüştürmek "ABB'ye karşı risk"i olduğundan küçük
+    gösterirdi.
+    """
+    toplamlar: Dict[str, float] = {}
+    sayilar: Dict[str, int] = {}
+    for m in musteriler:
+        d = _deger(m)
+        if alan in _COGUL_ALANLAR:
+            anahtarlar = _cogul_oku(m, alan)
+        else:
+            v = (m.get(alan) or "").strip()
+            anahtarlar = [v] if v else []
+        for k in anahtarlar:
+            toplamlar[k] = toplamlar.get(k, 0.0) + d
+            sayilar[k] = sayilar.get(k, 0) + 1
+
+    genel = sum(toplamlar.values())
+    sirali = sorted(toplamlar.items(), key=lambda x: -x[1])[:en_fazla]
+    return [{
+        "ad": ad,
+        "deger": round(d, 1),
+        "musteri": sayilar.get(ad, 0),
+        "yuzde": round(d * 100 / genel, 1) if genel else 0.0,
+    } for ad, d in sirali]
 
 
 def _market_rakip_kirilimi(musteriler: list, market_sec: str) -> list:
@@ -6637,6 +6696,9 @@ def _market_rakip_kirilimi(musteriler: list, market_sec: str) -> list:
             "musteri_sayisi": len(alt),
             "rakibi_bilinen": toplam_rak,
             "dagilim": _dagilim(rak, toplam_rak, 8),
+            # Marketin toplam büyüklüğü ve değeri girilmiş müşteri sayısı
+            "buyukluk": round(sum(_deger(m) for m in alt), 1),
+            "buyuklugu_bilinen": sum(1 for m in alt if _deger(m) > 0),
         })
     return sonuc
 

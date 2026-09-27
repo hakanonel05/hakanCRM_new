@@ -90,15 +90,35 @@ const Bolum = ({ baslik, children, not: notMetni }) => (
  * kalıyordu. Çubuğu satırın içine almak ikisini tek yerde birleştiriyor:
  * hem yarı yer kaplıyor hem de göz karşılaştırmayı aynı satırda yapıyor.
  */
-const CubukluTablo = ({ satirlar, birimBaslik = "Müşteri" }) => {
-  const enBuyuk = Math.max(1, ...satirlar.map((d) => d.sayi));
+const sayiBicim = (v) => Number(v || 0).toLocaleString("tr-TR");
+
+/* k€ değerleri: ondalık yalnızca gerekiyorsa. "1.250" okunur, "1.250,0" gürültü. */
+const kE = (v) => {
+  const n = Number(v || 0);
+  return n.toLocaleString("tr-TR", { maximumFractionDigits: n < 10 ? 1 : 0 });
+};
+
+const CubukluTablo = ({
+  satirlar,
+  birimBaslik = "Müşteri",
+  // Çubuğu hangi alan sürüyor: adet için "sayi", büyüklük için "deger"
+  alan = "sayi",
+  bicim = sayiBicim,
+  // İsteğe bağlı ikinci sütun: büyüklüğün yanında müşteri adedi
+  ikinciBaslik = "",
+  ikinciAlan = "",
+}) => {
+  const enBuyuk = Math.max(1, ...satirlar.map((d) => Number(d[alan]) || 0));
   return (
     <table className="w-full text-xs">
       <thead>
         <tr className="border-b border-border text-left text-muted-foreground">
           <th className="py-1 font-medium">Ad</th>
-          <th className="py-1 font-medium text-right w-16">{birimBaslik}</th>
-          <th className="py-1 font-medium w-[45%]" />
+          <th className="py-1 font-medium text-right w-20">{birimBaslik}</th>
+          {ikinciAlan && (
+            <th className="py-1 font-medium text-right w-16">{ikinciBaslik}</th>
+          )}
+          <th className="py-1 font-medium w-[40%]" />
           <th className="py-1 font-medium text-right w-14">%</th>
         </tr>
       </thead>
@@ -106,7 +126,12 @@ const CubukluTablo = ({ satirlar, birimBaslik = "Müşteri" }) => {
         {satirlar.map((d, i) => (
           <tr key={d.ad} className="border-b border-border/40">
             <td className="py-1 font-medium truncate max-w-[160px]" title={d.ad}>{d.ad}</td>
-            <td className="py-1 text-right tabular-nums">{d.sayi}</td>
+            <td className="py-1 text-right tabular-nums">{bicim(d[alan])}</td>
+            {ikinciAlan && (
+              <td className="py-1 text-right tabular-nums text-muted-foreground">
+                {sayiBicim(d[ikinciAlan])}
+              </td>
+            )}
             <td className="py-1 pl-2 pr-2">
               <div className="h-2.5 rounded-sm bg-muted">
                 <div
@@ -118,7 +143,7 @@ const CubukluTablo = ({ satirlar, birimBaslik = "Müşteri" }) => {
                      Halka grafikte renk gerekli, çünkü orada dilimi
                      ayıran tek şey o. */
                   style={{
-                    width: `${Math.max(2, (d.sayi / enBuyuk) * 100)}%`,
+                    width: `${Math.max(2, ((Number(d[alan]) || 0) / enBuyuk) * 100)}%`,
                     backgroundColor: "hsl(var(--chart-2))",
                   }}
                 />
@@ -284,8 +309,16 @@ export default function AnalyticsReport() {
             <Kart baslik="Müşteri" deger={veri.kapsam.musteri_sayisi}
                   alt={veri.market ? `${veri.market} marketinde` : "toplam"} />
             <Kart baslik="Yeni müşteri" deger={veri.kapsam.yeni_musteri} alt="aralıkta eklenen" />
-            <Kart baslik="Rakibi bilinen" deger={veri.rakipler.rakibi_bilinen}
-                  alt={`${veri.rakipler.rakibi_bos} kayıtta boş`} />
+            <Kart
+              baslik="Toplam potansiyel"
+              deger={`${kE(veri.buyukluk?.toplam)} k€`}
+              /* Kaç müşteride değer GİRİLMEMİŞ olduğu burada yazıyor:
+                 bu sayı yüksekse toplam pazarı değil, yalnızca girilmiş
+                 olanları anlatır ve öyle okunmalı. */
+              alt={veri.buyukluk?.bilinmeyen_musteri
+                ? `${veri.buyukluk.bilinmeyen_musteri} müşteride değer girilmemiş`
+                : "tüm müşterilerde değer girili"}
+            />
           </div>
 
           <Bolum
@@ -335,6 +368,59 @@ export default function AnalyticsReport() {
             )}
           </Bolum>
 
+          {veri.buyukluk && (
+            <Bolum
+              baslik="Potansiyel büyüklük (k€)"
+              not={
+                veri.buyukluk.bilinmeyen_musteri
+                  ? `Toplam ${kE(veri.buyukluk.toplam)} k€, değeri girilmiş ${veri.buyukluk.bilinen_musteri} müşteriden. ` +
+                    `${veri.buyukluk.bilinmeyen_musteri} müşteride potansiyel girilmemiş, bu yüzden gerçek büyüklük daha yüksek olabilir. ` +
+                    `Değeri girilmiş müşteri başına ortalama ${kE(veri.buyukluk.ortalama)} k€.`
+                  : `Toplam ${kE(veri.buyukluk.toplam)} k€, müşteri başına ortalama ${kE(veri.buyukluk.ortalama)} k€.`
+              }
+            >
+              {veri.buyukluk.toplam <= 0 ? (
+                <p className="text-xs text-muted-foreground">
+                  Bu kapsamdaki hiçbir müşteride potansiyel değeri girilmemiş.
+                  Müşteriler sayfasındaki "Potansiyel (k€)" sütununa tıklayıp
+                  değer girebilirsiniz.
+                </p>
+              ) : (
+                <div className="grid gap-x-8 gap-y-5 lg:grid-cols-2">
+                  <div className="break-inside-avoid">
+                    <h4 className="mb-1 text-xs font-semibold text-foreground">Markete göre</h4>
+                    <CubukluTablo satirlar={veri.buyukluk.market} alan="deger"
+                      bicim={kE} birimBaslik="k€" ikinciBaslik="Müşteri" ikinciAlan="musteri" />
+                  </div>
+                  <div className="break-inside-avoid">
+                    <h4 className="mb-1 text-xs font-semibold text-foreground">Şehre göre</h4>
+                    <CubukluTablo satirlar={veri.buyukluk.sehir} alan="deger"
+                      bicim={kE} birimBaslik="k€" ikinciBaslik="Müşteri" ikinciAlan="musteri" />
+                  </div>
+                  <div className="break-inside-avoid">
+                    <h4 className="mb-1 text-xs font-semibold text-foreground">
+                      Rakibe göre
+                    </h4>
+                    {/* Çok değerli: ABB+Siemens kullanan müşterinin TÜM değeri
+                        ikisine de yazılıyor, çünkü soru "ABB'nin bulunduğu
+                        portföy kaç k€". Bölüştürmek riski küçük gösterirdi. */}
+                    <p className="mb-1 text-[10px] text-muted-foreground">
+                      Birden fazla rakip kullanan müşteri her rakibe tam değeriyle
+                      yazılıyor; bu yüzden toplam, yukarıdaki toplamı aşabilir.
+                    </p>
+                    <CubukluTablo satirlar={veri.buyukluk.rakip} alan="deger"
+                      bicim={kE} birimBaslik="k€" ikinciBaslik="Müşteri" ikinciAlan="musteri" />
+                  </div>
+                  <div className="break-inside-avoid">
+                    <h4 className="mb-1 text-xs font-semibold text-foreground">Takip edene göre</h4>
+                    <CubukluTablo satirlar={veri.buyukluk.takip_eden} alan="deger"
+                      bicim={kE} birimBaslik="k€" ikinciBaslik="Müşteri" ikinciAlan="musteri" />
+                  </div>
+                </div>
+              )}
+            </Bolum>
+          )}
+
           {/* Market kırılımları İKİ SÜTUNDA.
               Önceden her market tam sayfa genişliği kaplıyordu; 5-8 satırlık
               veri için bir ekran boyu yer demekti ve PDF'te sayfa sayısını
@@ -351,7 +437,7 @@ export default function AnalyticsReport() {
                     <div className="mb-1 flex items-baseline justify-between gap-2">
                       <h4 className="text-xs font-semibold text-foreground">{mr.market}</h4>
                       <span className="text-[10px] text-muted-foreground">
-                        {mr.musteri_sayisi} müşteri · {mr.rakibi_bilinen} rakipli
+                        {mr.musteri_sayisi} müşteri · {kE(mr.buyukluk)} k€ · {mr.rakibi_bilinen} rakipli
                       </span>
                     </div>
                     {mr.dagilim.length === 0 ? (
