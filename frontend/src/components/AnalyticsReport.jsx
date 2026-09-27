@@ -156,7 +156,10 @@ const CubukluTablo = ({
                 />
               </div>
             </td>
-            <td className="py-1 pl-2 text-right tabular-nums text-muted-foreground">
+            {/* Yüzde kalın: satırdaki asıl cevap bu. Soluk griyken
+                çubukla aynı ağırlıktaydı ve göz hangisine bakacağını
+                bilemiyordu. */}
+            <td className="py-1 pl-2 text-right font-semibold tabular-nums text-foreground">
               %{d.yuzde}
             </td>
           </tr>
