@@ -1,6 +1,9 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import axios from "axios";
+import { useAuth } from "../App";
+import { normalize } from "../utils/searchHelpers";
+import KisiBirlestirmePaneli from "../components/KisiBirlestirmePaneli";
 import {
   Users,
   Search,
@@ -54,6 +57,7 @@ const formatRelative = (ts) => {
 };
 
 export default function TeamPage() {
+  const { user } = useAuth();
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -94,28 +98,26 @@ export default function TeamPage() {
     );
   }, [modalCustomers, modalSearch]);
 
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        setLoading(true);
-        const res = await axios.get(`${API}/api/team-members`);
-        if (!cancelled) setMembers(res.data?.members || []);
-      } catch (e) {
-        console.error(e);
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
+  const uyeleriGetir = useCallback(async () => {
+    try {
+      setLoading(true);
+      const res = await axios.get(`${API}/api/team-members`);
+      setMembers(res.data?.members || []);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
+  useEffect(() => { uyeleriGetir(); }, [uyeleriGetir]);
+
   const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
+    // normalize(): Türkçe I/İ/ı/i ve ç/ş/ğ/ü/ö sadeleştirmesi.
+    // toLowerCase() burada yetmiyordu — "ÇELİK" araması "Çelik"i bulmuyordu.
+    const q = normalize(search);
     let arr = members;
-    if (q) arr = arr.filter((m) => m.name.toLowerCase().includes(q));
+    if (q) arr = arr.filter((m) => normalize(m.name).includes(q));
     arr = [...arr];
     if (sortBy === "customers") arr.sort((a, b) => b.customers_count - a.customers_count);
     else if (sortBy === "activity")
@@ -174,6 +176,10 @@ export default function TeamPage() {
           </select>
         </div>
       </div>
+
+      {user?.role === "admin" && (
+        <KisiBirlestirmePaneli onBirlestirildi={uyeleriGetir} />
+      )}
 
       {/* Totals */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">

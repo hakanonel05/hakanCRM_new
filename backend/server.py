@@ -13,6 +13,7 @@ from typing import List, Optional, Dict, Any
 import uuid
 from datetime import datetime, timezone, timedelta
 from difflib import SequenceMatcher
+from collections import Counter
 import re
 import io
 import httpx
@@ -2437,7 +2438,10 @@ async def bulk_import_customers(data: dict, request: Request):
                     "contacts": item.get("contacts", []),
                     "potential_value": item.get("potential_value", 0),
                     "next_followup_date": item.get("next_followup_date", ""),
-                    "assigned_to": item.get("assigned_to", ""),
+                    # İçe aktarmada "Takip Eden" serbest metin: dosyada
+                    # "FURKAN ÇELİK" yazıyorsa yeni bir yazım doğuyordu.
+                    # Kanoniğe çevrilerek dağınıklık baştan engelleniyor.
+                    "assigned_to": _kanonik_kisi(item.get("assigned_to", "")),
                     "competitor": item.get("competitor", ""),
                     "partner": item.get("partner", ""),
                     "potential_level": item.get("potential_level", "Düşük"),
@@ -3579,24 +3583,325 @@ def get_activity_feed(limit: int = 50):
 
 # ============ TEAM MEMBERS ENDPOINTS ============
 
-@api_router.get("/team-members")
-async def get_team_members():
-    """
-    List all distinct team members aggregated from:
-      - customers.assigned_to
-      - visits.visited_by
-      - activity_log.user_name
-    Returns one row per person with summary stats.
+# === KİŞİ ADI BİRLEŞTİRME =====================================================
+# Aynı kişi veriye birden çok yazımla girmiş: "Furkan Çelik", "Furkan ÇELİK",
+# "furkan çelik", bazen yalnızca "Furkan". Ekip sayfası ham metne göre
+# grupladığı için aynı kişi birkaç satır çıkıyor ve sayıları bölünüyor.
+#
+# Türkçe'de bu düz lower() ile çözülmez: "I" küçüğü "ı", "İ" küçüğü "i".
+# Zaten var olan normalize_text bu haritayı uyguluyor; buradaki her şey
+# onun üzerine kuruluyor.
+
+_ISIM_ALANLARI = (
+    ("activity_log", "user_name"),
+    ("customers", "assigned_to"),
+    ("visits", "visited_by"),
+    ("calls", "caller_name"),
+)
+
+
+def _ekip_kadrosu() -> List[str]:
+    """users tablosundaki gerçek isimler — kanonik yazımın ilk kaynağı.
+
+    Kişinin kendi kaydettiği yazım, veriye elle girilmiş yazımlardan daha
+    güvenilir; bu yüzden öbeğin adını o belirliyor.
     """
     try:
-        members = {}  # name -> stats
+        satirlar = supabase.table("users").select("name").execute().data or []
+        return [(s.get("name") or "").strip()
+                for s in satirlar if (s.get("name") or "").strip()]
+    except Exception as e:
+        logging.warning("ekip kadrosu okunamadı: %s", e)
+        return []
+
+
+def _kisi_kanonik_harita(sayac: Dict[str, int], kadro: List[str]) -> Dict[str, str]:
+    """Ham isim -> kanonik isim haritası.
+
+    İki aşama:
+      1) Sadeleştirilmiş yazımı aynı olanlar aynı kişidir. "Furkan ÇELİK",
+         "furkan çelik", "Furkan Celik" üçü de "furkan celik" oluyor.
+      2) Tek kelimelik ad ("Furkan"), o adla BAŞLAYAN tek bir tam ad varsa
+         ona bağlanıyor. İki Furkan varsa DOKUNULMUYOR: yanlış birleştirme
+         hiç birleştirmemekten kötüdür ve geri alması zordur.
+    """
+    kadro_norm: Dict[str, str] = {}
+    for ad in kadro:
+        n = normalize_text(ad)
+        if n:
+            kadro_norm.setdefault(n, ad)
+
+    obekler: Dict[str, Counter] = {}
+    for ham, adet in sayac.items():
+        n = normalize_text(ham)
+        if n:
+            obekler.setdefault(n, Counter())[ham] += adet
+
+    kanonik: Dict[str, str] = {}
+    for n, yazimlar in obekler.items():
+        if n in kadro_norm:
+            kanonik[n] = kadro_norm[n]
+        else:
+            # En sık geçen yazım; eşitlikte uzun olan (kısaltma değil)
+            kanonik[n] = max(yazimlar.items(), key=lambda x: (x[1], len(x[0])))[0]
+    for n, ad in kadro_norm.items():
+        kanonik.setdefault(n, ad)
+
+    tam_adlar = [n for n in kanonik if " " in n]
+    for n in list(kanonik):
+        if " " in n:
+            continue
+        adaylar = [t for t in tam_adlar if t.split()[0] == n]
+        if len(adaylar) == 1:
+            kanonik[n] = kanonik[adaylar[0]]
+
+    return {ham: kanonik[normalize_text(ham)]
+            for ham in sayac if normalize_text(ham)}
+
+
+def _isim_varyant_raporu() -> Dict[str, Any]:
+    """Hangi alanda hangi yazım kaç satırda geçiyor ve nereye bağlanacak.
+
+    Salt okuma. Uygulama adımı da aynı raporu üretip ona göre yazıyor;
+    böylece önizlemede görülen ile uygulanan birebir aynı oluyor.
+    """
+    kadro = _ekip_kadrosu()
+    alan_sayaclari: Dict[Any, Counter] = {}
+    genel: Counter = Counter()
+    okunamayan = []
+
+    for tablo, alan in _ISIM_ALANLARI:
+        try:
+            satirlar = fetch_all_rows(tablo, alan)
+        except Exception as e:
+            logging.warning("isim raporu: %s okunamadı: %s", tablo, e)
+            okunamayan.append(tablo)
+            continue
+        c: Counter = Counter()
+        for s in satirlar:
+            v = (s.get(alan) or "").strip()
+            if v:
+                c[v] += 1
+        alan_sayaclari[(tablo, alan)] = c
+        genel.update(c)
+
+    harita = _kisi_kanonik_harita(genel, kadro)
+
+    degisiklikler = []
+    for (tablo, alan), c in alan_sayaclari.items():
+        for ham, adet in sorted(c.items(), key=lambda x: -x[1]):
+            yeni = harita.get(ham, ham)
+            if yeni != ham:
+                degisiklikler.append({
+                    "tablo": tablo, "alan": alan,
+                    "eski": ham, "yeni": yeni, "satir": adet,
+                })
+
+    # Kişi bazında özet: hangi kanonik ad kaç yazımdan toplanıyor
+    kisiler: Dict[str, Dict[str, Any]] = {}
+    for ham, adet in genel.items():
+        yeni = harita.get(ham, ham)
+        k = kisiler.setdefault(yeni, {"ad": yeni, "yazimlar": [], "satir": 0})
+        k["yazimlar"].append({"yazim": ham, "satir": adet})
+        k["satir"] += adet
+    for k in kisiler.values():
+        k["yazimlar"].sort(key=lambda x: -x["satir"])
+    birlesecekler = sorted(
+        [k for k in kisiler.values() if len(k["yazimlar"]) > 1],
+        key=lambda k: -k["satir"],
+    )
+
+    return {
+        "kadro": kadro,
+        "degisiklikler": sorted(degisiklikler, key=lambda d: -d["satir"]),
+        "birlesecek_kisiler": birlesecekler,
+        "etkilenen_satir": sum(d["satir"] for d in degisiklikler),
+        "toplam_kisi": len(kisiler),
+        "okunamayan_tablolar": okunamayan,
+    }
+
+
+_isim_harita_onbellek: Dict[str, Any] = {"data": None, "ts": 0.0}
+_ISIM_HARITA_TTL = 300
+
+
+def _kisi_haritasi(zorla: bool = False) -> Dict[str, str]:
+    """Ham isim -> kanonik isim. Dört tabloyu tarıyor, 5 dakika önbellekli.
+
+    Ekip listesi, kişi profili ve birleştirme önizlemesi AYNI haritayı
+    kullanıyor. Ayrı ayrı kurulsalardı farklı sonuç verebilirlerdi:
+    ekipte tek "Furkan Çelik" görünüp profilinde eksik kayıt çıkardı.
+    """
+    simdi = _time.time()
+    onbellek = _isim_harita_onbellek
+    if not zorla and onbellek["data"] is not None and \
+            simdi - onbellek["ts"] < _ISIM_HARITA_TTL:
+        return onbellek["data"]
+
+    with _cache_lock("isim_harita"):
+        simdi = _time.time()
+        if not zorla and onbellek["data"] is not None and \
+                simdi - onbellek["ts"] < _ISIM_HARITA_TTL:
+            return onbellek["data"]
+
+        sayac: Counter = Counter()
+        for tablo, alan in _ISIM_ALANLARI:
+            try:
+                for s in fetch_all_rows(tablo, alan):
+                    v = (s.get(alan) or "").strip()
+                    if v:
+                        sayac[v] += 1
+            except Exception as e:
+                logging.warning("isim haritası: %s okunamadı: %s", tablo, e)
+
+        harita = _kisi_kanonik_harita(sayac, _ekip_kadrosu())
+        onbellek["data"] = harita
+        onbellek["ts"] = _time.time()
+        return harita
+
+
+def _kisi_yazimlari(kanonik_ad: str) -> List[str]:
+    """Bir kanonik adın veride geçen BÜTÜN yazımları.
+
+    Profil sayfası tek yazımı sorguluyordu; "Furkan Çelik" seçilince
+    "Furkan ÇELİK" satırları gelmiyordu. ILIKE de çözmüyor: Postgres'te
+    lower('İ') 'i' değil, 'i' + birleşen nokta (U+0307).
+    """
+    ad = (kanonik_ad or "").strip()
+    if not ad:
+        return []
+    harita = _kisi_haritasi()
+    yazimlar = {ham for ham, yeni in harita.items() if yeni == ad}
+    # Aranan ad haritada hiç geçmiyor olabilir (henüz kaydı yok) — yine de dön
+    yazimlar.add(ad)
+    return sorted(yazimlar)
+
+
+def _isim_birlestirmeyi_uygula() -> Dict[str, Any]:
+    """Varyant yazımları kanonik ada çevirir. GERİ ALINAMAZ.
+
+    Satır satır değil, YAZIM BAŞINA tek UPDATE: "Furkan ÇELİK" geçen 45
+    satır tek istekte güncelleniyor. Satır başına istek atmak Render'ın
+    ücretsiz katmanında binlerce çağrı ve dakikalar demekti.
+
+    Rapor burada yeniden üretiliyor; önizlemedekiyle aynı fonksiyon, yani
+    kullanıcının onayladığı liste ile yazılan liste aynı kurallardan çıkıyor.
+    """
+    rapor = _isim_varyant_raporu()
+    uygulanan, hatalar = [], []
+    for d in rapor["degisiklikler"]:
+        try:
+            supabase.table(d["tablo"]).update({d["alan"]: d["yeni"]}) \
+                .eq(d["alan"], d["eski"]).execute()
+            uygulanan.append(d)
+        except Exception as e:
+            logging.error("isim birleştirme yazılamadı %s: %s", d, e)
+            hatalar.append({**d, "hata": str(e)[:200]})
+
+    # Önbellekleri düşür, yoksa ekranda eski isimler görünmeye devam eder
+    _isim_harita_onbellek["data"] = None
+    _filter_options_cache["data"] = None
+    _stats_cache["data"] = None
+    try:
+        _invalidate_kanban_cache()
+    except Exception:
+        pass
+
+    return {
+        "uygulanan": uygulanan,
+        "hatalar": hatalar,
+        "guncellenen_satir": sum(d["satir"] for d in uygulanan),
+        "birlesecek_kisiler": rapor["birlesecek_kisiler"],
+    }
+
+
+def _kanonik_kisi(ad: str) -> str:
+    """Tek bir adı kanonik yazımına çevirir; bilinmiyorsa olduğu gibi bırakır.
+
+    Yazma anında kullanılıyor: veriye yeni bir yazım varyantı girmesin diye.
+    Harita önbellekli, bu yüzden satır başına ek sorgu maliyeti yok.
+    """
+    ad = (ad or "").strip()
+    if not ad:
+        return ad
+    try:
+        return _kisi_haritasi().get(ad, ad)
+    except Exception:
+        return ad
+
+
+@api_router.get("/admin/kisi-birlestir")
+async def kisi_birlestir_onizleme(request: Request,
+                                  session_token: Optional[str] = Cookie(None)):
+    """Hangi yazım hangi ada bağlanacak. SALT OKUMA — hiçbir şey yazmaz.
+
+    Önce bunun görülmesi şart: birleştirme geri alınamıyor ve yanlış
+    birleştirilmiş iki kişiyi ayırmanın otomatik yolu yok.
+    """
+    user = await get_current_user_from_request(request, session_token)
+    if not check_admin_permission(user):
+        raise HTTPException(status_code=403, detail="Bu işlem için admin yetkisi gerekli")
+    return await asyncio.to_thread(_isim_varyant_raporu)
+
+
+@api_router.post("/admin/kisi-birlestir")
+async def kisi_birlestir_uygula(request: Request,
+                                session_token: Optional[str] = Cookie(None)):
+    """Önizlemedeki değişiklikleri veritabanına yazar. GERİ ALINAMAZ."""
+    user = await get_current_user_from_request(request, session_token)
+    if not check_admin_permission(user):
+        raise HTTPException(status_code=403, detail="Bu işlem için admin yetkisi gerekli")
+
+    sonuc = await asyncio.to_thread(_isim_birlestirmeyi_uygula)
+
+    if sonuc["uygulanan"]:
+        kullanici = _istek_kullanicisi(request)
+        await log_activity(
+            activity_type="system",
+            title="Kişi adları birleştirildi",
+            subtitle=f"{len(sonuc['uygulanan'])} yazım, "
+                     f"{sonuc['guncellenen_satir']} satır güncellendi",
+            user_email=kullanici.get("email", ""),
+            user_name=kullanici.get("name", ""),
+        )
+    return sonuc
+
+
+@api_router.get("/team-members")
+def get_team_members():
+    """
+    Kişi başına özet: müşteri, takip, kazanılan, kaybedilen, ziyaret, aktivite.
+    Kaynaklar: customers.assigned_to, visits.visited_by, activity_log.user_name
+
+    ADLAR KANONİKLEŞTİRİLİYOR. Önceden ham metne göre gruplanıyordu, bu yüzden
+    "Furkan Çelik", "Furkan ÇELİK" ve "Furkan" üç ayrı satır çıkıyor ve
+    sayılar bölünüyordu. Artık üçü de tek satırda toplanıyor.
+    """
+    try:
+        # İstatistik için satırlar; adların kanonik karşılığı ortak haritadan.
+        cust_rows = fetch_all_rows("customers", "assigned_to, status, is_followup")
+        try:
+            vis_rows = fetch_all_rows("visits", "visited_by, created_at")
+        except Exception:
+            vis_rows = []
+        try:
+            act_rows = fetch_all_rows("activity_log", "user_name, created_at")
+        except Exception:
+            act_rows = []
+
+        harita = _kisi_haritasi()
+
+        def _ad(ham: str) -> str:
+            ham = (ham or "").strip()
+            return harita.get(ham, ham)
+
+        members = {}  # kanonik ad -> özet
 
         def _bump(name, key, inc=1):
-            n = (name or "").strip()
-            if not n:
+            if not name:
                 return
-            m = members.setdefault(n, {
-                "name": n,
+            m = members.setdefault(name, {
+                "name": name,
                 "customers_count": 0,
                 "followup_count": 0,
                 "won_count": 0,
@@ -3607,10 +3912,12 @@ async def get_team_members():
             })
             m[key] = m.get(key, 0) + inc
 
-        # Customers (paginated)
-        cust_rows = fetch_all_rows("customers", "assigned_to, status, is_followup")
+        def _son_aktivite(name, ts):
+            if name and ts and ts > members.get(name, {}).get("last_activity", ""):
+                members[name]["last_activity"] = ts
+
         for c in cust_rows:
-            name = (c.get("assigned_to") or "").strip()
+            name = _ad(c.get("assigned_to"))
             if not name:
                 continue
             _bump(name, "customers_count")
@@ -3622,33 +3929,19 @@ async def get_team_members():
             elif st == "Kaybedildi":
                 _bump(name, "lost_count")
 
-        # Visits (paginated)
-        try:
-            vis_rows = fetch_all_rows("visits", "visited_by, created_at")
-            for v in vis_rows:
-                name = (v.get("visited_by") or "").strip()
-                if not name:
-                    continue
-                _bump(name, "visits_count")
-                ts = v.get("created_at") or ""
-                if ts and ts > members.get(name, {}).get("last_activity", ""):
-                    members[name]["last_activity"] = ts
-        except Exception:
-            pass
+        for v_ in vis_rows:
+            name = _ad(v_.get("visited_by"))
+            if not name:
+                continue
+            _bump(name, "visits_count")
+            _son_aktivite(name, v_.get("created_at") or "")
 
-        # Activity log (count + last_activity) — paginated
-        try:
-            act_rows = fetch_all_rows("activity_log", "user_name, created_at")
-            for a in act_rows:
-                name = (a.get("user_name") or "").strip()
-                if not name:
-                    continue
-                _bump(name, "activities_count")
-                ts = a.get("created_at") or ""
-                if ts and ts > members.get(name, {}).get("last_activity", ""):
-                    members[name]["last_activity"] = ts
-        except Exception:
-            pass
+        for a in act_rows:
+            name = _ad(a.get("user_name"))
+            if not name:
+                continue
+            _bump(name, "activities_count")
+            _son_aktivite(name, a.get("created_at") or "")
 
         result = sorted(members.values(), key=lambda m: -m["customers_count"])
         return {"members": result, "total": len(result)}
@@ -3675,6 +3968,12 @@ async def get_team_member_profile(name: str, days: int = 90, activity_limit: int
         if not name:
             raise HTTPException(status_code=400, detail="name required")
 
+        # Bu kişi veriye kaç farklı yazımla girmişse hepsi.
+        # ILIKE ile tek yazım sorgulanıyordu: "Furkan Çelik" seçilince
+        # "Furkan ÇELİK" ve "Furkan" satırları profile hiç gelmiyordu.
+        # (ILIKE Türkçe'de zaten yetmiyor: lower('İ') = 'i' + U+0307.)
+        yazimlar = _kisi_yazimlari(name)
+
         # --- Customers assigned to this person (paginated) ---
         select_cols = (
             "id, company_name, status, market, city, is_followup, "
@@ -3684,8 +3983,8 @@ async def get_team_member_profile(name: str, days: int = 90, activity_limit: int
         page_size = 1000
         offset = 0
         while True:
-            cust_resp = supabase.table("customers").select(select_cols).ilike(
-                "assigned_to", name
+            cust_resp = supabase.table("customers").select(select_cols).in_(
+                "assigned_to", yazimlar
             ).range(offset, offset + page_size - 1).execute()
             chunk = cust_resp.data or []
             customers.extend(chunk)
@@ -3733,8 +4032,8 @@ async def get_team_member_profile(name: str, days: int = 90, activity_limit: int
         # --- Activities (from activity_log) ---
         activities = []
         try:
-            act_resp = supabase.table("activity_log").select("*").ilike(
-                "user_name", name
+            act_resp = supabase.table("activity_log").select("*").in_(
+                "user_name", yazimlar
             ).order("created_at", desc=True).limit(activity_limit).execute()
             activities = act_resp.data or []
         except Exception:
@@ -3743,8 +4042,8 @@ async def get_team_member_profile(name: str, days: int = 90, activity_limit: int
         # --- Visits made by this person ---
         visits = []
         try:
-            vis_resp = supabase.table("visits").select("*").ilike(
-                "visited_by", name
+            vis_resp = supabase.table("visits").select("*").in_(
+                "visited_by", yazimlar
             ).order("created_at", desc=True).limit(100).execute()
             visits = vis_resp.data or []
         except Exception:
