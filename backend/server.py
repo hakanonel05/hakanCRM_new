@@ -420,13 +420,31 @@ def _cogul_destekleniyor() -> bool:
     try:
         supabase.table("customers").select("competitors,partners").limit(1).execute()
         _cogul_destek["var"] = True
+        _cogul_destek["ts"] = _time.time()
+        return True
     except Exception as e:
-        if _cogul_destek["var"] is not True:
-            logging.warning("çoğul rakip/partner sütunları yok, tekil alana "
-                            "düşülüyor (%s)", str(e)[:120])
+        metin = str(e).lower()
+
+    # SADECE "sütun yok" hatası tekil alana düşmeyi haklı kılıyor.
+    #
+    # Eskiden her hata False sayılıyordu ve bu sessiz veri kaybıydı: geçici
+    # bir ağ hatasında _cogul_yaz diziyi atıp yalnız ilk değeri yazar, yani
+    # kullanıcının girdiği ikinci rakip kaybolurdu. Başka bir hatada
+    # bilinen son duruma dönülüyor; hiç bilinmiyorsa "var" kabul edilip
+    # istek gürültülü şekilde patlıyor. Sessizce veri kaybetmektense
+    # görünür hata vermek yeğdir.
+    sutun_yok = "42703" in metin or "does not exist" in metin or "column" in metin
+    if sutun_yok:
+        if _cogul_destek["var"] is not False:
+            logging.warning("competitors/partners sütunları yok, tekil alana "
+                            "düşülüyor — SQL göçü çalıştırılmalı (%s)", metin[:120])
         _cogul_destek["var"] = False
-    _cogul_destek["ts"] = _time.time()
-    return _cogul_destek["var"]
+        _cogul_destek["ts"] = _time.time()
+        return False
+
+    logging.error("çoğul sütun yoklaması başarısız (geçici olabilir): %s", metin[:150])
+    # Önbelleğe YAZMIYORUZ: bir sonraki istekte yeniden denensin
+    return True if _cogul_destek["var"] is None else _cogul_destek["var"]
 
 
 def _cogul_select(cols: str) -> str:
