@@ -1,14 +1,13 @@
 import { useState, useCallback, useEffect } from "react";
 import axios from "axios";
-import { Chart as ChartJS, Tooltip, Legend, ArcElement } from "chart.js";
-import { Doughnut } from "react-chartjs-2";
 import { Loader2, Printer, BarChart3 } from "lucide-react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 
-// Yalnızca halka grafik kullanılıyor; çubuklar artık tablonun içinde.
-ChartJS.register(Tooltip, Legend, ArcElement);
+// Grafik kütüphanesi kullanılmıyor: her dağılım satır içi çubukla
+// gösteriliyor. Halka grafik yanındaki tabloyla aynı veriyi tekrarlıyor,
+// okumak için renk-dilim-satır eşleştirmesi gerektiriyordu.
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -23,11 +22,6 @@ const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
  * depoya yazı tipi dosyası koymayı gerektiriyordu (ş, ğ, İ, ı gömülü font
  * olmadan bozuk çıkıyor) ve grafikleri sıfırdan çizmek gerekiyordu.
  * Tarayıcı ikisini de zaten doğru yapıyor. */
-
-const RENKLER = [
-  "#1f2937", "#ea580c", "#0369a1", "#15803d", "#a16207",
-  "#7c3aed", "#be123c", "#0f766e", "#9a3412", "#4338ca",
-];
 
 /* Durum değerleri sabit bir liste (arka uçtaki KANBAN_STATUSES ile aynı);
    filter-options bunu döndürmüyor. */
@@ -110,29 +104,42 @@ const CubukluTablo = ({
 }) => {
   const enBuyuk = Math.max(1, ...satirlar.map((d) => Number(d[alan]) || 0));
   return (
-    <table className="w-full text-xs">
+    /* Genişlik sınırı: tam genişlikte çubuk devasa bir şeride dönüşüyor
+       ve yüzde sütunu sayfanın öbür ucuna kaçıyordu. İki sütunlu
+       ızgaralarda sütun zaten bundan dar, orada etkisi yok. */
+    <table className="w-full max-w-[720px] text-xs">
       <thead>
         <tr className="border-b border-border text-left text-muted-foreground">
-          <th className="py-1 font-medium">Ad</th>
-          <th className="py-1 font-medium text-right w-20">{birimBaslik}</th>
+          {/* Ad ve sayı YAN YANA dursun: w-[1%]+nowrap sütunu içeriğe
+              göre daraltıyor, artan genişliği çubuk sütunu yutuyor.
+              Önce ad sütunu tüm boşluğu alıyor, sayı satırın öbür ucuna
+              düşüyor ve göz ikisini birleştiremiyordu. */}
+          <th className="w-[1%] whitespace-nowrap py-1 pr-3 font-medium">Ad</th>
+          <th className="w-[1%] whitespace-nowrap py-1 pr-1 text-right font-medium">
+            {birimBaslik}
+          </th>
           {ikinciAlan && (
-            <th className="py-1 font-medium text-right w-16">{ikinciBaslik}</th>
+            <th className="w-[1%] whitespace-nowrap py-1 pl-3 text-right font-medium">
+              {ikinciBaslik}
+            </th>
           )}
-          <th className="py-1 font-medium w-[40%]" />
-          <th className="py-1 font-medium text-right w-14">%</th>
+          <th className="py-1 font-medium" />
+          <th className="w-[1%] whitespace-nowrap py-1 pl-2 text-right font-medium">%</th>
         </tr>
       </thead>
       <tbody>
         {satirlar.map((d, i) => (
           <tr key={d.ad} className="border-b border-border/40">
-            <td className="py-1 font-medium truncate max-w-[160px]" title={d.ad}>{d.ad}</td>
-            <td className="py-1 text-right tabular-nums">{bicim(d[alan])}</td>
+            <td className="max-w-[220px] truncate py-1 pr-3 font-medium" title={d.ad}>
+              {d.ad}
+            </td>
+            <td className="py-1 pr-1 text-right tabular-nums">{bicim(d[alan])}</td>
             {ikinciAlan && (
-              <td className="py-1 text-right tabular-nums text-muted-foreground">
+              <td className="py-1 pl-3 text-right tabular-nums text-muted-foreground">
                 {sayiBicim(d[ikinciAlan])}
               </td>
             )}
-            <td className="py-1 pl-2 pr-2">
+            <td className="w-full py-1 pl-3 pr-2">
               <div className="h-2.5 rounded-sm bg-muted">
                 <div
                   className="h-2.5 rounded-sm"
@@ -149,7 +156,9 @@ const CubukluTablo = ({
                 />
               </div>
             </td>
-            <td className="py-1 text-right tabular-nums text-muted-foreground">%{d.yuzde}</td>
+            <td className="py-1 pl-2 text-right tabular-nums text-muted-foreground">
+              %{d.yuzde}
+            </td>
           </tr>
         ))}
       </tbody>
@@ -204,24 +213,6 @@ export default function AnalyticsReport() {
     const t = setTimeout(olustur, 350);
     return () => clearTimeout(t);
   }, [olustur]);
-
-  const halka = (dagilim) => ({
-    labels: dagilim.map((d) => d.ad),
-    datasets: [{
-      data: dagilim.map((d) => d.sayi),
-      backgroundColor: dagilim.map((_, i) => RENKLER[i % RENKLER.length]),
-      borderWidth: 0,
-    }],
-  });
-
-  const halkaAyar = {
-    plugins: {
-      legend: { position: "right", labels: { boxWidth: 10, font: { size: 10 } } },
-    },
-    // Yazdırırken canvas'ın sayfaya sığması için oranı sabitliyoruz.
-    maintainAspectRatio: true,
-    animation: false,
-  };
 
   return (
     <div>
@@ -328,14 +319,21 @@ export default function AnalyticsReport() {
             {veri.aramalar.toplam === 0 ? (
               <p className="text-xs text-muted-foreground">Bu aralıkta arama kaydı yok.</p>
             ) : (
-              <div className="grid gap-5 lg:grid-cols-[260px_1fr]">
-                <div className="w-full max-w-[260px]">
-                  <Doughnut data={halka(veri.aramalar.sonuc)} options={halkaAyar} />
+              <div>
+                {/* Halka grafik kaldırıldı: yanındaki tabloyla AYNI veriyi
+                    gösteriyordu ve okumak için rengi dilime, dilimi satıra
+                    eşleştirmek gerekiyordu. Oran bilgisini çubuk ve yüzde
+                    sütunu zaten taşıyor. */}
+                <div className="grid gap-x-8 gap-y-4 lg:grid-cols-2">
+                  <div className="break-inside-avoid">
+                    <p className="mb-1 text-xs font-semibold">Arama sonucuna göre</p>
+                    <CubukluTablo satirlar={veri.aramalar.sonuc} birimBaslik="Adet" />
+                  </div>
+                  <div className="break-inside-avoid">
+                    <p className="mb-1 text-xs font-semibold">Arayana göre</p>
+                    <CubukluTablo satirlar={veri.aramalar.arayan} birimBaslik="Adet" />
+                  </div>
                 </div>
-                <div>
-                  <CubukluTablo satirlar={veri.aramalar.sonuc} birimBaslik="Adet" />
-                  <p className="mt-3 mb-1 text-xs font-semibold">Arayana göre</p>
-                  <CubukluTablo satirlar={veri.aramalar.arayan} birimBaslik="Adet" />
                   {/* Boş "Arayan" alanı bu raporun en büyük zayıflığı;
                       gizlemek yerine ne yapılacağıyla birlikte söyleniyor. */}
                   {veri.aramalar.arayani_bos > 0 && (
@@ -347,7 +345,6 @@ export default function AnalyticsReport() {
                       (Furkan / Furkan ÇELİK) aynı kişide birleştiriliyor.
                     </p>
                   )}
-                </div>
               </div>
             )}
           </Bolum>
@@ -359,12 +356,7 @@ export default function AnalyticsReport() {
             {veri.rakipler.dagilim.length === 0 ? (
               <p className="text-xs text-muted-foreground">Rakip bilgisi girilmiş kayıt yok.</p>
             ) : (
-              <div className="grid gap-5 lg:grid-cols-[260px_1fr]">
-                <div className="w-full max-w-[260px]">
-                  <Doughnut data={halka(veri.rakipler.dagilim)} options={halkaAyar} />
-                </div>
-                <CubukluTablo satirlar={veri.rakipler.dagilim} />
-              </div>
+              <CubukluTablo satirlar={veri.rakipler.dagilim} />
             )}
           </Bolum>
 
