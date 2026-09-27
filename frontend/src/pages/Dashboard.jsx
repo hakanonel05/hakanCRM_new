@@ -663,7 +663,7 @@ const saveState = (visible, layouts, chartConfigs) => {
 const Dashboard = () => {
   const navigate = useNavigate();
   const { openCustomerModal } = useCustomerModal();
-  const { canEditDashboard, user } = useAuth();
+  const { canEditDashboard } = useAuth();
   const [stats, setStats] = useState(null);
   const [activities, setActivities] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -1220,7 +1220,7 @@ const Dashboard = () => {
             gizleniyor: o sırada ekran zaten sürükle-bırak kılavuzlarıyla
             dolu, bir de bu okunacak değil. */}
         {!editing && (
-          <DashboardBanner stats={stats} kullaniciAdi={user?.name} />
+          <DashboardBanner />
         )}
         <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
           {editing && (
