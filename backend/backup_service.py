@@ -98,7 +98,8 @@ def init_storage(supabase_client) -> None:
             data = json.loads(raw.decode("utf-8"))
             with _lock:
                 CONFIG_FILE.write_text(
-                    json.dumps({**DEFAULT_CONFIG, **data}, indent=2, ensure_ascii=False)
+                    json.dumps({**DEFAULT_CONFIG, **data}, indent=2, ensure_ascii=False),
+                    encoding="utf-8",
                 )
             logger.info("Backup config restored from Supabase Storage")
     except Exception as e:
@@ -176,10 +177,10 @@ _JOB_ID = "crm_full_backup_job"
 
 def _read_config_unlocked() -> Dict[str, Any]:
     if not CONFIG_FILE.exists():
-        CONFIG_FILE.write_text(json.dumps(DEFAULT_CONFIG, indent=2))
+        CONFIG_FILE.write_text(json.dumps(DEFAULT_CONFIG, indent=2), encoding="utf-8")
         return dict(DEFAULT_CONFIG)
     try:
-        data = json.loads(CONFIG_FILE.read_text() or "{}")
+        data = json.loads(CONFIG_FILE.read_text(encoding="utf-8") or "{}")
     except Exception:
         data = {}
     return {**DEFAULT_CONFIG, **data}
@@ -195,7 +196,12 @@ def save_config(updates: Dict[str, Any]) -> Dict[str, Any]:
         cur = _read_config_unlocked()
         cur.update(updates or {})
         serialized = json.dumps(cur, indent=2, ensure_ascii=False)
-        CONFIG_FILE.write_text(serialized)
+        # encoding="utf-8" ŞART. Belirtilmezse Python işletim sisteminin
+        # varsayılanını kullanıyor; Windows'ta cp1252 ve Türkçe harfte
+        # (ı, ş, ğ) çöküyor. Bu dosyaya artık Türkçe hata mesajları da
+        # yazılıyor (last_gdrive_error), yani yedeklemenin TAMAMI bir
+        # uyarı metni yüzünden başarısız olabiliyordu.
+        CONFIG_FILE.write_text(serialized, encoding="utf-8")
     # Mirror to persistent storage (outside the lock; failure is non-fatal)
     _storage_upload(STATE_BUCKET, _CONFIG_STATE_KEY, serialized.encode("utf-8"))
     return cur
@@ -233,6 +239,7 @@ def _collect_backup_payload(supabase) -> Dict[str, Any]:
         "export_date": datetime.now(timezone.utc).isoformat(),
         "source": "automated_backup",
     }
+    basarisiz = []
     for t in tables:
         try:
             payload[t] = _tum_satirlar(supabase, t)
@@ -240,6 +247,12 @@ def _collect_backup_payload(supabase) -> Dict[str, Any]:
         except Exception as e:
             logger.warning("Backup: skipping table %s: %s", t, e)
             payload[t] = []
+            basarisiz.append(t)
+    # Hangi tabloların ÇEKİLEMEDİĞİ kaydediliyor. Önceden hata tablo
+    # başına yutuluyordu ve dışarıya hiç bilgi çıkmıyordu: veri tabanı
+    # tamamen erişilemezken bile yedek "başarılı" görünüyor, içi bomboş
+    # bir dosya üretiliyordu.
+    payload["_basarisiz_tablolar"] = basarisiz
     return payload
 
 
@@ -724,6 +737,70 @@ def _send_backup_email(filepath: Path, size_bytes: int, recipients: list,
         raise
 
 
+def _uyari_alicilari(config: dict) -> list:
+    """Hata uyarısı kime gitsin.
+
+    Yedek dosyasını e-postayla göndermek AYRI bir ayar (email_enabled) ve
+    kapalı olabilir. Ama HATA uyarısı o ayara bağlı değil: yedekleme
+    çalışmıyorsa bunu duymak isteyen biri her zaman vardır. Alıcı listesi
+    boşsa yöneticiye düşülüyor.
+    """
+    alicilar = [a for a in (config.get("email_recipients") or []) if a]
+    if alicilar:
+        return alicilar
+    yonetici = (os.environ.get("ADMIN_EMAIL") or "").strip()
+    return [yonetici] if yonetici else []
+
+
+def _uyari_gonder(baslik: str, satirlar: list, resend_module, sender_email: str,
+                  config: dict) -> None:
+    """Yedeklemede bir şey ters gittiğinde e-posta atar.
+
+    Bu fonksiyonun VARLIK SEBEBİ: hatanın sessiz kalmaması. Drive
+    yüklemesi başarısız olduğunda durum yalnızca ayar dosyasına
+    yazılıyordu ve oraya kimse bakmıyor. Google'ın yenileme anahtarı,
+    OAuth uygulaması "Testing" durumundayken 7 günde sessizce ölüyor;
+    böyle bir durumda yedekleme durur ve aylar sonra fark edilirdi.
+
+    Uyarı gönderilemezse yedeğin kendisi etkilenmiyor — yalnızca loglanıyor.
+    """
+    if not resend_module:
+        logger.warning("Yedek uyarısı gönderilemedi: e-posta servisi yok — %s", baslik)
+        return
+    alicilar = _uyari_alicilari(config)
+    if not alicilar:
+        logger.warning("Yedek uyarısı gönderilemedi: alıcı yok — %s", baslik)
+        return
+    try:
+        govde = "".join(f"<li style='margin:4px 0;'>{x}</li>" for x in satirlar)
+        html = f"""
+        <div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;">
+          <div style="background:#7f1d1d;padding:20px;border-radius:12px;color:#fff;">
+            <h2 style="margin:0;font-size:18px;">CRMaster — Yedekleme Uyarısı</h2>
+            <p style="margin:6px 0 0;opacity:.85;font-size:13px;">{baslik}</p>
+          </div>
+          <div style="padding:18px;border:1px solid #e5e7eb;border-top:0;
+                      border-radius:0 0 12px 12px;">
+            <ul style="padding-left:18px;color:#111;font-size:14px;">{govde}</ul>
+            <p style="color:#6b7280;font-size:12px;margin-top:14px;">
+              Bu uyarı {datetime.now().strftime('%d.%m.%Y %H:%M')} tarihinde
+              otomatik gönderildi. Ayrıntı için CRM &rarr; Ayarlar &rarr;
+              Yedekleme ekranına bakın.
+            </p>
+          </div>
+        </div>
+        """
+        resend_module.Emails.send({
+            "from": sender_email,
+            "to": alicilar,
+            "subject": f"⚠️ CRMaster yedekleme: {baslik}",
+            "html": html,
+        })
+        logger.info("Yedek uyarısı gönderildi: %s -> %s", baslik, alicilar)
+    except Exception as e:
+        logger.error("Yedek uyarısı gönderilemedi (%s): %s", baslik, e)
+
+
 def run_backup_sync(supabase, resend_module=None, sender_email: str = "") -> Dict[str, Any]:
     """Execute a backup synchronously. Returns result dict."""
     started = datetime.now(timezone.utc)
@@ -734,6 +811,24 @@ def run_backup_sync(supabase, resend_module=None, sender_email: str = "") -> Dic
     config = load_config()
     try:
         payload = _collect_backup_payload(supabase)
+
+        # GEÇERLİLİK KONTROLÜ.
+        #
+        # Tablo çekimleri tek tek yutuluyor, dolayısıyla veri tabanı tamamen
+        # erişilemezken de buraya kadar geliniyordu: içi boş bir dosya
+        # yazılıyor, "başarılı" deniyor, üstüne saklama temizliği çalışıp
+        # GERÇEK yedekleri siliyordu. Boş bir yedek, yedek değildir.
+        basarisiz = payload.pop("_basarisiz_tablolar", [])
+        musteri_sayisi = len(payload.get("customers") or [])
+        if basarisiz or musteri_sayisi == 0:
+            sebep = (f"Şu tablolar okunamadı: {', '.join(basarisiz)}"
+                     if basarisiz else "Müşteri tablosu boş döndü")
+            raise RuntimeError(
+                f"Yedek geçersiz, yazılmadı. {sebep}. "
+                "Boş bir dosyayı yedek diye kaydetmek, elde yedek olduğu "
+                "sanılırken olmaması demek."
+            )
+
         content = json.dumps(payload, ensure_ascii=False, indent=2, default=str)
         filepath.write_text(content, encoding="utf-8")
         size_bytes = filepath.stat().st_size
@@ -750,6 +845,13 @@ def run_backup_sync(supabase, resend_module=None, sender_email: str = "") -> Dic
         except Exception as xe:
             xlsx_error = str(xe)
             logger.warning("Excel üretilemedi (JSON yedeği alındı): %s", xe)
+            _uyari_gonder(
+                "Excel dosyası üretilemedi",
+                [f"<b>Hata:</b> {xe}",
+                 "JSON yedeği sağlam — geri yükleme için gereken dosya bu, "
+                 "yani veri kaybı riski yok.",
+                 "Yalnızca gözle bakılan Excel kopyası oluşmadı."],
+                resend_module, sender_email, config)
 
         # Persist to Supabase Storage — the local copy dies with the dyno,
         # the storage copy is the real backup.
@@ -775,6 +877,20 @@ def run_backup_sync(supabase, resend_module=None, sender_email: str = "") -> Dic
             except Exception as ge:
                 gdrive_status, gdrive_error = "error", str(ge)
                 logger.error("Drive yüklemesi başarısız: %s", ge)
+                # SESSİZ KALMASIN. Yenileme anahtarı ölürse tek belirtisi
+                # buydu ve kimse ayar dosyasına bakmıyor.
+                _uyari_gonder(
+                    "Google Drive'a yüklenemedi",
+                    [f"<b>Hata:</b> {ge}",
+                     f"JSON yedeği alındı ve Supabase Storage'a yazıldı: <code>{filename}</code>",
+                     "Drive kopyası oluşmadı — bu, felaket durumunda bağımsız "
+                     "kopyanın olmaması demek.",
+                     "En sık sebep: Google OAuth uygulaması 'Testing' durumunda "
+                     "kaldığı için yenileme anahtarının 7 günde ölmesi. "
+                     "Çözüm: Google Cloud Console &rarr; Audience &rarr; "
+                     "Publish app, ardından anahtarı yenileyip Render'daki "
+                     "GOOGLE_REFRESH_TOKEN değerini güncelle."],
+                    resend_module, sender_email, config)
 
         # Optional email
         if config.get("email_enabled") and config.get("email_recipients") and resend_module:
@@ -819,6 +935,15 @@ def run_backup_sync(supabase, resend_module=None, sender_email: str = "") -> Dic
             "last_status": "error",
             "last_error": str(e),
         })
+        # Yedeğin tamamı başarısız: en ağır durum, mutlaka duyulmalı.
+        _uyari_gonder(
+            "Yedekleme BAŞARISIZ",
+            [f"<b>Hata:</b> {e}",
+             "Bu çalıştırmada hiçbir yedek alınamadı.",
+             "Bir sonraki zamanlanmış çalıştırma beklenecek; acilse "
+             "CRM &rarr; Ayarlar &rarr; Yedekleme &rarr; 'Şimdi Yedekle' "
+             "ile elle deneyebilirsin."],
+            resend_module, sender_email, config)
         return {"ok": False, "error": str(e)}
 
 

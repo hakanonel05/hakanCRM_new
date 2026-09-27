@@ -11,6 +11,7 @@ import {
   Loader2,
   CheckCircle2,
   XCircle,
+  AlertTriangle,
   Calendar as CalendarIcon,
 } from "lucide-react";
 import { Button } from "./ui/button";
@@ -240,6 +241,45 @@ export default function AutomatedBackupSettings() {
           />
         </div>
       </div>
+
+      {/* BAYATLIK UYARISI
+          Yedekleme hiç çalışmazsa (zamanlayıcı durmuş, servis uykuda)
+          ortada hata yok, dolayısıyla uyarı e-postası da gitmiyor —
+          e-postayla yakalanamayan tek durum bu. Bu yüzden ekranda. */}
+      {config.enabled && config.gun_once != null && config.gun_once >= 2 && (
+        <div className="mb-4 flex items-start gap-2 rounded-lg border border-status-warning-line bg-status-warning-bg p-3">
+          <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0 text-status-warning-fg" />
+          <div className="text-xs text-status-warning-fg">
+            <strong>{config.gun_once} gündür yedek alınmadı.</strong>{" "}
+            {config.frequency === "daily"
+              ? "Günlük yedekleme açık ama çalışmamış görünüyor."
+              : "Haftalık ayarda bu normal olabilir."}{" "}
+            Zamanlayıcı durmuş ya da sunucu uykuda olabilir; "Şimdi Yedekle"
+            ile elle deneyerek kontrol edebilirsin.
+          </div>
+        </div>
+      )}
+      {config.enabled && config.gun_once == null && (
+        <div className="mb-4 flex items-start gap-2 rounded-lg border border-status-warning-line bg-status-warning-bg p-3">
+          <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0 text-status-warning-fg" />
+          <div className="text-xs text-status-warning-fg">
+            <strong>Henüz hiç yedek alınmamış.</strong> Ayar açık görünüyor;
+            "Şimdi Yedekle" ile bir deneme çalıştır.
+          </div>
+        </div>
+      )}
+      {config.last_gdrive_status === "error" && (
+        <div className="mb-4 flex items-start gap-2 rounded-lg border border-status-danger-line bg-status-danger-bg p-3">
+          <XCircle className="mt-0.5 h-4 w-4 flex-shrink-0 text-status-danger-fg" />
+          <div className="text-xs text-status-danger-fg">
+            <strong>Google Drive'a yüklenemedi.</strong>{" "}
+            {config.last_gdrive_error}
+            <br />
+            En sık sebep: OAuth uygulaması "Testing" durumunda kaldığı için
+            yenileme anahtarının 7 günde ölmesi.
+          </div>
+        </div>
+      )}
 
       {/* Status */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">

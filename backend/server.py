@@ -5630,6 +5630,19 @@ async def get_backup_config(request: Request, session_token: Optional[str] = Coo
         raise HTTPException(status_code=403, detail="Bu işlem için admin yetkisi gerekli")
     cfg = backup_service.load_config()
     cfg["next_run"] = backup_service.next_run_time()
+
+    # "Kaç gündür yedek alınmadı" — e-postayla uyaramadığımız TEK durum bu.
+    # Yedekleme hiç çalışmazsa (zamanlayıcı durmuş, servis uykuda) ortada
+    # hata da yok, dolayısıyla uyarı e-postası da gitmiyor. Sayıyı arayüze
+    # taşıyoruz ki ekrana bakıldığında görünsün.
+    cfg["gun_once"] = None
+    son = cfg.get("last_run")
+    if son:
+        try:
+            t = datetime.fromisoformat(str(son).replace("Z", "+00:00"))
+            cfg["gun_once"] = max(0, (datetime.now(timezone.utc) - t).days)
+        except Exception:
+            pass
     return cfg
 
 
