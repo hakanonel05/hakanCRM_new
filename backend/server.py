@@ -4087,6 +4087,30 @@ def _kanonik_kisi(ad: str) -> str:
         return ad
 
 
+@api_router.get("/system/cogul-durum")
+def cogul_durum():
+    """Rakip/partner dizi sütunları veritabanında var mı.
+
+    Sütunlar yoksa _cogul_yaz diziyi atıp yalnız ilk değeri yazıyor:
+    kullanıcı ikinci rakibi ekliyor, ekranda görüyor, sayfayı
+    yenileyince kayboluyor. Sebebi hiçbir yerde yazmıyordu.
+
+    Bu uç arayüze o durumu söylüyor, böylece "ekleyemiyorum" sessiz bir
+    gizem olmaktan çıkıp ekranda ne yapılması gerektiğini yazan bir
+    uyarıya dönüşüyor. Kimlik gerektirmiyor çünkü hiçbir veri
+    sızdırmıyor — yalnızca şema durumunu söylüyor.
+    """
+    var = _cogul_destekleniyor()
+    return {
+        "coklu_hazir": var,
+        "mesaj": "" if var else (
+            "Rakip ve partner alanlarına birden fazla değer eklemek için "
+            "veritabanında competitors/partners sütunlarının açılması "
+            "gerekiyor. Açılana kadar yalnızca ilk değer kaydedilir."
+        ),
+    }
+
+
 @api_router.get("/admin/kisi-birlestir")
 async def kisi_birlestir_onizleme(request: Request,
                                   session_token: Optional[str] = Cookie(None)):
@@ -6602,6 +6626,7 @@ def get_report_analytics(
             "yeni_musteri_toplami": round(sum(_deger(m) for m in yeni), 1),
             "market": _buyukluk_dagilimi(musteriler_f, "market"),
             "rakip": _buyukluk_dagilimi(musteriler_f, "competitor"),
+            "partner": _buyukluk_dagilimi(musteriler_f, "partner"),
             "sehir": _buyukluk_dagilimi(musteriler_f, "city", 10),
             "seviye": _buyukluk_dagilimi(musteriler_f, "potential_level", 5),
             "takip_eden": _buyukluk_dagilimi(musteriler_f, "assigned_to", 10),
@@ -6643,11 +6668,16 @@ def _deger(m: dict) -> float:
 def _buyukluk_dagilimi(musteriler: list, alan: str, en_fazla: int = 12) -> list:
     """Bir alana göre toplam potansiyel büyüklük (k€), büyükten küçüğe.
 
-    Çok değerli alanlarda (rakip, partner) müşterinin TÜM değeri her
-    seçeneğe yazılıyor: "ABB'nin bulunduğu portföy kaç k€" sorusunun
-    cevabı bu. Dolayısıyla bu kırılımın toplamı kapsamın toplamından
-    büyük olabilir — bölüştürmek "ABB'ye karşı risk"i olduğundan küçük
-    gösterirdi.
+    ÇOK DEĞERLİ ALANDA POTANSİYEL EŞİT BÖLÜNÜYOR. 200 k€'luk müşterinin
+    iki partneri varsa (ADS, Halıcı) her birine 100 k€ yazılıyor.
+
+    Önce tüm değer her seçeneğe yazılıyordu; o zaman kırılımın toplamı
+    kapsamın toplamını aşıyor ve "ADS ne kadar potansiyel yapıyor"
+    sorusunun cevabı şişiyordu. Bölüştürme toplamı korur: kırılımın
+    toplamı her zaman kapsamın toplamına eşittir.
+
+    Müşteri SAYISI bölünmüyor: o müşteri gerçekten ADS'nin de müşterisi,
+    Halıcı'nın da. Bölünen yalnızca para.
     """
     toplamlar: Dict[str, float] = {}
     sayilar: Dict[str, int] = {}
@@ -6655,11 +6685,14 @@ def _buyukluk_dagilimi(musteriler: list, alan: str, en_fazla: int = 12) -> list:
         d = _deger(m)
         if alan in _COGUL_ALANLAR:
             anahtarlar = _cogul_oku(m, alan)
+            # Pay eşit bölünüyor; sıfıra bölme olmasın diye korumalı
+            pay = d / len(anahtarlar) if anahtarlar else 0.0
         else:
             v = (m.get(alan) or "").strip()
             anahtarlar = [v] if v else []
+            pay = d
         for k in anahtarlar:
-            toplamlar[k] = toplamlar.get(k, 0.0) + d
+            toplamlar[k] = toplamlar.get(k, 0.0) + pay
             sayilar[k] = sayilar.get(k, 0) + 1
 
     genel = sum(toplamlar.values())

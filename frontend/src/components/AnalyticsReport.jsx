@@ -401,14 +401,24 @@ export default function AnalyticsReport() {
                     <h4 className="mb-1 text-xs font-semibold text-foreground">
                       Rakibe göre
                     </h4>
-                    {/* Çok değerli: ABB+Siemens kullanan müşterinin TÜM değeri
-                        ikisine de yazılıyor, çünkü soru "ABB'nin bulunduğu
-                        portföy kaç k€". Bölüştürmek riski küçük gösterirdi. */}
+                    {/* Potansiyel eşit bölünüyor, böylece kırılımın toplamı
+                        kapsamın toplamına eşit kalıyor ve "ABB ne kadar
+                        potansiyel yapıyor" sorusu şişmiyor. */}
                     <p className="mb-1 text-[10px] text-muted-foreground">
-                      Birden fazla rakip kullanan müşteri her rakibe tam değeriyle
-                      yazılıyor; bu yüzden toplam, yukarıdaki toplamı aşabilir.
+                      Birden fazla rakip varsa potansiyel eşit bölünüyor
+                      (200 k€ · 2 rakip → her birine 100 k€). Müşteri sayısı
+                      bölünmüyor.
                     </p>
                     <CubukluTablo satirlar={veri.buyukluk.rakip} alan="deger"
+                      bicim={kE} birimBaslik="k€" ikinciBaslik="Müşteri" ikinciAlan="musteri" />
+                  </div>
+                  <div className="break-inside-avoid">
+                    <h4 className="mb-1 text-xs font-semibold text-foreground">Partnere göre</h4>
+                    <p className="mb-1 text-[10px] text-muted-foreground">
+                      Birden fazla partner varsa potansiyel eşit bölünüyor
+                      (200 k€ · ADS + Halıcı → her birine 100 k€).
+                    </p>
+                    <CubukluTablo satirlar={veri.buyukluk.partner || []} alan="deger"
                       bicim={kE} birimBaslik="k€" ikinciBaslik="Müşteri" ikinciAlan="musteri" />
                   </div>
                   <div className="break-inside-avoid">

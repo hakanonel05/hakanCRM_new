@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import axios from "axios";
 import { Check, Plus, Search, X } from "lucide-react";
 import { Input } from "./ui/input";
@@ -19,6 +19,19 @@ const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
  * Seçenek listesi Ürünler alanındaki gibi ortak "options" tablosundan
  * geliyor; listede olmayan bir marka yazılırsa oraya ekleniyor.
  */
+/* Şema durumu bir kez soruluyor ve modül düzeyinde paylaşılıyor: tabloda
+ * yüzlerce hücre var, her biri ayrı istek atmamalı. */
+let _durumSozu = null;
+const cogulDurumu = () => {
+  if (!_durumSozu) {
+    _durumSozu = axios
+      .get(`${API}/system/cogul-durum`)
+      .then((r) => r.data)
+      .catch(() => ({ coklu_hazir: true, mesaj: "" })); // sorulamadıysa engelleme
+  }
+  return _durumSozu;
+};
+
 export default function CokluSecim({
   values = [],
   onChange,
@@ -30,6 +43,17 @@ export default function CokluSecim({
 }) {
   const [open, setOpen] = useState(false);
   const [arama, setArama] = useState("");
+  const [uyari, setUyari] = useState("");
+
+  // Sütunlar yoksa ikinci değer sessizce kayboluyor; kullanıcı sebebini
+  // görmeli, yoksa "ekleyemiyorum" diye tahmin etmek zorunda kalıyor.
+  useEffect(() => {
+    let iptal = false;
+    cogulDurumu().then((d) => {
+      if (!iptal && d && d.coklu_hazir === false) setUyari(d.mesaj || "");
+    });
+    return () => { iptal = true; };
+  }, []);
 
   const secili = Array.isArray(values) ? values.filter(Boolean) : [];
 
@@ -98,6 +122,16 @@ export default function CokluSecim({
           )}
         </span>
       ))}
+
+      {uyari && (
+        <span
+          className="inline-flex items-center gap-1 rounded-full bg-status-warning-bg px-2 py-0.5 text-[10px] font-medium text-status-warning-fg"
+          title={uyari}
+          data-testid="coklu-secim-uyari"
+        >
+          ⚠ tek değer
+        </span>
+      )}
 
       {!disabled && (
         <Popover open={open} onOpenChange={setOpen}>
