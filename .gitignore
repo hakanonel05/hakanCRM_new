@@ -55,3 +55,7 @@ Thumbs.db
 
 # Claude Code oturum ayarlari (makineye ozel)
 .claude/
+
+# Tek seferlik OAuth betiğinin ürettiği yenileme anahtarı — PAROLA.
+# Render'a yapıştırdıktan sonra silinmeli, asla depoya girmemeli.
+gdrive-anahtar.txt

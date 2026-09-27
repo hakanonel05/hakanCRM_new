@@ -114,6 +114,24 @@ const authUrl =
     state: STATE,
   });
 
+/* Panoya kopyalama. İşletim sisteminin kendi aracıyla, ek bağımlılık yok.
+   Başarısız olursa sessizce false dönüyor — anahtar ekranda ve dosyada
+   zaten var, bu yalnızca kolaylık. */
+function panoyaKoy(metin) {
+  const { execFileSync } = require("child_process");
+  const denemeler =
+    process.platform === "win32" ? [["clip", []]]
+    : process.platform === "darwin" ? [["pbcopy", []]]
+    : [["xclip", ["-selection", "clipboard"]], ["xsel", ["--clipboard", "--input"]]];
+  for (const [komut, argv] of denemeler) {
+    try {
+      execFileSync(komut, argv, { input: metin });
+      return true;
+    } catch {}
+  }
+  return false;
+}
+
 const sayfa = (baslik, mesaj) =>
   `<!doctype html><meta charset="utf-8"><title>${baslik}</title>` +
   `<body style="font-family:system-ui;padding:40px;max-width:520px">` +
@@ -204,7 +222,26 @@ const server = http.createServer(async (req, res) => {
     console.log("\n" + "=".repeat(64));
     console.log("GOOGLE_REFRESH_TOKEN=" + veri.refresh_token);
     console.log("=".repeat(64));
-    console.log("\nBunu Render → crmmaster-api → Environment altına ekle.");
+    /* Anahtarı PANOYA kopyala ve bir dosyaya yaz.
+     *
+     * Terminalden elle kopyalamak zor: değer uzun, satır kayıyor ve bazı
+     * terminallerde fare ile seçim çalışmıyor. Zaten tek yapılacak şey bu
+     * değeri Render'a yapıştırmak — panoya koymak işin kendisi. */
+    const panoda = panoyaKoy(veri.refresh_token);
+    const dosya = require("path").join(process.cwd(), "gdrive-anahtar.txt");
+    let dosyada = false;
+    try {
+      fs.writeFileSync(dosya, veri.refresh_token, { encoding: "utf8", mode: 0o600 });
+      dosyada = true;
+    } catch {}
+
+    if (panoda) console.log("\n✓ Anahtar PANOYA kopyalandı — Render'da Ctrl+V yeterli.");
+    if (dosyada) {
+      console.log("✓ Ayrıca şuraya yazıldı: " + dosya);
+      console.log("  (Render'a yapıştırdıktan SONRA bu dosyayı sil — bu bir paroladır.)");
+    }
+
+    console.log("\nRender → crmmaster-api → Environment → GOOGLE_REFRESH_TOKEN");
     console.log("Yanına GOOGLE_CLIENT_ID ve GOOGLE_CLIENT_SECRET de gerekiyor.");
     console.log("\nUNUTMA: OAuth istemcisi Google Cloud Console'da 'Testing'");
     console.log("durumundaysa bu anahtar 7 GÜN sonra ölür. 'Production'a al.\n");
