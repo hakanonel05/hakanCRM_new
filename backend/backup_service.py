@@ -695,14 +695,37 @@ def _prune_old_backups(retention_days: int) -> int:
 
 
 def _send_backup_email(filepath: Path, size_bytes: int, recipients: list,
-                       resend_module, sender_email: str) -> None:
-    """Send backup file as email attachment using Resend."""
+                       resend_module, sender_email: str,
+                       xlsx_path: Optional[Path] = None) -> None:
+    """Yedek dosyalarını e-posta ekinde gönderir.
+
+    HEM JSON HEM EXCEL ekleniyor. Önceden yalnızca JSON gidiyordu: Excel
+    özelliği sonradan eklendi ama e-posta ekine koymak unutulmuştu, bu
+    yüzden e-postayı açan kişi gözle bakabileceği dosyayı bulamıyordu.
+
+    JSON geri yükleme için, Excel okumak için — ikisi ayrı işe yarıyor,
+    o yüzden ikisi de gönderiliyor. Toplam boyut birkaç MB; Resend'in
+    sınırının çok altında.
+    """
     if not recipients:
         return
     try:
-        b64 = base64.b64encode(filepath.read_bytes()).decode("ascii")
         ts = datetime.now().strftime("%Y-%m-%d %H:%M")
         size_mb = size_bytes / (1024 * 1024)
+
+        ekler = [{
+            "filename": filepath.name,
+            "content": base64.b64encode(filepath.read_bytes()).decode("ascii"),
+        }]
+        xlsx_satiri = ""
+        if xlsx_path and xlsx_path.exists():
+            xlsx_bayt = xlsx_path.read_bytes()
+            ekler.append({
+                "filename": xlsx_path.name,
+                "content": base64.b64encode(xlsx_bayt).decode("ascii"),
+            })
+            xlsx_satiri = (f"<li><b>Excel:</b> {xlsx_path.name} "
+                           f"({len(xlsx_bayt) / (1024 * 1024):.2f} MB)</li>")
         html = f"""
         <div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;">
           <div style="background:linear-gradient(135deg,#0f172a,#1e293b);padding:24px;border-radius:12px;color:white;">
@@ -712,9 +735,14 @@ def _send_backup_email(filepath: Path, size_bytes: int, recipients: list,
           <div style="padding:20px;border:1px solid #e2e8f0;border-radius:12px;margin-top:12px;color:#334155;">
             <p>Otomatik yedekleme başarıyla tamamlandı.</p>
             <ul>
-              <li><b>Dosya:</b> {filepath.name}</li>
-              <li><b>Boyut:</b> {size_mb:.2f} MB</li>
+              <li><b>JSON (geri yükleme):</b> {filepath.name} ({size_mb:.2f} MB)</li>
+              {xlsx_satiri}
             </ul>
+            <p style="font-size:13px;color:#475569;">
+              JSON dosyası geri yükleme için; Excel'i gözle incelemek ve
+              paylaşmak için açabilirsin. Excel'deki <b>Özet</b> sayfası
+              hangi tabloda kaç kayıt olduğunu gösteriyor.
+            </p>
             <p style="font-size:12px;color:#64748b;margin-top:24px;">
               Bu e-posta CRMaster otomatik yedekleme sistemi tarafından gönderildi.
             </p>
@@ -726,10 +754,7 @@ def _send_backup_email(filepath: Path, size_bytes: int, recipients: list,
             "to": recipients,
             "subject": f"CRMaster Yedek — {filepath.name}",
             "html": html,
-            "attachments": [{
-                "filename": filepath.name,
-                "content": b64,
-            }],
+            "attachments": ekler,
         }
         resend_module.Emails.send(params)
     except Exception as e:
@@ -897,7 +922,9 @@ def run_backup_sync(supabase, resend_module=None, sender_email: str = "") -> Dic
             try:
                 _send_backup_email(filepath, size_bytes,
                                    config["email_recipients"],
-                                   resend_module, sender_email)
+                                   resend_module, sender_email,
+                                   xlsx_path=(BACKUP_DIR / xlsx_filename)
+                                   if xlsx_bytes else None)
             except Exception as ee:
                 logger.warning("Backup file saved but email failed: %s", ee)
 
