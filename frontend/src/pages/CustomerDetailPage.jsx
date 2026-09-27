@@ -66,6 +66,16 @@ import CustomerEditModal from "../components/CustomerEditModal";
 import VisitModal from "../components/VisitModal";
 
 import CustomerHistoryModal from "../components/CustomerHistoryModal";
+
+/* Rakip/partner çok değerli. Dizi boşsa tekil alandan türetiliyor ki
+ * göç çalıştırılmamış kayıtlar da doğru görünsün. */
+const cokluDeger = (customer, field) => {
+  const cogul = field === "competitor" ? "competitors" : "partners";
+  const dizi = customer?.[cogul];
+  if (Array.isArray(dizi) && dizi.length) return dizi.filter(Boolean);
+  return customer?.[field] ? [customer[field]] : [];
+};
+
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 // Call status options from image
@@ -890,11 +900,15 @@ const CustomerDetailPage = ({ customerId: propCustomerId, isModal = false, onClo
                   <div className="grid grid-cols-2 gap-2">
                     <div>
                       <Label className="text-xs text-muted-foreground">Rakip</Label>
-                      <p className="text-sm font-medium">{customer.competitor || "-"}</p>
+                      <p className="text-sm font-medium">
+                        {cokluDeger(customer, "competitor").join(", ") || "-"}
+                      </p>
                     </div>
                     <div>
                       <Label className="text-xs text-muted-foreground">Partner</Label>
-                      <p className="text-sm font-medium">{customer.partner || "-"}</p>
+                      <p className="text-sm font-medium">
+                        {cokluDeger(customer, "partner").join(", ") || "-"}
+                      </p>
                     </div>
                   </div>
                   {customer.products && customer.products.length > 0 && (

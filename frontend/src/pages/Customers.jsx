@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef, useMemo, memo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCustomerModal } from "../contexts/CustomerModalContext";
 import axios from "axios";
+import CokluSecim from "../components/CokluSecim";
 import { 
   Plus, 
   Search, 
@@ -1358,6 +1359,27 @@ const Customers = () => {
     );
   };
 
+  /* Rakip ve partner çok değerli: müşteri hem ABB hem Siemens kullanabiliyor.
+   * Dizi boşsa tekil alandan türetiliyor — göç çalıştırılmamış kayıtlar da
+   * doğru görünsün diye. Kaydederken dizi gönderiliyor; arka uç tekil alanı
+   * kendisi güncelliyor. */
+  const renderCokluCell = (customer, field) => {
+    const cogul = field === "competitor" ? "competitors" : "partners";
+    const mevcut = customer[cogul]?.length
+      ? customer[cogul]
+      : (customer[field] ? [customer[field]] : []);
+    return (
+      <CokluSecim
+        values={mevcut}
+        onChange={(v) => saveSelectEdit(customer.id, cogul, v)}
+        options={options[field] || []}
+        fieldName={field}
+        placeholder="-"
+        onOptionAdded={refreshOptionsCache}
+      />
+    );
+  };
+
   // Render status cell with fixed options synced with Kanban
   const renderStatusCell = (customer) => {
     const currentStatus = customer.status || "";
@@ -2161,10 +2183,10 @@ const Customers = () => {
                       {renderWebsiteCell(customer)}
                     </td>
                     <td style={{ width: columnWidths.competitor }} className="px-2 py-2.5 overflow-hidden">
-                      {renderSelectCell(customer, "competitor", customer.competitor)}
+                      {renderCokluCell(customer, "competitor")}
                     </td>
                     <td style={{ width: columnWidths.partner }} className="px-2 py-2.5 overflow-hidden">
-                      {renderSelectCell(customer, "partner", customer.partner)}
+                      {renderCokluCell(customer, "partner")}
                     </td>
                     <td style={{ width: columnWidths.products }} className="px-2 py-2.5 overflow-hidden">
                       <ProductsCell 

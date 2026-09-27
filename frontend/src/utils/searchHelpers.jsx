@@ -19,22 +19,41 @@ export const normalize = (s) => {
  *
  * normalize() kullanılıyor: düz toLowerCase() Türkçe "İ"yi bozuyor.
  */
+/* Çok değerli alanlar: rakip ve partner. Müşteri hem ABB hem Siemens
+ * kullanabiliyor; tekil alan yalnız ilk değeri tutuyor, bu yüzden
+ * "Siemens" koşulu diziye bakmadan onu kaçırırdı. */
+const COGUL_ALANLAR = { competitor: "competitors", partner: "partners" };
+
+const alanDegerleri = (customer, field) => {
+  const cogul = COGUL_ALANLAR[field];
+  if (cogul) {
+    const dizi = customer?.[cogul];
+    if (Array.isArray(dizi) && dizi.length) return dizi.filter(Boolean);
+  }
+  const ham = customer?.[field];
+  if (Array.isArray(ham)) return ham.filter(Boolean);
+  return ham === null || ham === undefined || ham === "" ? [] : [ham];
+};
+
 export const matchesCondition = (customer, condition) => {
   const { field, operator, value } = condition || {};
-  const ham = customer?.[field] ?? "";
-  const a = normalize(ham);
+  const degerler = alanDegerleri(customer, field);
   const b = normalize(value);
+  // Çok değerlide "herhangi biri tutuyor mu"; boşsa tek boş değerle karşılaştır
+  const normalize_edilmis = degerler.map(normalize);
+  const doluMu = degerler.length > 0;
   switch (operator) {
     case "equals":
-      return a === b;
+      return doluMu ? normalize_edilmis.some((a) => a === b) : b === "";
     case "contains":
-      return a.includes(b);
+      return doluMu ? normalize_edilmis.some((a) => a.includes(b)) : b === "";
     case "not_equals":
-      return a !== b;
+      // "ABB değil": hiçbir değeri ABB olmamalı
+      return doluMu ? !normalize_edilmis.some((a) => a === b) : b !== "";
     case "is_empty":
-      return !ham || ham === "";
+      return !doluMu;
     case "is_not_empty":
-      return !!ham && ham !== "";
+      return doluMu;
     default:
       return true;
   }

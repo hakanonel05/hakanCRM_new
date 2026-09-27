@@ -37,6 +37,16 @@ import CustomerEditModal from "./CustomerEditModal";
 import VisitModal from "./VisitModal";
 import { useAuth } from "../App";
 
+/* Rakip/partner çok değerli. Dizi boşsa tekil alandan türetiliyor ki
+ * göç çalıştırılmamış kayıtlar da doğru görünsün. */
+const cokluDeger = (customer, field) => {
+  const cogul = field === "competitor" ? "competitors" : "partners";
+  const dizi = customer?.[cogul];
+  if (Array.isArray(dizi) && dizi.length) return dizi.filter(Boolean);
+  return customer?.[field] ? [customer[field]] : [];
+};
+
+
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 const CustomerDetailCard = ({ open, onClose, customer, onUpdate }) => {
@@ -366,23 +376,28 @@ const CustomerDetailCard = ({ open, onClose, customer, onUpdate }) => {
                       </div>
                     )}
 
-                    {(customer.competitor || customer.partner) && (
+                    {(cokluDeger(customer, "competitor").length ||
+                      cokluDeger(customer, "partner").length) && (
                       <div className="grid grid-cols-2 gap-4">
-                        {customer.competitor && (
+                        {cokluDeger(customer, "competitor").length > 0 && (
                           <div className="flex items-start gap-3">
                             <Briefcase className="w-4 h-4 text-muted-foreground mt-0.5" />
                             <div>
                               <p className="text-xs text-muted-foreground">Rakip</p>
-                              <p className="text-sm font-medium">{customer.competitor}</p>
+                              <p className="text-sm font-medium">
+                                {cokluDeger(customer, "competitor").join(", ")}
+                              </p>
                             </div>
                           </div>
                         )}
-                        {customer.partner && (
+                        {cokluDeger(customer, "partner").length > 0 && (
                           <div className="flex items-start gap-3">
                             <Users className="w-4 h-4 text-muted-foreground mt-0.5" />
                             <div>
                               <p className="text-xs text-muted-foreground">Partner</p>
-                              <p className="text-sm font-medium">{customer.partner}</p>
+                              <p className="text-sm font-medium">
+                                {cokluDeger(customer, "partner").join(", ")}
+                              </p>
                             </div>
                           </div>
                         )}

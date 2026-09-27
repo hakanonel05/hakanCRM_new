@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
+import CokluSecim from "./CokluSecim";
 import {
   Dialog,
   DialogContent,
@@ -57,6 +58,9 @@ const CustomerEditModal = ({ open, onClose, customer }) => {
     assigned_to: "",
     competitor: "",
     partner: "",
+    // Rakip/partner artık çok değerli; tekil alanlar arka uçta diziden türüyor
+    competitors: [],
+    partners: [],
     potential_level: "Düşük",
     products: [],
     description: "",
@@ -84,6 +88,13 @@ const CustomerEditModal = ({ open, onClose, customer }) => {
           phone: ""
         },
         products: customer.products || [],
+        // Göç çalıştırılmamış kayıtlarda dizi boş gelir; tekil alandan türet
+        competitors: customer.competitors?.length
+          ? customer.competitors
+          : (customer.competitor ? [customer.competitor] : []),
+        partners: customer.partners?.length
+          ? customer.partners
+          : (customer.partner ? [customer.partner] : []),
         tags: customer.tags || []
       });
       setSimilarCustomers([]);
@@ -131,6 +142,8 @@ const CustomerEditModal = ({ open, onClose, customer }) => {
       assigned_to: "",
       competitor: "",
       partner: "",
+      competitors: [],
+      partners: [],
       potential_level: "Düşük",
       products: [],
       description: "",
@@ -511,9 +524,9 @@ const CustomerEditModal = ({ open, onClose, customer }) => {
                 <div>
                   <Label>Rakip</Label>
                   <div className="mt-1">
-                    <CreatableSelect
-                      value={formData.competitor}
-                      onChange={(v) => handleInputChange("competitor", v)}
+                    <CokluSecim
+                      values={formData.competitors}
+                      onChange={(v) => handleInputChange("competitors", v)}
                       fieldName="competitor"
                       placeholder="Seçin veya yazın"
                       options={options.competitor || []}
@@ -525,9 +538,9 @@ const CustomerEditModal = ({ open, onClose, customer }) => {
                 <div>
                   <Label>Partner</Label>
                   <div className="mt-1">
-                    <CreatableSelect
-                      value={formData.partner}
-                      onChange={(v) => handleInputChange("partner", v)}
+                    <CokluSecim
+                      values={formData.partners}
+                      onChange={(v) => handleInputChange("partners", v)}
                       fieldName="partner"
                       placeholder="Seçin veya yazın"
                       options={options.partner || []}

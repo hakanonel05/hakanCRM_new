@@ -211,6 +211,9 @@ class CustomerBase(BaseModel):
     assigned_to: Optional[str] = ""
     competitor: Optional[str] = ""
     partner: Optional[str] = ""
+    # Çok değerli karşılıkları; tekil alanlar dizinin ilk değeriyle eşitleniyor
+    competitors: Optional[List[str]] = None
+    partners: Optional[List[str]] = None
     potential_level: Optional[str] = "Düşük"
     products: Optional[List[str]] = []
     description: Optional[str] = ""
@@ -381,6 +384,125 @@ def normalize_text(text: str) -> str:
     text = re.sub(r"[^\w\s]", " ", text)
     text = re.sub(r"\s+", " ", text)
     return text.strip()
+
+
+# === ÇOK DEĞERLİ RAKİP / PARTNER =============================================
+# Bir müşteri hem ABB hem Siemens kullanabiliyor, birden fazla partnerle
+# çalışabiliyor. Eskiden tek metin alanı vardı ve ikinci değer yazılamıyordu.
+#
+# Saklama: customers.competitors / customers.partners (text[] dizileri),
+# tam olarak products alanının çalıştığı gibi. Tekil competitor/partner
+# sütunları ARTIK TÜRETİLMİŞ: dizinin ilk değeriyle eşitleniyorlar.
+# Silinmediler, çünkü onlara bakan eski kod ve dış çıktılar var; ilk değer
+# orada durdukça hiçbiri kırılmıyor.
+#
+# Dizi -> tekil eşleme "ilk değer", "hepsi virgülle" değil: tekil alan
+# hâlâ .eq() ile birebir sorgulanıyor, virgüllü metin o sorguları bozardı.
+
+_COGUL_ALANLAR = {"competitor": "competitors", "partner": "partners"}
+
+_cogul_destek = {"var": None, "ts": 0.0}
+_COGUL_DESTEK_TTL = 60
+
+
+def _cogul_destekleniyor() -> bool:
+    """customers.competitors sütunu var mı?
+
+    SQL göçü (ALTER TABLE) elle çalıştırılıyor ve dağıtımdan önce ya da
+    sonra yapılabilir. Sütun yokken ona select atmak PostgREST'te hata
+    verip API'yi düşürürdü. Bu yüzden bir kez yoklanıp önbelleğe alınıyor;
+    sütun yoksa her şey eski tekil alanla çalışmaya devam ediyor.
+    """
+    simdi = _time.time()
+    if _cogul_destek["var"] is not None and \
+            simdi - _cogul_destek["ts"] < _COGUL_DESTEK_TTL:
+        return _cogul_destek["var"]
+    try:
+        supabase.table("customers").select("competitors,partners").limit(1).execute()
+        _cogul_destek["var"] = True
+    except Exception as e:
+        if _cogul_destek["var"] is not True:
+            logging.warning("çoğul rakip/partner sütunları yok, tekil alana "
+                            "düşülüyor (%s)", str(e)[:120])
+        _cogul_destek["var"] = False
+    _cogul_destek["ts"] = _time.time()
+    return _cogul_destek["var"]
+
+
+def _cogul_select(cols: str) -> str:
+    """Select listesine competitors/partners sütunlarını ekler.
+
+    _cogul_oku() çağıran her sorgunun dizileri de çekmesi gerekiyor; yoksa
+    sessizce tekil alana düşer ve ikinci marka kaybolur.
+    """
+    if not _cogul_destekleniyor():
+        return cols
+    ek = [c for c in ("competitors", "partners") if c not in cols]
+    return cols + (", " + ", ".join(ek) if ek else "")
+
+
+def _cogul_ayir(metin) -> List[str]:
+    """"ABB, Siemens" gibi tek hücreye sıkıştırılmış listeyi parçalar.
+
+    Virgül, noktalı virgül ve eğik çizgi ayırıcı sayılıyor. Marka
+    adlarında bunlar geçmiyor, bu yüzden güvenli.
+    """
+    if isinstance(metin, list):
+        return [str(v).strip() for v in metin if str(v or "").strip()]
+    parcalar = re.split(r"[,;/]+", str(metin or ""))
+    return [p.strip() for p in parcalar if p.strip()]
+
+
+def _cogul_oku(kayit: dict, tekil: str) -> List[str]:
+    """Bir müşterinin o alandaki TÜM değerleri.
+
+    Dizi doluysa o, değilse tekil alandan tek elemanlı liste. Böylece göç
+    çalıştırılmamış kayıtlar da doğru okunuyor.
+    """
+    cogul = _COGUL_ALANLAR[tekil]
+    deger = kayit.get(cogul)
+    if isinstance(deger, list):
+        temiz = [str(v).strip() for v in deger if str(v or "").strip()]
+        if temiz:
+            return temiz
+    t = (kayit.get(tekil) or "").strip()
+    return [t] if t else []
+
+
+def _cogul_yaz(veri: dict) -> dict:
+    """Yazmadan önce dizi ve tekil alanı tutarlı hâle getirir.
+
+    İki yönlü, çünkü iki tür istemci var: yeni ekranlar diziyi gönderiyor,
+    eski/dış çağrılar hâlâ tekil alanı gönderiyor. Hangisi geldiyse
+    diğeri ondan türetiliyor.
+    """
+    for tekil, cogul in _COGUL_ALANLAR.items():
+        dizi_geldi = cogul in veri
+        tekil_geldi = tekil in veri
+
+        if dizi_geldi:
+            liste = veri.get(cogul) or []
+            if isinstance(liste, str):
+                liste = [liste]
+            # Sırayı koruyarak tekrarları at: "ABB, ABB" tek ABB olsun
+            gorulen, temiz = set(), []
+            for v in liste:
+                s = str(v or "").strip()
+                if s and normalize_text(s) not in gorulen:
+                    gorulen.add(normalize_text(s))
+                    temiz.append(s)
+            veri[cogul] = temiz
+            veri[tekil] = temiz[0] if temiz else ""
+        elif tekil_geldi:
+            # Excel'den ya da elle "ABB, Siemens" / "ABB; Siemens" gelebiliyor.
+            # Tek parça saklamak ikinci markayı görünmez yapardı.
+            veri[cogul] = _cogul_ayir(veri.get(tekil))
+            veri[tekil] = veri[cogul][0] if veri[cogul] else ""
+
+        if not _cogul_destekleniyor():
+            # Sütun henüz açılmadıysa diziyi göndermek hata verir
+            veri.pop(cogul, None)
+    return veri
 
 
 def _sirket_cekirdegi(ad: str) -> List[str]:
@@ -582,7 +704,9 @@ async def create_customer(customer: CustomerCreate, request: Request):
     # Convert lists to proper format for PostgreSQL
     doc["products"] = doc.get("products", [])
     doc["tags"] = doc.get("tags", [])
-    
+    # Rakip/partner dizileriyle tekil alanları tutarlı hâle getir
+    doc = _cogul_yaz(doc)
+
     response = supabase.table("customers").insert(doc).execute()
     
     # Invalidate caches
@@ -779,8 +903,8 @@ def get_customers(
             q = _secim(q, "city", city)
             q = _secim(q, "district", district)
             q = _secim(q, "status", status)
-            q = _secim(q, "competitor", competitor)
-            q = _secim(q, "partner", partner)
+            q = _cogul_secim(q, "competitor", competitor)
+            q = _cogul_secim(q, "partner", partner)
             # assigned_to TAM EŞLEŞME DEĞİL, İÇERİR.
             #
             # Bu bir kişi adı alanı; Filtreler sayfası "Takip Eden içerir
@@ -794,8 +918,8 @@ def get_customers(
             q = _icerir(q, "city", city_contains)
             q = _icerir(q, "district", district_contains)
             q = _icerir(q, "status", status_contains)
-            q = _icerir(q, "competitor", competitor_contains)
-            q = _icerir(q, "partner", partner_contains)
+            q = _cogul_icerir(q, "competitor", competitor_contains)
+            q = _cogul_icerir(q, "partner", partner_contains)
             q = _icerir(q, "assigned_to", assigned_to_contains)
             q = _icerir(q, "company_name", company_name_contains)
             if is_followup is not None: q = q.eq("is_followup", is_followup)
@@ -1027,6 +1151,42 @@ _cache_locks = {}
 _cache_locks_guard = threading.Lock()
 
 
+def _cogul_secim(q, tekil: str, deger):
+    """Rakip/partner seçimi: değerlerden HERHANGİ BİRİ müşterinin listesinde mi.
+
+    Tekil sütunda .in_() yapılıyordu; hem ABB hem Siemens kullanan müşteride
+    tekil alan yalnız ilk değeri tuttuğu için "Siemens" filtresi onu
+    kaçırırdı. Dizide PostgREST'in "overlaps" işleci kesişime bakıyor.
+
+    Sütun henüz açılmadıysa eski davranışa düşülüyor (bkz _cogul_destekleniyor).
+    """
+    secilenler = _coklu(deger)
+    if not secilenler:
+        return q
+    hepsi = []
+    for v in secilenler:
+        hepsi.extend(_tr_varyantlar(v))
+    hepsi = list(dict.fromkeys(hepsi))
+    if _cogul_destekleniyor():
+        return q.overlaps(_COGUL_ALANLAR[tekil], hepsi)
+    return q.in_(tekil, hepsi)
+
+
+def _cogul_icerir(q, tekil: str, metin: str):
+    """Serbest metin araması; dizide de çalışsın diye tekil+çoğul birlikte.
+
+    PostgREST dizi elemanında regex aramayı doğrudan desteklemiyor, bu
+    yüzden metin bir seçenekle tam eşleşiyorsa kesişime, eşleşmiyorsa
+    eski tekil arama davranışına düşülüyor.
+    """
+    metin = (metin or "").strip()
+    if not metin:
+        return q
+    if _cogul_destekleniyor():
+        return q.overlaps(_COGUL_ALANLAR[tekil], _tr_varyantlar(metin))
+    return q.filter(tekil, "imatch", _tr_regex(metin))
+
+
 def _cache_lock(ad: str) -> threading.Lock:
     with _cache_locks_guard:
         if ad not in _cache_locks:
@@ -1101,7 +1261,10 @@ async def get_customer_filter_options():
     
     # district eklendi: süzgeçlerde ilçe de seçilebiliyor.
     fields = ["market", "application", "city", "district", "competitor", "partner", "assigned_to"]
-    select_str = ", ".join(fields)
+    # Rakip/partner dizileri de çekiliyor: bir müşteride ABB+Siemens varsa
+    # tekil sütun yalnız ABB'yi tutuyor, Siemens açılır listede çıkmazdı.
+    select_str = ", ".join(fields + (["competitors", "partners"]
+                                     if _cogul_destekleniyor() else []))
     
     # Single query with high limit
     all_data = []
@@ -1118,7 +1281,13 @@ async def get_customer_filter_options():
     
     result = {}
     for field in fields:
-        result[field] = sorted(set(row[field] for row in all_data if row.get(field)))
+        if field in _COGUL_ALANLAR:
+            degerler = set()
+            for row in all_data:
+                degerler.update(_cogul_oku(row, field))
+            result[field] = sorted(degerler)
+        else:
+            result[field] = sorted(set(row[field] for row in all_data if row.get(field)))
     
     _filter_options_cache["data"] = result
     _filter_options_cache["timestamp"] = now
@@ -1229,6 +1398,8 @@ async def update_customer(customer_id: str, customer: CustomerUpdate, request: R
     update_data = {k: v for k, v in customer.model_dump(exclude_unset=True).items() if v is not None}
     if update_data.get("contact_info"):
         update_data["contact_info"] = dict(update_data["contact_info"])
+    # Rakip/partner: dizi geldiyse tekili, tekil geldiyse diziyi türet
+    update_data = _cogul_yaz(update_data)
     
     # Normalize status to match Kanban columns
     if "status" in update_data and update_data["status"]:
@@ -1907,6 +2078,20 @@ async def dedupe_merge(payload: DedupeMergeRequest, request: Request,
 
     update_data = {}
     for field in mergeable_fields:
+        if field in _COGUL_ALANLAR:
+            # Çok değerli alanlarda "boşsa doldur" yanlış olurdu: kalan
+            # kayıtta ABB, silinende Siemens varsa ikisi de doğru bilgi.
+            # Bu yüzden birleşim alınıyor, sıra korunarak.
+            gorulen, birlesim = set(), []
+            for kaynak in [keep] + list(sources):
+                for v in _cogul_oku(kaynak, field):
+                    if normalize_text(v) not in gorulen:
+                        gorulen.add(normalize_text(v))
+                        birlesim.append(v)
+            if birlesim and birlesim != _cogul_oku(keep, field):
+                update_data[_COGUL_ALANLAR[field]] = birlesim
+                update_data[field] = birlesim[0]
+            continue
         if not _empty(keep.get(field)):
             continue
         for src in sources:
@@ -2210,8 +2395,8 @@ async def export_filtered_customers(
         q = _secim(q, "city", city)
         q = _secim(q, "district", district)
         q = _secim(q, "status", status)
-        q = _secim(q, "competitor", competitor)
-        q = _secim(q, "partner", partner)
+        q = _cogul_secim(q, "competitor", competitor)
+        q = _cogul_secim(q, "partner", partner)
         # Listedeki davranışın aynısı: kişi adında kısmi eşleşme.
         q = _icerir(q, "assigned_to", assigned_to)
         q = _icerir(q, "market", market_contains)
@@ -2219,8 +2404,8 @@ async def export_filtered_customers(
         q = _icerir(q, "city", city_contains)
         q = _icerir(q, "district", district_contains)
         q = _icerir(q, "status", status_contains)
-        q = _icerir(q, "competitor", competitor_contains)
-        q = _icerir(q, "partner", partner_contains)
+        q = _cogul_icerir(q, "competitor", competitor_contains)
+        q = _cogul_icerir(q, "partner", partner_contains)
         q = _icerir(q, "assigned_to", assigned_to_contains)
         q = _icerir(q, "company_name", company_name_contains)
         if is_followup is not None:
@@ -2272,10 +2457,13 @@ async def bulk_update_customers(payload: BulkUpdateRequest, request: Request,
         "market", "application", "city", "district", "status", "is_followup",
         "next_followup_date", "partner", "competitor", "assigned_to",
         "potential_level", "potential_value", "notes", "description", "tags",
+        "competitors", "partners",
     }
     safe_updates = {k: v for k, v in payload.updates.items() if k in allowed}
     if not safe_updates:
         raise HTTPException(status_code=400, detail="Güncellenebilir alan yok")
+    # Rakip/partner dizi ve tekil alanları tutarlı kalsın
+    safe_updates = _cogul_yaz(safe_updates)
     safe_updates["updated_at"] = datetime.now(timezone.utc).isoformat()
 
     updated = 0
@@ -2353,8 +2541,9 @@ def _musteri_excel(rows, dosya_oneki: str):
             c.get("city", ""),
             c.get("district", ""),
             c.get("status", ""),
-            c.get("partner", ""),
-            c.get("competitor", ""),
+            # Çok değerli alanlar tek hücreye virgülle: Excel'de dizi yok
+            ", ".join(_cogul_oku(c, "partner")),
+            ", ".join(_cogul_oku(c, "competitor")),
             c.get("assigned_to", ""),
             c.get("website", ""),
             contact.get("phone", "") if isinstance(contact, dict) else "",
@@ -2455,7 +2644,8 @@ async def bulk_import_customers(data: dict, request: Request):
                     "created_at": datetime.now(timezone.utc).isoformat(),
                     "updated_at": datetime.now(timezone.utc).isoformat()
                 }
-                batch_docs.append(doc)
+                # "ABB, Siemens" tek hücrede gelirse diziye ayrılıyor
+                batch_docs.append(_cogul_yaz(doc))
             except Exception as e:
                 logging.error(f"Error preparing customer: {e}")
                 fail_count += 1
@@ -2880,10 +3070,19 @@ async def get_field_values(field_name: str):
     page_size = 1000
     offset = 0
     while True:
-        response = supabase.table("customers").select(field_name).range(offset, offset + page_size - 1).execute()
+        # Çok değerli alanlarda dizi de çekiliyor: ikinci marka
+        # listede hiç görünmezse birleştirilemez de.
+        _sec = field_name
+        if field_name in _COGUL_ALANLAR and _cogul_destekleniyor():
+            _sec = f"{field_name},{_COGUL_ALANLAR[field_name]}"
+        response = supabase.table("customers").select(_sec).range(offset, offset + page_size - 1).execute()
         if not response.data:
             break
         for row in response.data:
+            if field_name in _COGUL_ALANLAR:
+                for val in _cogul_oku(row, field_name):
+                    counts[val] = counts.get(val, 0) + 1
+                continue
             val = (row.get(field_name) or "").strip()
             if val:
                 counts[val] = counts.get(val, 0) + 1
@@ -2920,11 +3119,35 @@ async def merge_field_values(data: dict, request: Request, session_token: Option
         raise HTTPException(status_code=400, detail="Birleştirilecek en az bir kaynak değer seçin")
 
     # Rewrite customer records
-    response = supabase.table("customers").update({
-        field: to_value,
-        "updated_at": datetime.now(timezone.utc).isoformat(),
-    }).in_(field, from_values).execute()
-    updated_count = len(response.data or [])
+    if field in _COGUL_ALANLAR and _cogul_destekleniyor():
+        # Dizide toplu güncelleme yok: "Schneider Electric" -> "Schneider"
+        # yapılırken aynı müşterideki ABB korunmalı. Bu yüzden etkilenen
+        # satırlar çekilip dizileri tek tek yeniden yazılıyor. Sayı küçük,
+        # çünkü yalnızca o değeri taşıyan kayıtlar geliyor.
+        cogul = _COGUL_ALANLAR[field]
+        etkilenen = supabase.table("customers").select(
+            f"id,{field},{cogul}").overlaps(cogul, from_values).execute().data or []
+        updated_count = 0
+        for satir in etkilenen:
+            mevcut = _cogul_oku(satir, field)
+            gorulen, yeni_liste = set(), []
+            for v in mevcut:
+                d = to_value if v in from_values else v
+                if d and d not in gorulen:
+                    gorulen.add(d)
+                    yeni_liste.append(d)
+            supabase.table("customers").update({
+                cogul: yeni_liste,
+                field: yeni_liste[0] if yeni_liste else "",
+                "updated_at": datetime.now(timezone.utc).isoformat(),
+            }).eq("id", satir["id"]).execute()
+            updated_count += 1
+    else:
+        response = supabase.table("customers").update({
+            field: to_value,
+            "updated_at": datetime.now(timezone.utc).isoformat(),
+        }).in_(field, from_values).execute()
+        updated_count = len(response.data or [])
 
     # Keep the dropdown options table consistent: remove merged values,
     # make sure the target value exists.
@@ -3323,8 +3546,7 @@ def _get_stats_uncached():
     for c in customers:
         if not c.get("is_followup"):
             continue
-        p = (c.get("partner") or "").strip()
-        if p:
+        for p in _cogul_oku(c, "partner"):
             followup_partner_dist[p] = followup_partner_dist.get(p, 0) + 1
     partner_followup_distribution = sorted(
         [{"_id": k, "count": v} for k, v in followup_partner_dist.items()],
@@ -3403,6 +3625,8 @@ def get_stats_distribution(
     # Select the grouping column + every filterable column (small, fixed set of
     # text columns — cheap to fetch even for the whole table).
     filter_cols = {"market", "application", "status", "competitor", "partner", "assigned_to"}
+    if _cogul_destekleniyor():
+        filter_cols |= {"competitors", "partners"}
     cols = ", ".join(sorted({"id", "is_followup", field} | filter_cols))
     rows = fetch_all_rows("customers", cols)
 
@@ -3416,15 +3640,24 @@ def get_stats_distribution(
         rows = [r for r in rows if (r.get("application") or "") == application]
     if status:
         rows = [r for r in rows if (r.get("status") or "") == status]
+    # Rakip/partner çok değerli: müşteri ABB+Siemens ise her iki filtreye de
+    # girmeli. Tekil alana bakmak ikinci değeri görmezden gelirdi.
     if competitor:
-        rows = [r for r in rows if (r.get("competitor") or "") == competitor]
+        rows = [r for r in rows if competitor in _cogul_oku(r, "competitor")]
     if partner:
-        rows = [r for r in rows if (r.get("partner") or "") == partner]
+        rows = [r for r in rows if partner in _cogul_oku(r, "partner")]
     if assigned_to:
         rows = [r for r in rows if (r.get("assigned_to") or "") == assigned_to]
 
     dist: Dict[str, int] = {}
     for r in rows:
+        if field in _COGUL_ALANLAR:
+            # Her değer ayrı sayılıyor: ABB+Siemens kullanan müşteri hem
+            # ABB'nin hem Siemens'in payına giriyor. Bu yüzden toplam,
+            # müşteri sayısından büyük olabilir — doğrusu da bu.
+            for v in _cogul_oku(r, field):
+                dist[v] = dist.get(v, 0) + 1
+            continue
         raw_val = r.get(field)
         if field == "status":
             v = normalize_status(raw_val or "") or (raw_val or "")
@@ -3473,7 +3706,8 @@ async def get_city_market_distribution(
     if not city:
         raise HTTPException(status_code=400, detail="city gerekli")
 
-    cols = "id, city, market, application, status, competitor, partner, assigned_to"
+    cols = _cogul_select(
+        "id, city, market, application, status, competitor, partner, assigned_to")
     rows = fetch_all_rows("customers", cols)
     rows = [r for r in rows if (r.get("city") or "") == city]
     if market:
@@ -3483,9 +3717,9 @@ async def get_city_market_distribution(
     if status:
         rows = [r for r in rows if (r.get("status") or "") == status]
     if competitor:
-        rows = [r for r in rows if (r.get("competitor") or "") == competitor]
+        rows = [r for r in rows if competitor in _cogul_oku(r, "competitor")]
     if partner:
-        rows = [r for r in rows if (r.get("partner") or "") == partner]
+        rows = [r for r in rows if partner in _cogul_oku(r, "partner")]
     if assigned_to:
         rows = [r for r in rows if (r.get("assigned_to") or "") == assigned_to]
 
@@ -3976,8 +4210,9 @@ async def get_team_member_profile(name: str, days: int = 90, activity_limit: int
 
         # --- Customers assigned to this person (paginated) ---
         select_cols = (
-            "id, company_name, status, market, city, is_followup, "
-            "next_followup_date, partner, competitor, created_at, updated_at, assigned_to"
+            _cogul_select("id, company_name, status, market, city, is_followup, "
+                          "next_followup_date, partner, competitor, created_at, "
+                          "updated_at, assigned_to")
         )
         customers = []
         page_size = 1000
@@ -5293,7 +5528,9 @@ def _get_kanban_customers_uncached(group_by: str):
     """/kanban/customers'ın asıl gövdesi. Kilit içinde çağrılıyor."""
     now = _time.time()
     # Only select fields needed for Kanban cards
-    kanban_fields = "id, company_name, market, application, city, status, potential_level, assigned_to, contact_info, products, competitor, partner"
+    kanban_fields = _cogul_select(
+        "id, company_name, market, application, city, status, potential_level, "
+        "assigned_to, contact_info, products, competitor, partner")
     
     all_customers = []
     page_size = 1000
@@ -6077,8 +6314,8 @@ async def export_customers_xlsx(request: Request, session_token: Optional[str] =
             contact.get("contact_person", ""),
             contact.get("email", ""),
             contact.get("phone", ""),
-            customer.get("competitor", ""),
-            customer.get("partner", ""),
+            ", ".join(_cogul_oku(customer, "competitor")),
+            ", ".join(_cogul_oku(customer, "partner")),
             customer.get("potential_level", ""),
             customer.get("assigned_to", ""),
             products,
@@ -6247,8 +6484,9 @@ def get_report_analytics(
 
     musteriler = fetch_all_rows(
         "customers",
-        "id, company_name, market, competitor, partner, city, status, "
-        "potential_level, potential_value, assigned_to, created_at",
+        _cogul_select("id, company_name, market, competitor, partner, city, "
+                      "status, potential_level, potential_value, assigned_to, "
+                      "created_at"),
     )
     aramalar = fetch_all_rows(
         "calls", "id, customer_id, call_date, created_at, caller_name, outcome")
@@ -6271,8 +6509,15 @@ def get_report_analytics(
     musteriler_f = musteriler
     for alan, deger in aktif_suzgecler.items():
         hedef = normalize_text(deger)
-        musteriler_f = [m for m in musteriler_f
-                        if normalize_text(m.get(alan) or "") == hedef]
+        if alan in _COGUL_ALANLAR:
+            # Çok değerli: ABB+Siemens kullanan müşteri "Siemens" süzgecine
+            # de giriyor. Tekil alana bakmak onu kaçırırdı.
+            musteriler_f = [m for m in musteriler_f
+                            if any(normalize_text(v) == hedef
+                                   for v in _cogul_oku(m, alan))]
+        else:
+            musteriler_f = [m for m in musteriler_f
+                            if normalize_text(m.get(alan) or "") == hedef]
 
     market_sec = (market or "").strip()
 
@@ -6299,8 +6544,12 @@ def get_report_analytics(
         gun_sayaci[g] += 1
 
     n_arama = len(aramalar_f)
-    rakip_sayaci = Counter((m.get("competitor") or "").strip()
-                           for m in musteriler_f if (m.get("competitor") or "").strip())
+    # Çok değerli: ABB+Siemens kullanan müşteri ikisinin de payına giriyor.
+    # Bu yüzden "rakipli" toplamı müşteri sayısından büyük olabilir ve
+    # yüzdeler kullanım payını gösteriyor, müşteri payını değil.
+    rakip_sayaci: Counter = Counter()
+    for m in musteriler_f:
+        rakip_sayaci.update(_cogul_oku(m, "competitor"))
     rakipli = sum(rakip_sayaci.values())
 
     # Yeni müşteriler de aynı aralıkta
@@ -6356,8 +6605,9 @@ def _market_rakip_kirilimi(musteriler: list, market_sec: str) -> list:
     sonuc = []
     for ad in adlar:
         alt = [m for m in musteriler if (m.get("market") or "").strip() == ad]
-        rak = Counter((m.get("competitor") or "").strip()
-                      for m in alt if (m.get("competitor") or "").strip())
+        rak: Counter = Counter()
+        for m in alt:
+            rak.update(_cogul_oku(m, "competitor"))
         toplam_rak = sum(rak.values())
         sonuc.append({
             "market": ad,
