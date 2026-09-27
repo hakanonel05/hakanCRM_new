@@ -7,7 +7,7 @@ name: Kontrol (CI)
 
 on:
   push:
-    branches: [main, master]
+    branches: [main, master, yedek-uyari-duzeltme]
   pull_request:
 
 jobs:

@@ -6206,33 +6206,47 @@ class BackupConfigUpdate(BaseModel):
     retention_days: Optional[int] = None
 
 
-@api_router.get("/backups/config")
-async def get_backup_config(request: Request, session_token: Optional[str] = Cookie(None)):
-    user = await get_current_user_from_request(request, session_token)
-    if not check_admin_permission(user):
-        raise HTTPException(status_code=403, detail="Bu işlem için admin yetkisi gerekli")
-    cfg = backup_service.load_config()
+def _yedek_ayari_zenginlestir(cfg: dict) -> dict:
+    """Ayar dosyasında TUTULMAYAN, her istekte hesaplanan alanlar.
+
+    GET ve PUT ikisi de bunu kullanıyor. Eskiden yalnızca GET
+    hesaplıyordu; ön yüz PUT yanıtını olduğu gibi duruma yazdığı için
+    "Ayarları Kaydet"ten sonra gun_once undefined oluyor ve
+    "Henüz hiç yedek alınmamış" uyarısı yedek varken bile beliriyordu.
+    """
     cfg["next_run"] = backup_service.next_run_time()
 
-    # "Kaç gündür yedek alınmadı" — e-postayla uyaramadığımız TEK durum bu.
-    # Yedekleme hiç çalışmazsa (zamanlayıcı durmuş, servis uykuda) ortada
-    # hata da yok, dolayısıyla uyarı e-postası da gitmiyor. Sayıyı arayüze
-    # taşıyoruz ki ekrana bakıldığında görünsün.
     # Drive ayarlı mı. Ayarlı DEĞİLSE kod Drive'a hiç dokunmuyor: hata da
     # olmuyor, ayar dosyasına bir şey yazılmıyor, ekranda uyarı çıkmıyor.
     # "Drive'a göndermedi" denildiğinde sebebini görecek yer kalmıyordu.
     cfg["gdrive_configured"] = gdrive_service.is_configured()
     cfg["gdrive_eksik"] = gdrive_service.eksik_ayarlar()
 
+    # "Kaç gündür yedek alınmadı" — e-postayla uyaramadığımız TEK durum.
+    # Yedekleme hiç çalışmazsa (zamanlayıcı durmuş, servis uykuda) ortada
+    # hata yok, dolayısıyla uyarı e-postası da gitmiyor.
     cfg["gun_once"] = None
     son = cfg.get("last_run")
     if son:
         try:
             t = datetime.fromisoformat(str(son).replace("Z", "+00:00"))
+            # Saat dilimsiz yazılmış eski kayıtlar UTC sayılıyor; yoksa
+            # çıkarma TypeError veriyor ve gun_once sessizce None kalıyordu.
+            if t.tzinfo is None:
+                t = t.replace(tzinfo=timezone.utc)
             cfg["gun_once"] = max(0, (datetime.now(timezone.utc) - t).days)
-        except Exception:
-            pass
+        except Exception as e:
+            logging.warning("last_run ayrıştırılamadı (%r): %s", son, e)
     return cfg
+
+
+@api_router.get("/backups/config")
+async def get_backup_config(request: Request, session_token: Optional[str] = Cookie(None)):
+    """Ayarları TÜRETİLMİŞ alanlarla birlikte döndürür (bkz _yedek_ayari_zenginlestir)."""
+    user = await get_current_user_from_request(request, session_token)
+    if not check_admin_permission(user):
+        raise HTTPException(status_code=403, detail="Bu işlem için admin yetkisi gerekli")
+    return _yedek_ayari_zenginlestir(backup_service.load_config())
 
 
 @api_router.put("/backups/config")
@@ -6254,9 +6268,12 @@ async def update_backup_config(payload: BackupConfigUpdate, request: Request, se
         raise HTTPException(status_code=400, detail="Retention must be >= 1")
     backup_service.save_config(updates)
     backup_service.apply_schedule(_run_scheduled_backup)
-    cfg = backup_service.load_config()
-    cfg["next_run"] = backup_service.next_run_time()
-    return cfg
+    # GET ile AYNI zenginleştirme. Önceden burada yalnızca next_run
+    # ekleniyordu; ön yüz yanıtı olduğu gibi duruma yazdığı için
+    # kaydetmeden sonra gun_once ve gdrive_* alanları kayboluyor,
+    # ekranda "Henüz hiç yedek alınmamış" ve "Drive ayarlı değil"
+    # uyarıları yanlışlıkla beliriyordu.
+    return _yedek_ayari_zenginlestir(backup_service.load_config())
 
 
 @api_router.get("/backups/gdrive/check")
