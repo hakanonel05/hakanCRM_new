@@ -1050,10 +1050,19 @@ def _build_trigger(config: Dict[str, Any]) -> CronTrigger:
     freq = (config.get("frequency") or "daily").lower()
     hour = int(config.get("hour", 2))
     minute = int(config.get("minute", 0))
+    # timezone="UTC" AÇIKÇA veriliyor.
+    #
+    # CronTrigger, saat dilimi verilmezse SUNUCUNUN YEREL saatini alıyor —
+    # zamanlayıcının UTC olarak kurulmuş olması bunu değiştirmiyor, çünkü
+    # hazır bir tetikleyici nesnesi geçirildiğinde APScheduler onun kendi
+    # dilimini kullanıyor. Render'da yerel saat zaten UTC olduğu için
+    # şimdiye kadar doğru çalıştı, ama bu tesadüf: ortamda bir TZ değişkeni
+    # tanımlansa yedekleme saati sessizce kayardı. Arayüz de "saatler UTC"
+    # diyor; kod artık bunu garanti ediyor.
     if freq == "weekly":
         dow = (config.get("day_of_week") or "mon").lower()
-        return CronTrigger(day_of_week=dow, hour=hour, minute=minute)
-    return CronTrigger(hour=hour, minute=minute)
+        return CronTrigger(day_of_week=dow, hour=hour, minute=minute, timezone="UTC")
+    return CronTrigger(hour=hour, minute=minute, timezone="UTC")
 
 
 def start_scheduler(run_backup_callable) -> None:
