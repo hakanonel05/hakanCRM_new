@@ -16,7 +16,7 @@ Config schema (backup_config.json):
   "day_of_week": "mon", # only used for weekly
   "email_enabled": false,
   "email_recipients": ["admin@example.com"],
-  "retention_days": 30,
+  "retention_days": 90,
   "last_run": "ISO timestamp" | null,
   "last_status": "success" | "error" | null,
   "last_error": "..." | null,
@@ -156,7 +156,10 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     "day_of_week": "mon",
     "email_enabled": False,
     "email_recipients": [],
-    "retention_days": 30,
+    # 90 gün: bozuk bir içe aktarmanın ya da yanlış toplu düzenlemenin fark
+    # edilmesi haftalar sürebiliyor; 30 günde o tarihe ait yedek çoktan
+    # silinmiş oluyordu. Günlük ~5 MB x 90 ~ 450 MB, Drive'ın 15 GB'ında sorun değil.
+    "retention_days": 90,
     "last_run": None,
     "last_status": None,
     "last_error": None,
@@ -896,7 +899,7 @@ def run_backup_sync(supabase, resend_module=None, sender_email: str = "") -> Dic
                 if xlsx_bytes:
                     gdrive_service.upload(xlsx_filename, xlsx_bytes, XLSX_MIME,
                                           klasor_id=r.get("folder_id"))
-                gdrive_service.prune(int(config.get("retention_days", 30)),
+                gdrive_service.prune(int(config.get("retention_days", 90)),
                                      klasor_id=r.get("folder_id"))
                 gdrive_status = "success"
             except Exception as ge:
@@ -929,7 +932,7 @@ def run_backup_sync(supabase, resend_module=None, sender_email: str = "") -> Dic
                 logger.warning("Backup file saved but email failed: %s", ee)
 
         # Prune
-        pruned = _prune_old_backups(int(config.get("retention_days", 30)))
+        pruned = _prune_old_backups(int(config.get("retention_days", 90)))
 
         save_config({
             "last_run": started.isoformat(),
