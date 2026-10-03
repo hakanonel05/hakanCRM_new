@@ -318,3 +318,17 @@ main { contain: layout style; }
     letter-spacing: -0.02em;
     color: hsl(var(--foreground));
 }
+
+/* iOS çentik/durum çubuğu güvenli alanı. Başlık (h-14) box-content olduğu için
+   bu dolgu yüksekliğe eklenir; içerik durum çubuğunun altında kalır ve dokunulabilir. */
+@layer utilities {
+  .safe-area-top {
+    padding-top: env(safe-area-inset-top);
+  }
+  .safe-area-bottom {
+    padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+  }
+  .pt-topbar {
+    padding-top: calc(3.5rem + env(safe-area-inset-top));
+  }
+}

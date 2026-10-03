@@ -289,7 +289,7 @@ export default function Layout() {
 
         {/* Mobile Topbar */}
         <header
-          className="fixed top-0 left-0 right-0 h-14 z-40 flex items-center justify-between px-4 safe-area-top"
+          className="fixed top-0 left-0 right-0 h-14 box-content z-40 flex items-center justify-between px-4 safe-area-top"
           style={{
             background: "rgba(246,250,253,0.75)",
             backdropFilter: "blur(20px)",
@@ -320,7 +320,7 @@ export default function Layout() {
             onClick={() => setMobileMenuOpen(false)}
           >
             <aside
-              className="w-72 h-full flex flex-col animate-slide-in-right"
+              className="w-72 h-full flex flex-col animate-slide-in-right safe-area-top"
               style={{
                 background: "hsl(var(--background))",
                 backdropFilter: "blur(24px)",
@@ -383,7 +383,7 @@ export default function Layout() {
           </div>
         )}
 
-        <main className="pt-14 relative z-10">
+        <main className="pt-topbar relative z-10">
           <Outlet />
         </main>
 
