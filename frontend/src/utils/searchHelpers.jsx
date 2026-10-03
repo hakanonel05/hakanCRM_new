@@ -10,6 +10,22 @@ export const normalize = (s) => {
     .toLowerCase();
 };
 
+/* Pano kartları için ad araması. needle normalize() edilmiş olmalı;
+ * boş needle her şeyi geçirir. */
+export const adEslesiyor = (ad, needle) => !needle || normalize(ad).includes(needle);
+
+/* Arama açıkken sürükle-bırak yalnız görünen kartları biliyor: bırakılan
+ * sıra filtrelenmiş listedeki sıra. Bunu tam listedeki sıraya çevirir —
+ * kart, görünen komşusunun hemen önüne (ya da son görünenin arkasına)
+ * girer, gizli kartların sırası bozulmaz.
+ * tumu: hedef sütunun tam listesi (taşınan kart çıkarılmış).
+ * gorunen: aynı listenin filtrelenmiş hali (aynı nesneler). */
+export const gorunurSiradanGercekSiraya = (tumu, gorunen, sira) => {
+  if (sira < gorunen.length) return tumu.indexOf(gorunen[sira]);
+  if (gorunen.length === 0) return tumu.length;
+  return tumu.indexOf(gorunen[gorunen.length - 1]) + 1;
+};
+
 /* Kayıtlı filtre koşullarını tek bir müşteriye uygular.
  *
  * Aynı switch bloğu Müşteriler ve Filtreler sayfalarında ayrı ayrı duruyordu;

@@ -29,6 +29,7 @@ import {
   DialogFooter,
 } from "../components/ui/dialog";
 import { toast } from "sonner";
+import { adEslesiyor, gorunurSiradanGercekSiraya } from "../utils/searchHelpers";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -48,7 +49,9 @@ const stageColors = (i) => STAGE_PALETTE[i % STAGE_PALETTE.length];
 /* initialBoardId: Müşteriler sayfasındaki "nerelerde var" rozeti
  * ?mode=process&board=<id> ile buraya geliyor; o pano açılmalı. Yoksa
  * eskisi gibi ilk pano seçiliyor. */
-const ProcessBoard = ({ initialBoardId = null }) => {
+/* needle: Kanban başlığındaki müşteri araması, normalize() edilmiş halde.
+ * Boşsa tüm kartlar görünür. */
+const ProcessBoard = ({ initialBoardId = null, needle = "" }) => {
   const { openCustomerModal } = useCustomerModal();
 
   const [boards, setBoards] = useState([]);
@@ -301,16 +304,24 @@ const ProcessBoard = ({ initialBoardId = null }) => {
     const src = next.find((s) => s.id === srcStageId);
     const dst = next.find((s) => s.id === dstStageId);
     if (!src || !dst) return;
-    [moved] = src.cards.splice(source.index, 1);
-    if (!moved) return;
-    dst.cards.splice(destination.index, 0, moved);
+    // Arama açıkken source/destination.index görünen kartlar arasındaki
+    // sıra; kart id'sinden ve görünen komşudan tam listedeki yere gidiliyor.
+    const srcIndex = src.cards.findIndex((c) => c.id === draggableId);
+    if (srcIndex < 0) return;
+    [moved] = src.cards.splice(srcIndex, 1);
+    const dstIndex = gorunurSiradanGercekSiraya(
+      dst.cards,
+      dst.cards.filter((c) => adEslesiyor(c.customer?.company_name, needle)),
+      destination.index
+    );
+    dst.cards.splice(dstIndex, 0, moved);
     setStages(next);
 
     try {
       // draggableId "card-..." değil, kart id'sinin kendisi (Draggable id'si card.id)
       await axios.patch(`${API}/process/cards/${draggableId}/move`, {
         stage_id: dstStageId,
-        position: destination.index,
+        position: dstIndex,
       });
     } catch {
       toast.error("Taşıma başarısız");
@@ -320,6 +331,12 @@ const ProcessBoard = ({ initialBoardId = null }) => {
 
   const activeBoard = boards.find((b) => b.id === activeBoardId);
   const totalCards = stages.reduce((sum, s) => sum + (s.cards?.length || 0), 0);
+  const matchedCards = needle
+    ? stages.reduce(
+        (sum, s) => sum + (s.cards || []).filter((c) => adEslesiyor(c.customer?.company_name, needle)).length,
+        0
+      )
+    : totalCards;
 
   if (loading) {
     return (
@@ -422,7 +439,8 @@ const ProcessBoard = ({ initialBoardId = null }) => {
       {activeBoard && (
         <div className="px-4 flex items-center justify-between flex-wrap gap-2 mb-2">
           <p className="text-sm text-muted-foreground">
-            {stages.length} stage · {totalCards} müşteri
+            {stages.length} stage ·{" "}
+            {needle ? `${matchedCards} / ${totalCards} müşteri eşleşti` : `${totalCards} müşteri`}
           </p>
           {showNewStage ? (
             <div className="flex items-center gap-1">
@@ -466,7 +484,10 @@ const ProcessBoard = ({ initialBoardId = null }) => {
                 >
                   {stages.map((stage, idx) => {
                     const colors = stageColors(idx);
-                    const cards = stage.cards || [];
+                    const allCards = stage.cards || [];
+                    const cards = needle
+                      ? allCards.filter((c) => adEslesiyor(c.customer?.company_name, needle))
+                      : allCards;
                     return (
                       <Draggable key={stage.id} draggableId={`stage-${stage.id}`} index={idx}>
                         {(stageProv, stageSnap) => (
@@ -622,7 +643,9 @@ const ProcessBoard = ({ initialBoardId = null }) => {
                           {cards.length === 0 && (
                             <div className="text-center py-4 text-muted-foreground">
                               <Building2 className="w-7 h-7 mx-auto mb-1 opacity-40" />
-                              <p className="text-xs">Boş stage</p>
+                              <p className="text-xs">
+                                {needle && allCards.length > 0 ? "Eşleşen müşteri yok" : "Boş stage"}
+                              </p>
                             </div>
                           )}
                                 </div>

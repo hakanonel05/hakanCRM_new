@@ -17,7 +17,8 @@ import {
   Trash2,
   X,
   Save,
-  ChevronDown
+  ChevronDown,
+  Search
 } from "lucide-react";
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
@@ -46,6 +47,7 @@ import {
 import { toast } from "sonner";
 import CustomerDetailCard from "../components/CustomerDetailCard";
 import ProcessBoard from "./ProcessBoard";
+import { normalize, adEslesiyor, gorunurSiradanGercekSiraya } from "../utils/searchHelpers";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -102,6 +104,9 @@ const Kanban = () => {
   const [loading, setLoading] = useState(true);
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [detailCardOpen, setDetailCardOpen] = useState(false);
+  // Müşteri adı araması — iki pano modu da aynı kutuyu kullanıyor.
+  const [query, setQuery] = useState("");
+  const needle = normalize(query.trim());
   
   // Kanban views state
   const [savedViews, setSavedViews] = useState([]);
@@ -279,12 +284,19 @@ const Kanban = () => {
     // Remove from source
     newColumns[sourceColumn] = newColumns[sourceColumn].filter(c => c.id !== draggableId);
     
-    // Add to destination
+    // Add to destination. Arama açıkken destination.index görünen
+    // kartlar arasındaki sıra; tam listedeki karşılığına çevriliyor.
     const updatedCustomer = { ...draggedCustomer, [currentGroupBy]: destColumn };
+    const hedef = newColumns[destColumn];
+    const sira = gorunurSiradanGercekSiraya(
+      hedef,
+      hedef.filter(c => adEslesiyor(c.company_name, needle)),
+      destination.index
+    );
     newColumns[destColumn] = [
-      ...newColumns[destColumn].slice(0, destination.index),
+      ...hedef.slice(0, sira),
       updatedCustomer,
-      ...newColumns[destColumn].slice(destination.index)
+      ...hedef.slice(sira)
     ];
 
     setColumns(newColumns);
@@ -349,6 +361,10 @@ const Kanban = () => {
   }
 
   const totalCustomers = Object.values(columns).reduce((sum, col) => sum + col.length, 0);
+  const matchedCustomers = needle
+    ? Object.values(columns).reduce(
+        (sum, col) => sum + col.filter(c => adEslesiyor(c.company_name, needle)).length, 0)
+    : totalCustomers;
   const columnOrder = Object.keys(columns);
 
   return (
@@ -364,12 +380,14 @@ const Kanban = () => {
           <h1 className="page-title">Kanban Panosu</h1>
           <p className="page-subtitle">
             {boardMode === "status"
-              ? `${totalCustomers} müşteri · ${currentGroupLabel}'a göre gruplandı`
+              ? needle
+                ? `${matchedCustomers} / ${totalCustomers} müşteri eşleşti · ${currentGroupLabel}'a göre gruplandı`
+                : `${totalCustomers} müşteri · ${currentGroupLabel}'a göre gruplandı`
               : "Manuel süreç panoları"}
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {/* Durum / Süreç sekme geçişi */}
           <div className="flex items-center rounded-lg bg-muted p-0.5">
             <button
@@ -432,6 +450,34 @@ const Kanban = () => {
         </div>
       </div>
 
+      {/* Müşteri adı araması: yazdıkça eşleşmeyen kartlar panodan çekilir */}
+      <div className="px-4 pt-3 pb-3">
+        <div className="relative w-full sm:max-w-sm">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+          <Input
+            type="text"
+            enterKeyHint="search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={(e) => e.key === "Escape" && setQuery("")}
+            placeholder="Müşteri adı ara…"
+            className="pl-9 pr-9"
+            aria-label="Panoda müşteri ara"
+            data-testid="kanban-search"
+          />
+          {query && (
+            <button
+              onClick={() => setQuery("")}
+              className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded text-muted-foreground hover:text-foreground"
+              aria-label="Aramayı temizle"
+              data-testid="kanban-search-clear"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          )}
+        </div>
+      </div>
+
       {/* Saved Views Tabs */}
       {boardMode === "status" && savedViews.length > 0 && (
         <div className="px-4 mb-4">
@@ -470,6 +516,7 @@ const Kanban = () => {
       {boardMode === "process" && (
         <ProcessBoard
           initialBoardId={new URLSearchParams(window.location.search).get("board")}
+          needle={needle}
         />
       )}
 
@@ -479,7 +526,10 @@ const Kanban = () => {
         <DragDropContext onDragEnd={handleDragEnd}>
           <div className="flex gap-3 h-full px-4" style={{ minWidth: 'max-content' }}>
             {columnOrder.map((columnId, colIndex) => {
-              const customers = columns[columnId] || [];
+              const allCustomers = columns[columnId] || [];
+              const customers = needle
+                ? allCustomers.filter(c => adEslesiyor(c.company_name, needle))
+                : allCustomers;
               const colors = getColumnColors(columnId, colIndex);
 
               return (
@@ -610,7 +660,9 @@ const Kanban = () => {
                         {customers.length === 0 && (
                           <div className="text-center py-8 text-muted-foreground">
                             <Building2 className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                            <p className="text-sm">Bu sütunda müşteri yok</p>
+                            <p className="text-sm">
+                              {needle && allCustomers.length > 0 ? "Eşleşen müşteri yok" : "Bu sütunda müşteri yok"}
+                            </p>
                           </div>
                         )}
                       </div>
